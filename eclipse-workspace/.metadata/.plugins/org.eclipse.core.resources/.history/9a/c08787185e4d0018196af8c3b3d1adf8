@@ -1,0 +1,12 @@
+package com.vacacionapp.app.controllers;
+
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
+
+@Controller
+public class EmpleadoController {
+	public String listar(Model model) {
+		model.addAttribute("titulo", "Listado de Empleados");
+		return "listar";
+	}
+}

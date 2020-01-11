@@ -1,0 +1,88 @@
+package com.vacacionapp.app.models.entity;
+
+import java.io.Serializable;
+import java.util.Date;
+
+import javax.persistence.Column;
+import javax.persistence.Entity;
+import javax.persistence.FetchType;
+import javax.persistence.GeneratedValue;
+import javax.persistence.GenerationType;
+import javax.persistence.Id;
+import javax.persistence.ManyToOne;
+import javax.persistence.Table;
+import javax.persistence.Temporal;
+import javax.persistence.TemporalType;
+
+import org.springframework.format.annotation.DateTimeFormat;
+
+@Entity
+@Table(name="templeadorole")
+public class EmpleadoRole implements Serializable  {
+
+	@Id
+	@GeneratedValue(strategy = GenerationType.AUTO)//GenerationType.
+	private int codigo;
+	
+	@Column(name="empleado_codigo", insertable=false, updatable=false)
+	private int  empleadoCodigo;
+	
+	@Column(name="rol_codigo")
+	private String rolCodigo;
+	
+	@Column(name="fecha_asignacion")
+	@Temporal(TemporalType.DATE)
+	@DateTimeFormat(pattern = "dd/MM/yyyy")
+	private Date fechaAsignacion;
+	
+	
+	@ManyToOne(fetch=FetchType.LAZY)
+	private Empleado empleado;
+
+
+	public Empleado getEmpleado() {
+		return empleado;
+	}
+
+	public void setEmpleado(Empleado empleado) {
+		this.empleado = empleado;
+	}
+
+	public int getCodigo() {
+		return codigo;
+	}
+
+	public void setCodigo(int codigo) {
+		this.codigo = codigo;
+	}
+
+	public int getEmpleadoCodigo() {
+		return empleadoCodigo;
+	}
+
+	public void setEmpleadoCodigo(int empleadoCodigo) {
+		this.empleadoCodigo = empleadoCodigo;
+	}
+
+	public String getRolCodigo() {
+		return rolCodigo;
+	}
+
+	public void setRolCodigo(String rolCodigo) {
+		this.rolCodigo = rolCodigo;
+	}
+
+	public Date getFechaAsignacion() {
+		return fechaAsignacion;
+	}
+
+	public void setFechaAsignacion(Date fechaAsignacion) {
+		this.fechaAsignacion = fechaAsignacion;
+	}
+
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 1L;
+
+}

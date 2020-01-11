@@ -1,0 +1,39 @@
+package com.vacacionapp.app.models.service;
+
+import java.util.List;
+
+import org.springframework.transaction.annotation.Transactional;
+
+import com.vacacionapp.app.models.entity.Departamento;
+
+public class DepartamentoServiceImpl implements IDepartamentoService {
+
+	@Override
+	@Transactional(readOnly=true)
+	public List<Departamento> findAll() {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	@Transactional(readOnly=true)
+	public Departamento findById(Integer deptoCod) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	@Transactional
+	public void save(Departamento departamento) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	@Transactional
+	public void deleteById(int deptoCod) {
+		// TODO Auto-generated method stub
+		
+	}
+
+}

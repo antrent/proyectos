@@ -1,0 +1,10 @@
+Manifest-Version: 1.0
+Implementation-Title: vacacionapp
+Implementation-Version: 0.0.1-SNAPSHOT
+Built-By: antonio.renteria
+Implementation-Vendor-Id: com.vacacionapp
+Build-Jdk: 1.8.0_111
+Implementation-URL: https://projects.spring.io/spring-boot/#/spring-bo
+ ot-starter-parent/vacacionapp
+Created-By: Maven Integration for Eclipse
+

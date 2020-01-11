@@ -1,0 +1,11 @@
+package com.vacacionapp.app.models.dao;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+
+import com.vacacionapp.app.models.entity.DetEmpleadoCargo;
+
+
+public interface IDetEmpleadoCargoDao extends JpaRepository<DetEmpleadoCargo, Integer> {
+	public DetEmpleadoCargo findByEmpCodigo(Integer EmpCarCod);
+
+}

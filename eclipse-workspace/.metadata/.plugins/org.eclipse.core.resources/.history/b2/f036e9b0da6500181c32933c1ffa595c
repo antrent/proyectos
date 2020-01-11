@@ -1,0 +1,26 @@
+package com.vacacionapp.app.models.entity;
+
+import java.io.Serializable;
+import java.util.Date;
+
+import javax.persistence.Entity;
+import javax.persistence.Table;
+
+@Entity
+@Table(name="templeadorole")
+public class EmpleadoRole implements Serializable  {
+
+	private int codigo;
+	
+	private int  empleado_codigo;
+	
+	private String rol_codigo;
+	
+	private Date fecha_asignacion;
+	
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 1L;
+
+}

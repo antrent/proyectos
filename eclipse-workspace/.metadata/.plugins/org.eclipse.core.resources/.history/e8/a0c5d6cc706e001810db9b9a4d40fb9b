@@ -1,0 +1,33 @@
+package com.vacacionapp.app.models.service;
+
+import java.util.List;
+
+import com.vacacionapp.app.models.entity.Role;
+
+public class RoleServiceImpl implements IRoleService {
+
+	@Override
+	public List<Role> findAll() {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	public Role findById(Integer rolCod) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	public void save(Role role) {
+		// TODO Auto-generated method stub
+
+	}
+
+	@Override
+	public void deleteById(int roleCod) {
+		// TODO Auto-generated method stub
+
+	}
+
+}

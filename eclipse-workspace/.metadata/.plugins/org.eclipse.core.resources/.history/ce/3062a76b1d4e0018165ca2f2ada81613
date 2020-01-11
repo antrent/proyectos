@@ -1,0 +1,12 @@
+NotEmpty.empleado.tipDocumento: El Tipo de Documento es requerido
+NotEmpty.empleado.numDocumento: El Numero de Documento es requerido
+NotEmpty.empleado.priNombre: 	El Primer Nombre es requerido
+NotEmpty.empleado.priApellido: 	El Primer Apellido es requerido
+NotNull.empleado.fechNacimiento: 	La fecha de Nacimiento no puede ser nula
+NotEmpty.empleado.genero: 		El Genero es requerido
+NotNull.empleado.fechIngreso: 	La Fecha de Ingreso no puede ser nula
+NotEmpty.empleado.email: 		El Email es requerido
+
+
+
+

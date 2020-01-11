@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+	xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head th:replace="layout/layout :: head"></head>
+<body>
+	<header th:replace="layout/layout :: header"> </header>
+
+	<div class="container py-2">
+		<div class="card bg-light">
+			<div class="card-header" th:text=${titulo}></div>
+			<div class="card-body">
+				<div th:object="${detempleadocargos}" th:remove="tag">
+					<!-- ul th:if="${#fields.hasErrors('*')}" class="alert alert-danger"
+						role="alert">
+						<li th:each="err : ${#fields.errors('*')}" th:text="${err}"></li>
+					</ul-->
+
+				</div>
+				<form th:action="@{/detempleadocargo/formempleadocargo}" th:object="${detempleadocargos}" method="post"
+					enctype="multipart/form-data">
+					<div class="form-row">
+						<input th:field="*{empCodigo}" type="hidden" 
+							class="form-control form-control-sm" readonly="readonly"></input>
+						<div class="form-group col-md-8">
+							<label class="col-form-label">Empleado</label> <input
+								th:value="${detempleadocargos.empleado.priNombre}+' '+${detempleadocargos.empleado.segNombre}+' '+${detempleadocargos.empleado.priApellido}+' '+${detempleadocargos.empleado.segApellido}"
+								class="form-control form-control-sm" disabled="disabled"></input>
+
+						</div>
+						<div class="form-group col-md-2">
+							<label class="col-form-label">Inicio contrato</label> <input
+								th:value="${detempleadocargos.empleado.fechIngreso}"
+								class="form-control form-control-sm" disabled="disabled"
+								date-format="dd/MM/yyyy"></input>
+						</div>
+					</div>
+					<div class="form-row">
+						<div class="form-group col-md-2">
+							<label for="rol" class="col-form-label">Cargo</label>
+								<select th:field="*{cargoCodigo}"
+									class="form-control form-control-sm">
+									<option value="" text="">Seleccione</option>									
+									<option th:each="cargo : ${cargos}" th:value="${cargo.codigo}"
+										th:text="${cargo.descripcion}"></option>
+								</select>
+						</div>
+
+						<div class="form-group col-md-2">
+							<label for="fechIngreso" class="col-form-label">Fecha
+								Ingreso</label> <input type="date"
+								class="form-control form-control-sm" id="fecIngreso" exclude="true" />
+							<input type="text" th:field="*{fechIngreso}"
+								class="form-control form-control-sm" id="fechIngreso"
+								hidden="true" th:errorclass="'form-control alert-danger'"
+								placeholder="DD/MM/YYYY" /> <small
+								class="form-text text-danger"
+								th:if="${#fields.hasErrors('fechIngreso')}"
+								th:errors="*{fechIngreso}"></small>
+						</div>
+						<div class="form-group col-md-2">
+							<label for="fecFin" class="col-form-label">Fecha
+								Fin</label> <input type="date"
+								class="form-control form-control-sm" id="fechFin" exclude="true" />
+							<input type="text" th:field="*{fechFin}"
+								class="form-control form-control-sm" id="fechFin"
+								hidden="true" th:errorclass="'form-control alert-danger'"
+								placeholder="DD/MM/YYYY" /> <small
+								class="form-text text-danger"
+								th:if="${#fields.hasErrors('fechFin')}"
+								th:errors="*{fechFin}"></small>
+						</div>		
+						<div class="form-group col-md-2">
+							<label for="fechRegistro" class="col-form-label">Fecha
+								Registro</label> <input type="date" class="form-control form-control-sm"
+								id="fecRegistro" exclude="true" /> <input type="text"
+								th:field="*{fechRegistro}" class="form-control form-control-sm"
+								id="fechRegistro" hidden="true"
+								th:errorclass="'form-control alert-danger'"
+								placeholder="DD/MM/YYYY" /> <small
+								class="form-text text-danger"
+								th:if="${#fields.hasErrors('fechRegistro')}"
+								th:errors="*{fechRegistro}"></small>
+						</div>
+						
+					</div>
+
+					<div class="form-group row">
+						<div class="col-sm-4">
+							<input type="submit" value="Asignar Cargo" class="btn btn-primary" />
+						</div>
+					</div>
+				</form>				
+												
+			</div>
+		</div>
+	</div>
+	<footer th:replace="layout/layout :: footer"> </footer>
+
+</body>
+</html>

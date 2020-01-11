@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="layout/layout :: head"></head>
+<body>
+	<header th:replace="layout/layout :: header"> </header>
+
+	<div class="container py-2">
+		<div class="card bg-light">
+			<div class="card-header" th:text=${titulo}></div>
+			<div class="card-body">
+
+				<form th:action="@{/solicitud/form}" th:object="${solicitud}" method="post">
+					
+					
+					
+				<table th:if="${not #lists.isEmpty(solicitud)}"
+					class="table table-bordered  table-striped table-sm my-4 text-center">
+
+					<thead class="thead-dark">
+						<tr>
+							<th>Empleado</th>
+							<th>Fecha </br> solicitud</th>
+							<th>Fecha salida</th>
+							<th>Fecha </br> reingreso</th>
+							<th>Dias </br> Solic.</th>
+							<th>Aprobar</th>							
+							<th>Rechazar</th>
+						</tr>
+					</thead>
+					<tbody>
+						<tr th:each="solicitud: ${solicitud}">
+							<td th:text="${solicitud.codigoEmpSolicita}"></td>
+							<td th:text="${solicitud.fechSolicitud}"></td>
+							<td th:text="${solicitud.fechSalida}"></td>
+							<td th:text="${solicitud.fechReingreso}"></td>
+							<td th:text="${solicitud.diasSolicitados}"></td>
+							<!-- td th:text="${solicitud.estSolCodigo}"--> 
+							<td>
+							<button type="submit" class="btn btn-success btn-sm" onclick="actualizaEstado();"> 
+								<i class="fa fa-check"></i> Aprobar
+							</button>
+							<input th:field="*{solicitud.estSolCodigo}" id="estSolCodigo" type="hidden" class="form-control form-control-sm" ></input>
+							</td>	
+							<td>	
+							<button type="submit" class="btn btn-danger btn-sm"> 
+								<i class="fa fa-times"></i> Rechazar
+							</button>
+							</td>							
+						</tr>
+					</tbody>
+				</table>
+					
+					<!-- div class="form-group row">
+						<div class="col-sm-4">
+						<button type="submit" class="btn btn-success btn-sm"> 
+								<i class="fa fa-save"></i> Guardar
+							</button>	
+						</div>
+					</div-->
+				</form>
+
+			</div>
+		</div>
+	</div>
+	<script>
+	function actualizaEstado() {
+		
+		console.log("antonio contdias "+document.getElementById('estSolCodigo').value);
+			estSolCodigo = document.getElementById('estSolCodigo').value = "A";
+		console.log("antonio contdias "+estSolCodigo);
+		
+	}
+	</script>
+	
+	<footer th:replace="layout/layout :: footer"> </footer>
+
+</body>
+</html>

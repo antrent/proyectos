@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+	xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head th:replace="layout/layout :: head"></head>
+<body>
+	<header th:replace="layout/layout :: header"> </header>
+<div class="row">
+	<div class="container-fluid col-md-2 menu-margen">
+		<div th:replace="layout/menu :: menu"> </div>
+	</div>
+	<div class="container-fluid col-md-10 cuerpo-margen">
+		<div class="card bg-light">
+			<div class="card-header" th:text=${titulo}></div>
+			<div class="card-body">
+				<!-- div th:object="${cargotarea}" th:remove="tag">
+					<!-- >ul th:if="${#fields.hasErrors('*')}" class="alert alert-danger"
+						role="alert">
+						<li th:each="err : ${#fields.errors('*')}" th:text="${err}"></li>
+					</ul-->
+
+				</div-->
+				<form th:action="@{/cargotarea/formcargotarea}" method="post">
+					<div class="form-row">
+						<div class="form-group col-md-3">
+							<label for="cargo" class="col-form-label">Cargo</label>
+								<input
+								th:value="${cargo.descripcion}"
+								class="form-control form-control-sm" disabled="disabled"></input>
+						</div>
+						<div class="form-group col-md-9">
+							<label for="tarea" class="col-form-label">Tarea</label>
+								<select 
+									class="form-control form-control-sm">
+									<option value="" >Seleccione</option>									
+									<option th:each="tarea : ${tareas}" th:value="${tarea.codigo}"
+										th:text="${tarea.descripcion}"></option>
+								</select>
+						</div>
+					</div>
+
+					<div class="form-group row">
+						<div class="col-sm-4">
+							<button type="submit" class="btn btn-primary btn-sm"> 
+								<i class="fa fa-save"></i> Agregar
+							</button>								
+							
+						</div>
+					</div>
+			<div class="card-body">
+				<table class="table table-sm table-bordered table-striped table-hover my-4">
+					<thead class="thead-dark text-center">
+						<tr>
+							<th>Codigo</th>
+							<th>Descripcion</th>
+							<th>Eliminar</th>
+						</tr>
+					</thead>
+					<tbody class="text-center col-sm-4">
+						<tr th:each="cargotarea: ${cargotareas} ">
+							<td th:text="${cargotarea.codigo}"></td>
+							<td th:text="${cargotarea.descripcion}"></td>
+							<!-- td th:if="${cargotarea.fechFin == null}">
+								<a	class="btn btn-primary btn-xs" 
+									th:href="@{/detempleadocargo/formempleadocargo}" th:text='Finalizar'></a></td-->									
+						</tr>
+					</tbody>
+				</table>
+			</div>
+					
+					
+				</form>				
+												
+			</div>
+		</div>
+	</div>
+	</div>	
+	<footer th:replace="layout/layout :: footer"> </footer>
+
+</body>
+</html>

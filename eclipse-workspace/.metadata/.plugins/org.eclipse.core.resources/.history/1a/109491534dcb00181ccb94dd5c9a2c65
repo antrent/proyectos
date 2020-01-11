@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+	  xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head th:replace="layout/layout :: head"></head>
+<body>
+	<header th:replace="layout/layout :: header"> </header>
+<div class="form-row">
+<div class="container-fluid col-md-2 menu-margen">
+		<div th:replace="layout/menu :: menu" > </div>
+</div>
+<div class="container-fluid col-md-10 cuerpo-margen">		
+		<!-- div class="card bg-light"-->
+		<div class="card bg-light">
+			<div class="card-header" th:text=${titulo}></div>
+			<div class="card-body">
+			<form th:action="@{/carguearchivo}" method="post" enctype="multipart/form-data">
+				<div class="form-row">
+					<div class="form-group col-sm-2">
+				      <label for="inputState">Tipo Dato</label>
+				      <select class="form-control form-control-sm" name="tipodato" id="tipodato" onchange="mostrar();">
+				        <option selected>Seleccione</option>
+						<option th:each="tipoarchivo : ${T(com.vacacionapp.app.util.lisval.TipoArchivoEnum).values()}" th:value="${tipoarchivo.name()}"
+									th:text="${tipoarchivo.getTipoArchivo()}"></option>
+				      </select>
+				    </div>
+					
+				  	<div class="form-group col-sm-4">
+				    	<label for="archivo">Archivo</label>
+				    	<input type="file" class="form-control form-control-sm" name="archivo">
+						<!-- div class="custom-file">
+							<input type="file" class="custom-file-input" id="inputGroupFile03" aria-describedby="inputGroupFileAddon03">
+					    	<label class="custom-file-label" for="inputGroupFile03">Seleccione Archivo</label>
+					  	</div-->
+				  	</div>
+				</div>
+				<div class="form-group row">
+					<div class="col-sm-4">
+						<button type="submit" class="btn btn-success btn-sm"> 
+							<i class="fa fa-cogs"></i> Cargar
+						</button>	
+					</div>
+				</div>
+				<div class="form-group row">
+					<div  >
+						<p align="center" >
+						
+							<img th:src="@{/images/formatoEmpleado.jpg}" alt="Formato de Cargue Empleado" th:align="bottom" id="imgem"/>
+							<img th:src="@{/images/formatoEmpleado.jpg}" alt="Formato de Cargue Solicitud" th:align="bottom" id="imgso"/>
+						</p>
+						<label>Nota: Todas las columas deben existir en el archivo con o sin informacion.</label>	
+					</div>
+				</div>				
+			</form>
+			</div>
+		</div>
+	</div>	
+	</div>
+	<script type="text/javascript">
+		function mostrar(){
+			
+			var tipodato = document.getElementById("tipodato").value;
+			
+			console.log("antonio tipodato "+tipodato);
+			$("#imgem").show();
+			$("#imgso").show();
+			if (tipodato == "EM"){
+				document.getElementById("imgem").style.visibility = "display";		
+				document.getElementById("imgso").style.visibility = "hidden";
+				
+			}else if (tipodato == "SO") {
+				document.getElementById("imgem").style.visibility = "hidden";		
+				document.getElementById("imgso").style.visibility = "display";
+			}else {
+				document.getElementById("imgem").style.visibility = "hidden";		
+				document.getElementById("imgso").style.visibility = "hidden";
+			}
+				
+		}
+		
+	</script>
+	<footer th:replace="layout/layout :: footer"> </footer>
+</body>
+</html>

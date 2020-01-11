@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="layout/layout :: head"></head>
+<body>
+	<header th:replace="layout/layout :: header"> </header>
+
+	<div class="container py-2">
+		<div class="card bg-light">
+			<div class="card-header" th:text=${titulo}></div>
+			<div class="card-body">
+				<h4 class="card-title">
+				<a class="btn btn-light btn-xs" th:href="@{'/ver/'+ ${solicitud.empleado.codigo}}" th:text="'&laquo; volver detalle'"></a>
+				</h4>
+				
+				<form th:action="@{/solicitud/form}" th:object="${solicitud}" method="post">
+					<div class="form-row">
+						<input th:value="${solicitud.codigoEmpSolicita}" type="hidden" class="form-control" disabled="disabled"></input>
+						<div class="form-group col-md-8">
+						    <label class="col-form-label">Empleado</label>
+						    <input th:value="${solicitud.empleado.priNombre}+' '+${solicitud.empleado.segNombre}+' '+${solicitud.empleado.priApellido}+' '+${solicitud.empleado.segApellido}" class="form-control" disabled="disabled"></input>
+						    					
+						</div>
+						<div class="form-group col-md-2">
+							<label class="col-form-label">Inicio contrato</label>
+							<input th:value="${solicitud.empleado.fechIngreso}" class="form-control" disabled="disabled"></input>					
+						</div>
+					</div>
+					<div class="form-row">
+						<div class="form-group col-md-2">
+							<label class="col-form-label">Dias vacaciones a hoy</label>
+							<input type="text" th:field="*{diasTotalGeneral}" class="form-control" disabled="disabled"></input>
+						</div>
+						<div class="form-group col-md-2">
+							<label class="col-form-label">Dias disfrutados a hoy</label>
+							<input type="text" th:field="*{diasDisfrutados}" class="form-control" disabled="disabled"></input>
+						</div>
+						<div class="form-group col-md-2">
+							<label class="col-form-label">Total dias por disfrutar</label>
+							<input type="text" th:field="*{diasPorDisfrutar}" class="form-control" disabled="disabled"></input>
+						</div>						
+						<!--div class="form-group col-md-3">
+							<label class="col-form-label">Tipo solicitud</label>
+							<input type="text" th:field="*{tipSolCodigo}" class="form-control"></input>
+						</div-->
+						<div class="form-group col-md-3">
+							<label class="col-form-label">Estado solicitud</label>
+							<input type="text" th:field="*{estSolCodigo}" class="form-control" disabled="disabled"></input>
+						</div>
+					</div>
+					<div class="form-row">
+						<div class="form-group col-md-2">
+							<label class="col-form-label" >Fecha salida</label>
+							<input type="text" th:field="*{fechSalida}" class="form-control" id="fechSalida" onchange="calcularDiasSolicitados();"  placeholder="DD/MM/YYYY" date-format="dd/MM/yyyy"></input>
+						</div>
+						<div class="form-group col-md-2">
+							<label class="col-form-label">Fecha reingreso</label>
+							<input type="text" th:field="*{fechReingreso}" class="form-control" id="fechReingreso" onchange="calcularDiasSolicitados();" placeholder="DD/MM/YYYY" date-format="dd/MM/yyyy"></input>
+						</div>
+						<div class="form-group col-md-2">
+							<label class="col-form-label">Dias solicitados</label>
+							<input type="text" th:field="*{diasSolicitados}" class="form-control" id="diasSolicitados" readonly="readonly"></input>
+						</div>
+						<div class="form-group col-md-2">
+							<label class="col-form-label">Periodo inicio</label>
+							<input type="text" th:field="*{fechIni}" class="form-control" onchange="calcularDiasTotalPeriodo();" placeholder="DD/MM/YYYY" date-format="dd/MM/yyyy"></input>
+						</div>
+						<div class="form-group col-md-2">
+							<label class="col-form-label">Periodo fin</label>
+							<input type="text" th:field="*{fechFin}" class="form-control" onchange="calcularDiasTotalPeriodo();" placeholder="DD/MM/YYYY" date-format="dd/MM/yyyy"></input>
+						</div>
+						<div class="form-group col-md-2">
+							<label class="col-form-label">Dias Periodo</label>
+							<input type="text" th:field="*{diasTotalPeriodo}" class="form-control" id="diasTotalPeriodo" readonly="readonly"></input>
+						</div>						
+					</div>
+					
+					<div class="form-group row">
+						<label class="col-sm-2 col-form-label">Observacion</label>
+						<div class="col-sm-4">
+							<textarea th:field="*{observacion}" class="form-control" ></textarea>
+						</div>
+					</div>		
+					<div class="form-group row">
+						<div class="col-sm-4">
+							<input type="submit" th:value="${titulo}" class="btn btn-secondary"></input>
+						</div>
+					</div>						
+				</form>
+								
+			</div>
+		</div>
+	</div>
+	<script>
+	function calcularDiasTotalPeriodo() {
+
+		//console.log("antonio contdias "+contdias);
+		var fechIni = document.getElementById('fechIni').value;
+		if (fechIni.length > 0 ){
+			fechIni=fechIni.split('/');
+			fechIni = fechIni[1]+'/'+fechIni[0]+'/'+fechIni[2]; 
+		}
+		fechIni = new Date(fechIni).getTime(); 
+		
+		var fechFin = document.getElementById('fechFin').value;
+		if (fechFin.length > 0 ){
+			fechFin = fechFin.split('/');
+			fechFin = fechFin[1]+'/'+fechFin[0]+'/'+fechFin[2]; 
+		}
+		fechFin = new Date(fechFin).getTime(); 
+
+			var diasdif= fechIni - fechFin;
+			var contdias = Math.round(diasdif/(1000*60*60*24));
+			if (Math.abs(((isNaN(contdias)) ? 0 : contdias)) = 365){
+				
+				contdias = 15;
+			}
+			
+			document.getElementById('diasTotalPeriodo').value = contdias; //Math.abs(((isNaN(contdias)) ? 0 : contdias));
+
+	}
+	
+	function calcularDiasSolicitados() {
+
+		//console.log("antonio contdias "+contdias);
+		var fechSalida = document.getElementById('fechSalida').value;
+		if (fechSalida.length > 0 ){
+			fechSalida=fechSalida.split('/');
+			fechSalida = fechSalida[1]+'/'+fechSalida[0]+'/'+fechSalida[2]; 
+		}
+			fechSalida = new Date(fechSalida).getTime(); 
+		
+		var fechReingreso = document.getElementById('fechReingreso').value;
+		if (fechReingreso.length > 0 ){
+			fechReingreso = fechReingreso.split('/');
+			fechReingreso = fechReingreso[1]+'/'+fechReingreso[0]+'/'+fechReingreso[2]; 
+		}
+			fechReingreso = new Date(fechReingreso).getTime(); 
+
+			var diasdif= fechReingreso - fechSalida;
+			var contdias = Math.round(diasdif/(1000*60*60*24));
+			document.getElementById('diasSolicitados').value = ((isNaN(contdias)) ? 0 : contdias);
+
+	}
+	</script>
+	<footer th:replace="layout/layout :: footer"> </footer>
+
+</body>
+</html>

@@ -1,0 +1,163 @@
+package com.vacacionapp.app.models.entity;
+
+import java.io.Serializable;
+import java.util.Date;
+
+import javax.persistence.Column;
+import javax.persistence.Entity;
+import javax.persistence.GeneratedValue;
+import javax.persistence.GenerationType;
+import javax.persistence.Id;
+import javax.persistence.PrePersist;
+import javax.persistence.Table;
+import javax.persistence.Temporal;
+import javax.persistence.TemporalType;
+
+@Entity
+@Table(name="TEmpleado")
+public class Empleado implements Serializable{
+
+	private static final long serialVersionUID = 1L;
+
+	
+	@Id
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	private int codigo;
+	
+	@Column(name = "tip_documento")
+    private String 	tipDocumento;
+    
+	@Column(name = "num_documento")
+    private String 	numDocumento;
+	
+	@Column(name = "pri_nombre")
+    private String 	priNombre;
+	
+	@Column(name = "seg_nombre")
+    private String 	segNombre;  
+	
+	@Column(name = "pri_apellido")
+    private String 	priApellido;
+	
+	@Column(name = "seg_apellido")
+    private String 	segApellido;
+	
+	@Column(name = "fech_nacimiento")
+	@Temporal(TemporalType.DATE)
+    private Date 	fechNacimiento;
+    
+    private String 	genero;
+    private String 	iniciales;
+
+    @Column(name = "fech_ingreso")
+    @Temporal(TemporalType.DATE)
+    private Date	fechIngreso;
+    
+    private String 	email;
+
+    @PrePersist
+    public void prePersist() {
+    	fechIngreso = new Date();
+    	fechNacimiento = new Date();
+    	
+    }
+    
+    public int getCodigo() {
+		return codigo;
+	}
+
+	public void setCodigo(int codigo) {
+		this.codigo = codigo;
+	}
+
+	public String getTipDocumento() {
+		return tipDocumento;
+	}
+
+	public void setTipDocumento(String tipDocumento) {
+		this.tipDocumento = tipDocumento;
+	}
+
+	public String getNumDocumento() {
+		return numDocumento;
+	}
+
+	public void setNumDocumento(String numDocumento) {
+		this.numDocumento = numDocumento;
+	}
+
+	public String getPriNombre() {
+		return priNombre;
+	}
+
+	public void setPriNombre(String priNombre) {
+		this.priNombre = priNombre;
+	}
+
+	public String getSegNombre() {
+		return segNombre;
+	}
+
+	public void setSegNombre(String segNombre) {
+		this.segNombre = segNombre;
+	}
+
+	public String getPriApellido() {
+		return priApellido;
+	}
+
+	public void setPriApellido(String priApellido) {
+		this.priApellido = priApellido;
+	}
+
+	public String getSegApellido() {
+		return segApellido;
+	}
+
+	public void setSegApellido(String segApellido) {
+		this.segApellido = segApellido;
+	}
+
+	public Date getFechNacimiento() {
+		return fechNacimiento;
+	}
+
+	public void setFechNacimiento(Date fechNacimiento) {
+		this.fechNacimiento = fechNacimiento;
+	}
+
+	public String getGenero() {
+		return genero;
+	}
+
+	public void setGenero(String genero) {
+		this.genero = genero;
+	}
+
+	public String getIniciales() {
+		return iniciales;
+	}
+
+	public void setIniciales(String iniciales) {
+		this.iniciales = iniciales;
+	}
+
+	public Date getFechIngreso() {
+		return fechIngreso;
+	}
+
+	public void setFechIngreso(Date fechIngreso) {
+		this.fechIngreso = fechIngreso;
+	}
+
+	public String getEmail() {
+		return email;
+	}
+
+	public void setEmail(String email) {
+		this.email = email;
+	}
+	
+    
+	    
+}

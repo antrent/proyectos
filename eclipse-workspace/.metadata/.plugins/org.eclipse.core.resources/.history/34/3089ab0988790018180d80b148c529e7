@@ -1,0 +1,38 @@
+package com.vacacionapp.app.models.service;
+
+import java.util.List;
+
+import org.springframework.transaction.annotation.Transactional;
+
+import com.vacacionapp.app.models.entity.Festivo;
+
+public class FestivoServiceImpl implements IFestivoService {
+
+	@Override
+	@Transactional(readOnly=true)
+	public List<Festivo> findAll() {
+		return null;
+	}
+
+	@Override
+	@Transactional(readOnly=true)
+	public Festivo findById(Integer fesCod) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	@Transactional	
+	public void save(Festivo festivo) {
+		// TODO Auto-generated method stub
+
+	}
+
+	@Override
+	@Transactional	
+	public void deleteById(int fesCod) {
+		// TODO Auto-generated method stub
+
+	}
+
+}

@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+	  xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head th:replace="layout/layout :: head"></head>
+<body>
+	<header th:replace="layout/layout :: header"> </header>
+<div class="row">
+	<div class="container-fluid col-md-2 menu-margen">
+		<div th:replace="layout/menu :: menu"> </div>
+	</div>
+	<div class="container-fluid col-md-10 cuerpo-margen">
+		<div class="card bg-light">
+			<div class="card-header" th:text=${titulo}></div>
+			<div class="card-body">
+
+				<div th:object="${tarea}" th:remove="tag">
+					<ul th:if="${#fields.hasErrors('*')}" class="alert alert-danger" role="alert">
+						<li th:each="err : ${#fields.errors('*')}" th:text="${err}"></li>
+					</ul>
+				</div>
+				
+				<form th:action="@{/tarea/formtarea}" th:object="${tarea}" method="post" enctype="multipart/form-data">
+					<div class="form-group">
+						<label class="form-group col-md-3" >Descripcion tarea</label>
+						<div class="form-group col-md-8">
+						        <textarea th:field="*{descripcion}" class="form-control form-control-sm" th:errorclass="'form-control alert-danger'"></textarea>
+								<small class="form-text text-danger"
+								th:if="${#fields.hasErrors('descripcion')}"
+								th:errors="*{descripcion}"></small>
+						</div>
+						<div class="form-group">
+							<div class="col-sm-4">
+								<button type="submit" value="Crear tarea" class="btn btn-primary btn-sm"> 
+									<i class="fa fa-save"></i> Guardar
+								</button>
+							</div>
+						</div>
+					</div>
+					
+				<div class="dropdown-divider"></div>
+				<table class="table table-sm table-bordered table-striped table-hover my-4">
+					<thead class="thead-dark text-center">
+						<tr>
+							<th>Descripcion</th>
+							<th>Editar</th>
+							<th>Eliminar</th>
+						</tr>
+					</thead>
+					<tbody class="text-center col-sm-4">
+						<tr th:each="tarea: ${tareas} ">
+							<td th:text="${tarea.descripcion}"></td>
+							<td><a class="btn btn-primary btn-sm"
+								   th:href="@{/tarea/formtarea/} + ${tarea.codigo}"><i class="fa fa-edit"></i></a></td>
+							<td><a class="btn btn-danger btn-sm "
+									th:href="@{/tarea/eliminar/} + ${tarea.codigo}"
+									onclick="return confirm('Estas Seguro de eliminar el registro?');"><i class="fa fa-trash-o"></i></a></td> 
+						</tr>
+					</tbody>
+				</table>
+				<nav sec:authorize="hasRole('ROLE_ADMIN')" th:replace="paginator-nav :: paginator"></nav>
+				</form>
+			</div>
+		</div>
+
+	</div>
+	</div>	
+	
+	<footer th:replace="layout/layout :: footer"> </footer>
+
+</body>
+</html>

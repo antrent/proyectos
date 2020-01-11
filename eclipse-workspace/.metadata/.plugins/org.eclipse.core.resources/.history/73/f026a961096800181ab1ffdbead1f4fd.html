@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="layout/layout :: head"></head>
+<body>
+	<header th:replace="layout/layout :: header"> </header>
+
+	<div class="container py-2">
+		<div class="card bg-light">
+			<div class="card-header" th:text=${titulo}></div>
+			<div class="card-body">
+
+				<div th:object="${empleado}" th:remove="tag">
+					<ul th:if="${#fields.hasErrors('*')}" class="alert alert-danger"
+						role="alert">
+						<li th:each="err : ${#fields.errors('*')}" th:text="${err}"></li>
+					</ul>
+
+				</div>
+
+				<form th:action="@{/form}" th:object="${empleado}" method="post" enctype="multipart/form-data">
+					<div class="form-group row">
+						<label for="tipDocumento" class="col-sm-2 col-form-label">Tipo
+							Documento</label>
+						<div class="col-sm-4">
+							<input type="text" th:field="*{tipDocumento}"
+								class="form-control" th:errorclass="'form-control alert-danger'" />
+							<small class="form-text text-danger"
+								th:if="${#fields.hasErrors('tipDocumento')}"
+								th:errors="*{tipDocumento}"></small>
+						</div>
+					</div>
+					<div class="form-group row">
+						<label for="numDocumento" class="col-sm-2 col-form-label">Numero
+							Documento</label>
+						<div class="col-sm-4">
+							<input type="text" th:field="*{numDocumento}"
+								class="form-control" th:errorclass="'form-control alert-danger'" />
+							<small class="form-text text-danger"
+								th:if="${#fields.hasErrors('numDocumento')}"
+								th:errors="*{numDocumento}"></small>
+						</div>
+					</div>
+					<div class="form-group row">
+						<label for="priNombre" class="col-sm-2 col-form-label">Primer
+							Nombre</label>
+						<div class="col-sm-4">
+							<input type="text" th:field="*{priNombre}" class="form-control"
+								th:errorclass="'form-control alert-danger'" /> <small
+								class="form-text text-danger"
+								th:if="${#fields.hasErrors('priNombre')}"
+								th:errors="*{priNombre}"></small>
+						</div>
+					</div>
+					<div class="form-group row">
+						<label for="segNombre" class="col-sm-2 col-form-label">Segundo
+							Nombre</label>
+						<div class="col-sm-4">
+							<input type="text" th:field="*{segNombre}" class="form-control"
+								th:errorclass="'form-control alert-danger'" /> <small
+								class="form-text text-danger"
+								th:if="${#fields.hasErrors('segNombre')}"
+								th:errors="*{segNombre}"></small>
+						</div>
+					</div>
+					<div class="form-group row">
+						<label for="priApellido" class="col-sm-2 col-form-label">Primer
+							Apellido</label>
+						<div class="col-sm-4">
+							<input type="text" th:field="*{priApellido}" class="form-control"
+								th:errorclass="'form-control alert-danger'" /> <small
+								class="form-text text-danger"
+								th:if="${#fields.hasErrors('priApellido')}"
+								th:errors="*{priApellido}"></small>
+						</div>
+					</div>
+					<div class="form-group row">
+						<label for="segApellido" class="col-sm-2 col-form-label">Segundo
+							Apellido</label>
+						<div class="col-sm-4">
+							<input type="text" th:field="*{segApellido}" class="form-control"
+								th:errorclass="'form-control alert-danger'" /> <small
+								class="form-text text-danger"
+								th:if="${#fields.hasErrors('segApellido')}"
+								th:errors="*{segApellido}"></small>
+						</div>
+					</div>
+					<div class="form-group row">
+						<label for="fechIngreso" class="col-sm-2 col-form-label">Fecha
+							Ingreso</label>
+						<div class="col-sm-4">
+							<input type="text" th:field="*{fechIngreso}" class="form-control"
+								th:errorclass="'form-control alert-danger'"
+								placeholder="DD/MM/YYYY"/> <small
+								class="form-text text-danger"
+								th:if="${#fields.hasErrors('fechIngreso')}"
+								th:errors="*{fechIngreso}"></small>
+						</div>
+					</div>
+					<div class="form-group row">
+						<label for="file" class="col-sm-2 col-form-label">Foto</label>
+						<div class="col-sm-4">
+						<input type="file" name="file" class="form-control"></input>
+						</div>
+					</div>
+					<div class="form-group row">
+						<div class="col-sm-4">
+							<input type="submit" value="Crear Empleado"
+								class="btn btn-primary" />
+						</div>
+					</div>
+				</form>
+			</div>
+		</div>
+	</div>
+
+	<footer th:replace="layout/layout :: footer"> </footer>
+
+</body>
+</html>

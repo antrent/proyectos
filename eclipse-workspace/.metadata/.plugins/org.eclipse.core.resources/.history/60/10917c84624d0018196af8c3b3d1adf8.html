@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+<meta charset="UTF-8" />
+<title th:text="${titulo}" >Insert title here</title>
+</head>
+<body>
+	<h1 th:text=${titulo}></h1>
+	
+	<table>
+		<thead>
+			<tr>
+				<th>codigo</th>
+				<th>tipo documento</th>
+				<th>numero documento</th>
+				<th>primer nombre</th>
+				<th>segundo nombre</th>
+				<th>primer apellido</th>
+				<th>segundo apellido</th>
+				<th>Fecha ingreso</th>
+			</tr>
+		</thead>
+		<tbody>
+			<tr th:each="empleado: ${empleados} " >
+				<td th:text="${empleado.codigo}"></td>
+				<td th:text="${empleado.tipDocumento}"></td>
+				<td th:text="${empleado.numDocumento}"></td>
+				<td th:text="${empleado.priNombre}"></td>
+				<td th:text="${empleado.segNombre}"></td>
+				<td th:text="${empleado.priApellido}"></td>
+				<td th:text="${empleado.segApellido}"></td>
+				<td th:text="${empleado.fechIngreso}"></td>
+			</tr>		
+		</tbody>
+	</table>
+</body>
+</html>

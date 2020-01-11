@@ -1,0 +1,11 @@
+NotEmpty.empleado.tipDocumento: El Tipo de Documento es requerido
+NotEmpty.empleado.numDocumento: El Numero de Documento es requerido
+NotEmpty.empleado.priNombre: 	El Primer Nombre es requerido
+NotEmpty.empleado.priApellido: 	El Primer Apellido es requerido
+NotNull.empleado.fechNacimiento: 	La fecha de Nacimiento no puede ser nula
+DateTimeFormat.empleado.fechNacimiento: 	El fomato de la Fecha de Nacimiento es: DD/MM/AAAA
+NotEmpty.empleado.genero: 		El Genero es requerido
+NotNull.empleado.fechIngreso: 	La Fecha de Ingreso no puede ser nula
+DateTimeFormat.empleado.fechIngreso: 	El fomato de la Fecha de INgreso es: DD/MM/AAAA
+NotEmpty.empleado.email: 		El Email es requerido
+Email.empleado.email: 			El Email no es valido

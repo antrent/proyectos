@@ -1,0 +1,9 @@
+package com.vacacionapp.app.models.service;
+
+import com.vacacionapp.app.models.entity.EmpleadoRole;
+
+public interface IEmpleadoRoleService {
+
+	public void save(EmpleadoRole empleadoRole);
+
+}

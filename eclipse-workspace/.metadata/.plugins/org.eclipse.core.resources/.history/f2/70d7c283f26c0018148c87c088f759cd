@@ -1,0 +1,30 @@
+package com.vacacionapp.app.models.service;
+
+import java.util.List;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+
+import com.vacacionapp.app.models.entity.Solicitud;
+
+public class SolicitudServiceImpl1 implements ISolicitudService {
+
+	@Override
+	public List<Solicitud> findAll() {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	public Page<Solicitud> findAll(Pageable pageable) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	public Solicitud findById(Integer solicitudCod) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+}

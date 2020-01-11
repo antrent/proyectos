@@ -1,0 +1,9 @@
+package com.vacacionapp.app.models.dao;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+
+import com.vacacionapp.app.models.entity.Festivo;
+
+public interface IFestivoDao  extends JpaRepository<Festivo, Integer>  {
+
+}

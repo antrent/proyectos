@@ -1,0 +1,13 @@
+package com.vacacionapp.app.models.dao;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+
+import com.vacacionapp.app.models.entity.DetEmpleadoCargo;
+
+
+public interface IDetEmpleadoCargoDao extends JpaRepository<DetEmpleadoCargo, Integer> {
+
+	@Query(value="select p from TDETEMPLEADOCARGO p where p.EMP_CODIGO = ?1", nativeQuery = true)
+	public DetEmpleadoCargo findByEmpCodigo(int EmpCarCod);
+}

@@ -1,0 +1,9 @@
+package com.vacacionapp.app.models.dao;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+
+import com.vacacionapp.app.models.entity.EmpleadoRole;
+
+public interface IEmpleadoRoleDao extends JpaRepository/*PagingAndSortingRepository*/<EmpleadoRole, Integer> {
+
+}

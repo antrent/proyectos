@@ -1,0 +1,67 @@
+package com.vacacionapp.app.controllers;
+
+import java.util.Map;
+
+import javax.servlet.http.HttpServletRequest;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.access.annotation.Secured;
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
+import org.springframework.validation.BindingResult;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.SessionAttributes;
+import org.springframework.web.bind.support.SessionStatus;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+
+import com.vacacionapp.app.models.entity.Role;
+import com.vacacionapp.app.models.service.IRoleService;
+
+@Secured(value= {"ROLE_ADMIN"})
+@Controller
+@RequestMapping("/rol")
+@SessionAttributes("rol")
+public class RoleController {
+	
+	@Autowired
+	private IRoleService roleService;
+	
+	
+	@RequestMapping(value = {"rol/listarrol"}, method = RequestMethod.GET)
+	public String listar(Model model,HttpServletRequest request) {
+		
+		model.addAttribute("titulo", "Listado de Roles");
+		//model.addAttribute("roles", roles);
+		return "rol/listarRol";
+	}
+	
+	@Secured("ROLE_ADMIN")
+	@RequestMapping(value = "/formrol")
+	public String crear(Map<String, Object> model) {
+
+		Role rol = new Role();
+		model.put("formrol", rol);
+		model.put("titulo", "Formulario de Roles");
+		return "rol/formrol";
+	}
+
+	@PostMapping("/formrol")
+	public String guardar(Role rol, BindingResult result, Model model, RedirectAttributes flash, SessionStatus status) {
+		
+		roleService.save(rol);
+		
+		status.setComplete();
+		
+		flash.addFlashAttribute("success","Rol creado con exito..!");
+		
+		return "rol/formrol";
+		
+		//return "redirect:/ver/"+solicitud.getEmpleado().getCodigo();
+
+	}	
+
+	
+	
+}

@@ -1,0 +1,10 @@
+package com.vacacionapp.app.models.dao;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+
+import com.vacacionapp.app.models.entity.Cargo;
+
+public interface ICargoDao extends JpaRepository<Cargo, Integer> {
+
+	
+}

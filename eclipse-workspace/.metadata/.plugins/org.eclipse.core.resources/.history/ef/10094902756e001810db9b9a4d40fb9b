@@ -1,0 +1,93 @@
+package com.vacacionapp.app.models.entity;
+
+import java.io.Serializable;
+import java.util.Date;
+
+import javax.persistence.Column;
+import javax.persistence.Entity;
+import javax.persistence.GeneratedValue;
+import javax.persistence.GenerationType;
+import javax.persistence.Id;
+import javax.persistence.Table;
+import javax.persistence.Temporal;
+import javax.persistence.TemporalType;
+import javax.validation.constraints.NotEmpty;
+
+import org.springframework.format.annotation.DateTimeFormat;
+
+@Entity
+@Table(name="TRole")
+public class Role implements Serializable {
+
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 1L;
+
+	@Id
+	@GeneratedValue(strategy = GenerationType.AUTO)//GenerationType.
+	//@GeneratedValue(strategy = GenerationType.IDENTITY)//GenerationType.AUTO
+	
+	private Integer codigo;
+	
+	@NotEmpty
+	@Column(name = "rol_codigo")
+    private String 	rolCodigo;
+    
+	@NotEmpty
+	@Column(name = "descripcion")
+    private String 	descripcion;
+	
+	//@NotEmpty
+	@Column(name = "activo")
+    private String 	activo;
+	
+	//@NotNull
+	@Column(name = "fecha_creacion")
+	@Temporal(TemporalType.DATE)
+	@DateTimeFormat(pattern = "dd/MM/yyyy")
+    private Date 	fechCreacion;
+
+	public Integer getCodigo() {
+		return codigo;
+	}
+
+	public void setCodigo(Integer codigo) {
+		this.codigo = codigo;
+	}
+
+	public String getRolCodigo() {
+		return rolCodigo;
+	}
+
+	public void setRolCodigo(String rolCodigo) {
+		this.rolCodigo = rolCodigo;
+	}
+
+	public String getDescripcion() {
+		return descripcion;
+	}
+
+	public void setDescripcion(String descripcion) {
+		this.descripcion = descripcion;
+	}
+
+	public String getActivo() {
+		return activo;
+	}
+
+	public void setActivo(String activo) {
+		this.activo = activo;
+	}
+
+	public Date getFechCreacion() {
+		return fechCreacion;
+	}
+
+	public void setFechCreacion(Date fechCreacion) {
+		this.fechCreacion = fechCreacion;
+	}
+	
+	
+	
+}

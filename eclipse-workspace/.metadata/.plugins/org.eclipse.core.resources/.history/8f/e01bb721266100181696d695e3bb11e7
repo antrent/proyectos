@@ -1,0 +1,30 @@
+package com.vacacionapp.app.models.service;
+
+import java.util.Date;
+import java.util.List;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+
+import com.vacacionapp.app.models.entity.Empleado;
+import com.vacacionapp.app.models.entity.Solicitud;
+
+public interface IEmpleadoService {
+
+	public List<Empleado> findAll();
+	
+	public Page<Empleado> findAll(Pageable pageable);
+
+	public Empleado findById(Integer empleadoCod);
+
+	public void save(Empleado empleado);
+
+	public void deleteById(int empleadoCod);
+	
+	public void saveSolicitud(Solicitud solicitud);
+	
+	public int contSolByEmplAndAnio(int codEmpl, int anio);
+	
+	public Date maxFechFinSolByEmpl(int codEmpl);
+	
+}

@@ -1,0 +1,18 @@
+package com.vacacionapp.app.models.dao;
+
+
+import java.util.Date;
+
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.PagingAndSortingRepository;
+
+import com.vacacionapp.app.models.entity.Empleado;
+
+public interface IEmpleadoDao extends PagingAndSortingRepository<Empleado, Integer> {
+
+	@Query(value="select count(0) from TSOLICITUD s where s.CODIGO_EMP_SOLICITA = ?1 and EXTRACT(YEAR FROM s.FECH_FIN) = ?2", nativeQuery = true)
+	public int contSolByEmplAndAnio(int codEmpl, int anio);
+	
+	@Query(value="select max(s.FECH_FIN) from TSOLICITUD s where s.CODIGO_EMP_SOLICITA = ?1", nativeQuery = true)
+	public Date maxFechFinSolByEmpl(int codEmpl);
+}
