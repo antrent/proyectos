@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { inventoryService } from '../services/InventoryService';
 import { storageRepository } from '../services/StorageRepository';
 import { authService } from '../services/AuthService';
+import { CsvHelper } from '../services/CsvHelper';
 
-export default function Inventory({ user, onDataChange }) {
+export default function Inventory({ user, onDataChange, currentStoreId }) {
   const [products, setProducts] = useState([]);
   const [params, setParams] = useState({ lines: [], categories: [], styles: [], genders: [], colors: [], sizes: [], providers: [] });
   
@@ -17,6 +18,7 @@ export default function Inventory({ user, onDataChange }) {
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
+  const [modalStoreId, setModalStoreId] = useState('store_1');
   const [formData, setFormData] = useState({
     barcode: '',
     sku: '',
@@ -34,6 +36,126 @@ export default function Inventory({ user, onDataChange }) {
     minStock: 5
   });
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+
+  const PRODUCT_COLUMNS = [
+    { label: 'Codigo de Barras', key: 'barcode' },
+    { label: 'SKU', key: 'sku' },
+    { label: 'Nombre Producto', key: 'name' },
+    { label: 'Stock', key: 'stock' },
+    { label: 'Precio Costo', key: 'costPrice' },
+    { label: 'Precio Venta', key: 'sellPrice' },
+    { label: 'Linea', key: 'line' },
+    { label: 'Categoria', key: 'category' },
+    { label: 'Genero', key: 'gender' },
+    { label: 'Estilo', key: 'style' },
+    { label: 'Color', key: 'color' },
+    { label: 'Talla', key: 'size' },
+    { label: 'Proveedor', key: 'provider' },
+    { label: 'Stock Minimo', key: 'minStock' }
+  ];
+
+  const handleExportCSV = () => {
+    const csvContent = CsvHelper.jsonToCsv(products, PRODUCT_COLUMNS);
+    CsvHelper.download(csvContent, 'inventario_becasual.csv');
+  };
+
+  const handleDownloadTemplate = () => {
+    const templateData = [
+      {
+        barcode: '7701234567890', sku: 'JEAN-SLIM-01', name: 'Jeans Slim Fit Azul', stock: '10',
+        costPrice: '45000', sellPrice: '89000', line: 'Casual', category: 'Jeans',
+        gender: 'Masculino', style: 'Slim', color: 'Azul Claro', size: '32',
+        provider: 'Nacional S.A.', minStock: '5'
+      }
+    ];
+    const csvContent = CsvHelper.jsonToCsv(templateData, PRODUCT_COLUMNS);
+    CsvHelper.download(csvContent, 'plantilla_inventario.csv');
+  };
+
+  const handleImportCSV = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setError('');
+    setSuccess('');
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const text = event.target.result;
+        const parsed = CsvHelper.csvToJson(text, PRODUCT_COLUMNS);
+        if (parsed.length === 0) {
+          setError('El archivo CSV está vacío o no tiene el formato correcto.');
+          return;
+        }
+
+        const allProducts = storageRepository.getProducts();
+        let addedCount = 0;
+        let updatedCount = 0;
+        const targetStoreId = currentStoreId === 'all' ? 'store_1' : currentStoreId;
+
+        parsed.forEach(row => {
+          if (!row.name || !row.name.trim()) return;
+
+          const barcodeTrimmed = (row.barcode || '').trim();
+          const skuTrimmed = (row.sku || '').trim();
+
+          const existingIdx = allProducts.findIndex(p => 
+            (barcodeTrimmed && p.barcode === barcodeTrimmed && (p.storeId === targetStoreId || (!p.storeId && targetStoreId === 'store_1'))) ||
+            (skuTrimmed && p.sku === skuTrimmed && (p.storeId === targetStoreId || (!p.storeId && targetStoreId === 'store_1')))
+          );
+
+          if (existingIdx !== -1) {
+            allProducts[existingIdx].stock += Number(row.stock) || 0;
+            if (row.costPrice) allProducts[existingIdx].costPrice = Number(row.costPrice) || allProducts[existingIdx].costPrice;
+            if (row.sellPrice) allProducts[existingIdx].sellPrice = Number(row.sellPrice) || allProducts[existingIdx].sellPrice;
+            updatedCount++;
+          } else {
+            const finalBarcode = barcodeTrimmed ? barcodeTrimmed : `BE-${Math.floor(100000 + Math.random() * 900000)}`;
+            const finalSku = skuTrimmed ? skuTrimmed : `SKU-${Date.now().toString().slice(-4)}-${Math.floor(1000 + Math.random() * 9000)}`;
+
+            allProducts.unshift({
+              id: `prod_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+              storeId: targetStoreId,
+              barcode: finalBarcode,
+              sku: finalSku,
+              name: row.name.trim(),
+              stock: Number(row.stock) || 0,
+              costPrice: Number(row.costPrice) || 0,
+              sellPrice: Number(row.sellPrice) || 0,
+              line: row.line?.trim() || '-',
+              category: row.category?.trim() || '-',
+              gender: row.gender?.trim() || '-',
+              style: row.style?.trim() || '-',
+              color: row.color?.trim() || '-',
+              size: row.size?.trim() || '-',
+              provider: row.provider?.trim() || '-',
+              minStock: Number(row.minStock) || 5
+            });
+            addedCount++;
+          }
+        });
+
+        if (addedCount > 0 || updatedCount > 0) {
+          storageRepository.saveProducts(allProducts);
+          // Sync params
+          allProducts.forEach(p => inventoryService.checkAndAddParams(p));
+          
+          loadProducts();
+          onDataChange();
+          setSuccess(`Importación completada: ${addedCount} productos nuevos creados y ${updatedCount} actualizados.`);
+          // Reload params in screen state
+          setParams(storageRepository.getParams());
+        } else {
+          setError('No se importaron productos (filas vacías o incorrectas).');
+        }
+      } catch (err) {
+        setError('Error al procesar el archivo CSV. Revisa el formato.');
+      }
+    };
+    reader.readAsText(file, 'UTF-8');
+    e.target.value = '';
+  };
 
   // Check editing privileges
   const canEdit = authService.hasPermission(user.role, 'inventory_edit');
@@ -41,7 +163,7 @@ export default function Inventory({ user, onDataChange }) {
   useEffect(() => {
     loadProducts();
     setParams(storageRepository.getParams());
-  }, []);
+  }, [currentStoreId]);
 
   const loadProducts = () => {
     const filters = {
@@ -51,13 +173,13 @@ export default function Inventory({ user, onDataChange }) {
       provider: selectedProvider,
       stockStatus: selectedStockStatus
     };
-    const list = inventoryService.search(filters);
+    const list = inventoryService.search(filters, currentStoreId);
     setProducts(list);
   };
 
   useEffect(() => {
     loadProducts();
-  }, [searchQuery, selectedLine, selectedCategory, selectedProvider, selectedStockStatus]);
+  }, [searchQuery, selectedLine, selectedCategory, selectedProvider, selectedStockStatus, currentStoreId]);
 
   const formatCOP = (amount) => {
     return new Intl.NumberFormat('es-CO', {
@@ -69,6 +191,7 @@ export default function Inventory({ user, onDataChange }) {
 
   const handleOpenAddModal = () => {
     setEditingProduct(null);
+    setModalStoreId(currentStoreId === 'all' ? 'store_1' : currentStoreId);
     setFormData({
       barcode: '',
       sku: '',
@@ -121,7 +244,7 @@ export default function Inventory({ user, onDataChange }) {
       if (editingProduct) {
         inventoryService.update(editingProduct.id, formData);
       } else {
-        inventoryService.create(formData);
+        inventoryService.create(formData, modalStoreId);
       }
       setIsModalOpen(false);
       loadProducts();
@@ -227,6 +350,34 @@ export default function Inventory({ user, onDataChange }) {
         </div>
       </div>
 
+      {/* Acciones Masivas */}
+      {canEdit && (
+        <div className="card-table-wrapper" style={{ padding: '16px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', background: 'var(--bg-body)', border: '1px dashed var(--border-color)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '20px' }}>📦</span>
+            <div>
+              <span style={{ fontWeight: '700', fontSize: '13px', color: 'var(--text-primary)' }}>Acciones Masivas de Inventario</span>
+              <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Carga o descarga de inventario en lote por archivos CSV (Sede: {currentStoreId === 'all' ? 'Principal (Defecto)' : 'Tienda actual'})</div>
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <button className="btn btn-outline btn-sm" onClick={handleExportCSV}>📥 Exportar CSV</button>
+            <button className="btn btn-outline btn-sm" onClick={() => document.getElementById('csv-file-input').click()}>📤 Importar CSV</button>
+            <button className="btn btn-outline btn-sm" onClick={handleDownloadTemplate} style={{ borderStyle: 'dotted' }}>📄 Plantilla</button>
+            <input 
+              type="file" 
+              id="csv-file-input" 
+              accept=".csv" 
+              style={{ display: 'none' }} 
+              onChange={handleImportCSV} 
+            />
+          </div>
+        </div>
+      )}
+
+      {success && <div className="alert alert-success"><span>✅</span><span>{success}</span></div>}
+      {error && <div className="alert alert-error"><span>⚠️</span><span>{error}</span></div>}
+
       {/* Products Table Card */}
       <div className="card-table-wrapper">
         <div className="card-header">
@@ -240,6 +391,7 @@ export default function Inventory({ user, onDataChange }) {
           <table className="table-premium">
             <thead>
               <tr>
+                {currentStoreId === 'all' && <th>Tienda</th>}
                 <th>Código de Barras</th>
                 <th>Nombre Producto</th>
                 <th>Línea / Cat.</th>
@@ -253,7 +405,7 @@ export default function Inventory({ user, onDataChange }) {
             <tbody>
               {products.length === 0 ? (
                 <tr>
-                  <td colSpan={canEdit ? 8 : 7} style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
+                  <td colSpan={canEdit ? (currentStoreId === 'all' ? 9 : 8) : (currentStoreId === 'all' ? 8 : 7)} style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
                     No se encontraron productos en el inventario.
                   </td>
                 </tr>
@@ -265,6 +417,11 @@ export default function Inventory({ user, onDataChange }) {
 
                   return (
                     <tr key={p.id}>
+                      {currentStoreId === 'all' && (
+                        <td style={{ fontSize: '12px', fontWeight: '600' }}>
+                          🏬 {p.storeId === 'store_2' ? 'Sede Centro' : 'Sede Principal'}
+                        </td>
+                      )}
                       <td><code>{p.barcode}</code></td>
                       <td>
                         <div style={{ display: 'flex', flexDirection: 'column' }}>
@@ -319,6 +476,21 @@ export default function Inventory({ user, onDataChange }) {
                   <div className="alert alert-error">
                     <span>⚠️</span>
                     <span>{error}</span>
+                  </div>
+                )}
+
+                {currentStoreId === 'all' && !editingProduct && (
+                  <div className="form-group" style={{ marginBottom: '16px' }}>
+                    <label className="form-label">Asignar a Tienda/Sede *</label>
+                    <select
+                      className="form-control"
+                      value={modalStoreId}
+                      onChange={(e) => setModalStoreId(e.target.value)}
+                      required
+                    >
+                      <option value="store_1">🏬 Sede Principal</option>
+                      <option value="store_2">🏬 Sede Centro</option>
+                    </select>
                   </div>
                 )}
 

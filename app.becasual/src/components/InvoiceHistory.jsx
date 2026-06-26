@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { salesService } from '../services/SalesService';
+import { CsvHelper } from '../services/CsvHelper';
+import { storageRepository } from '../services/StorageRepository';
 
-export default function InvoiceHistory({ user }) {
+export default function InvoiceHistory({ user, currentStoreId }) {
   const [sales, setSales] = useState([]);
   const [search, setSearch] = useState('');
   const [dateFrom, setDateFrom] = useState('');
@@ -14,9 +16,150 @@ export default function InvoiceHistory({ user }) {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  useEffect(() => { load(); }, []);
+  const INVOICE_COLUMNS = [
+    { label: 'Numero Factura', key: 'invoiceNumber' },
+    { label: 'Fecha y Hora', key: 'date' },
+    { label: 'Nombre Cliente', key: 'clientName' },
+    { label: 'Documento Cliente', key: 'clientDocument' },
+    { label: 'Nombre Producto', key: 'name' },
+    { label: 'Codigo de Barras', key: 'barcode' },
+    { label: 'Cantidad', key: 'quantity' },
+    { label: 'Precio', key: 'sellPrice' },
+    { label: 'Descuento Porcentaje', key: 'discount' },
+    { label: 'Metodo Pago', key: 'paymentMethod' },
+    { label: 'Subtotal Factura', key: 'subtotal' },
+    { label: 'IVA Factura', key: 'tax' },
+    { label: 'Total Factura', key: 'total' },
+    { label: 'Usuario Vendedor', key: 'sellerId' },
+    { label: 'Anulada', key: 'cancelled' }
+  ];
 
-  const load = () => setSales(salesService.getAll());
+  const handleExportCSV = () => {
+    const flatSales = [];
+    filtered.forEach(sale => {
+      (sale.items || []).forEach(item => {
+        flatSales.push({
+          invoiceNumber: sale.invoiceNumber,
+          date: sale.date,
+          clientName: sale.clientName,
+          clientDocument: sale.clientDocument || '',
+          name: item.name,
+          barcode: item.barcode,
+          quantity: item.quantity,
+          sellPrice: item.sellPrice,
+          discount: item.discount || 0,
+          paymentMethod: sale.paymentMethod,
+          subtotal: sale.subtotal,
+          tax: sale.tax,
+          total: sale.total,
+          sellerId: sale.sellerId || '',
+          cancelled: sale.cancelled ? 'SÍ' : 'NO'
+        });
+      });
+    });
+
+    const csvContent = CsvHelper.jsonToCsv(flatSales, INVOICE_COLUMNS);
+    CsvHelper.download(csvContent, 'ventas_becasual.csv');
+  };
+
+  const handleDownloadTemplate = () => {
+    const templateData = [
+      {
+        invoiceNumber: 'FAC-0001', date: new Date().toISOString(),
+        clientName: 'Juan Perez', clientDocument: '1012345678',
+        name: 'Jeans Slim Fit Azul', barcode: '7701234567890',
+        quantity: '2', sellPrice: '89000', discount: '10',
+        paymentMethod: 'Efectivo', subtotal: '178000', tax: '33820',
+        total: '160200', sellerId: 'admin', cancelled: 'NO'
+      }
+    ];
+    const csvContent = CsvHelper.jsonToCsv(templateData, INVOICE_COLUMNS);
+    CsvHelper.download(csvContent, 'plantilla_ventas.csv');
+  };
+
+  const handleImportCSV = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setError('');
+    setSuccess('');
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const text = event.target.result;
+        const parsed = CsvHelper.csvToJson(text, INVOICE_COLUMNS);
+        if (parsed.length === 0) {
+          setError('El archivo CSV está vacío o no tiene el formato correcto.');
+          return;
+        }
+
+        const grouped = {};
+        parsed.forEach(row => {
+          const invNum = (row.invoiceNumber || '').trim();
+          if (!invNum) return;
+
+          if (!grouped[invNum]) {
+            grouped[invNum] = {
+              invoiceNumber: invNum,
+              date: row.date || new Date().toISOString(),
+              clientName: row.clientName || 'Cliente Genérico',
+              clientDocument: row.clientDocument || '',
+              paymentMethod: row.paymentMethod || 'Efectivo',
+              subtotal: Number(row.subtotal) || 0,
+              tax: Number(row.tax) || 0,
+              total: Number(row.total) || 0,
+              sellerId: row.sellerId || 'admin',
+              cancelled: String(row.cancelled).toUpperCase() === 'SÍ',
+              items: []
+            };
+          }
+
+          grouped[invNum].items.push({
+            name: row.name || 'Producto Desconocido',
+            barcode: row.barcode || '',
+            quantity: Number(row.quantity) || 1,
+            sellPrice: Number(row.sellPrice) || 0,
+            discount: Number(row.discount) || 0
+          });
+        });
+
+        const allSales = storageRepository.getSales();
+        let addedCount = 0;
+        let duplicateCount = 0;
+        const targetStoreId = currentStoreId === 'all' ? 'store_1' : currentStoreId;
+
+        Object.values(grouped).forEach(newSale => {
+          const exists = allSales.some(s => s.invoiceNumber === newSale.invoiceNumber);
+          if (exists) {
+            duplicateCount++;
+          } else {
+            allSales.unshift({
+              id: `sale_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+              storeId: targetStoreId,
+              ...newSale
+            });
+            addedCount++;
+          }
+        });
+
+        if (addedCount > 0) {
+          storageRepository.saveSales(allSales);
+          load();
+          setSuccess(`Se importaron ${addedCount} facturas con éxito.${duplicateCount > 0 ? ` Se omitieron ${duplicateCount} duplicadas.` : ''}`);
+        } else {
+          setError('No se agregaron facturas nuevas (todas estaban duplicadas o vacías).');
+        }
+      } catch (err) {
+        setError('Error al procesar el archivo CSV. Revisa el formato.');
+      }
+    };
+    reader.readAsText(file, 'UTF-8');
+    e.target.value = '';
+  };
+
+  useEffect(() => { load(); }, [currentStoreId]);
+
+  const load = () => setSales(salesService.getAll(currentStoreId));
 
   const filtered = sales.filter(s => {
     const q = search.toLowerCase();
@@ -87,7 +230,31 @@ export default function InvoiceHistory({ user }) {
         </div>
       </div>
 
+      {/* Acciones Masivas */}
+      <div className="card-table-wrapper" style={{ padding: '16px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', background: 'var(--bg-body)', border: '1px dashed var(--border-color)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span style={{ fontSize: '20px' }}>🧾</span>
+          <div>
+            <span style={{ fontWeight: '700', fontSize: '13px', color: 'var(--text-primary)' }}>Acciones Masivas de Facturación</span>
+            <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Carga o descarga de historial de ventas en lote (Sede: {currentStoreId === 'all' ? 'Principal (Defecto)' : 'Tienda actual'})</div>
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <button className="btn btn-outline btn-sm" onClick={handleExportCSV}>📥 Exportar CSV</button>
+          <button className="btn btn-outline btn-sm" onClick={() => document.getElementById('csv-file-input').click()}>📤 Importar CSV</button>
+          <button className="btn btn-outline btn-sm" onClick={handleDownloadTemplate} style={{ borderStyle: 'dotted' }}>📄 Plantilla</button>
+          <input 
+            type="file" 
+            id="csv-file-input" 
+            accept=".csv" 
+            style={{ display: 'none' }} 
+            onChange={handleImportCSV} 
+          />
+        </div>
+      </div>
+
       {success && <div className="alert alert-success"><span>✅</span><span>{success}</span></div>}
+      {error && <div className="alert alert-error"><span>⚠️</span><span>{error}</span></div>}
 
       {/* Stats */}
       <div className="grid-stats">
@@ -126,6 +293,7 @@ export default function InvoiceHistory({ user }) {
               <tr>
                 <th>Factura</th>
                 <th>Fecha y Hora</th>
+                {currentStoreId === 'all' && <th>Sede</th>}
                 <th>Cliente</th>
                 <th>Método Pago</th>
                 <th>Items</th>
@@ -136,7 +304,7 @@ export default function InvoiceHistory({ user }) {
             </thead>
             <tbody>
               {filtered.length === 0 ? (
-                <tr><td colSpan="8" style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
+                <tr><td colSpan={currentStoreId === 'all' ? 9 : 8} style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
                   No se encontraron facturas con los filtros seleccionados.
                 </td></tr>
               ) : (
@@ -149,6 +317,11 @@ export default function InvoiceHistory({ user }) {
                         </strong>
                       </td>
                       <td style={{ fontSize: '12px' }}>{formatDateTime(s.date)}</td>
+                      {currentStoreId === 'all' && (
+                        <td style={{ fontSize: '12px', fontWeight: '600' }}>
+                          🏬 {s.storeId === 'store_2' ? 'Sede Centro' : 'Sede Principal'}
+                        </td>
+                      )}
                       <td>{s.clientName}</td>
                       <td><span className="badge secondary">{s.paymentMethod}</span></td>
                       <td>{(s.items || []).length} artículos</td>
@@ -180,7 +353,7 @@ export default function InvoiceHistory({ user }) {
                     {/* Expanded detail row */}
                     {expandedSale === s.id && (
                       <tr>
-                        <td colSpan="8" style={{ background: 'var(--bg-app)', padding: '0' }}>
+                        <td colSpan={currentStoreId === 'all' ? 9 : 8} style={{ background: 'var(--bg-app)', padding: '0' }}>
                           <div style={{ padding: '16px 24px' }}>
                             {s.cancelled && (
                               <div className="alert alert-error" style={{ marginBottom: '12px', fontSize: '13px' }}>

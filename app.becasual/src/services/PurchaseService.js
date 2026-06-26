@@ -2,11 +2,13 @@ import { storageRepository } from './StorageRepository';
 import { inventoryService } from './InventoryService';
 
 class PurchaseService {
-  getAll() {
-    return storageRepository.getPurchases();
+  getAll(storeId = 'all') {
+    const purchases = storageRepository.getPurchases();
+    if (storeId === 'all') return purchases;
+    return purchases.filter(p => p.storeId === storeId || (!p.storeId && storeId === 'store_1'));
   }
 
-  registerPurchase(purchaseData) {
+  registerPurchase(purchaseData, storeId = 'store_1') {
     const { items, provider } = purchaseData;
 
     if (!items || items.length === 0) {
@@ -19,9 +21,9 @@ class PurchaseService {
     items.forEach(item => {
       let product = null;
 
-      // Try finding product by barcode/SKU
+      // Try finding product by barcode/SKU in the active store
       if (item.barcode) {
-        product = inventoryService.getByBarcode(item.barcode);
+        product = inventoryService.getByBarcode(item.barcode, storeId);
       }
 
       if (product) {
@@ -38,7 +40,7 @@ class PurchaseService {
         inventoryService.update(product.id, updatedFields);
         product = { ...product, ...updatedFields };
       } else {
-        // Product does not exist: create it
+        // Product does not exist: create it in the active store
         product = inventoryService.create({
           barcode: item.barcode,
           sku: item.sku,
@@ -54,7 +56,7 @@ class PurchaseService {
           color: item.color || '-',
           size: item.size || '-',
           minStock: 5
-        });
+        }, storeId);
       }
 
       const costPrice = Number(item.costPrice) || product.costPrice;
@@ -65,6 +67,7 @@ class PurchaseService {
       // Add to purchase log
       const newPurchaseItem = {
         id: `pur_${Date.now()}_${Math.random().toString().slice(-4)}`,
+        storeId,
         date: new Date().toISOString().split('T')[0],
         barcode: product.barcode,
         sku: product.sku,

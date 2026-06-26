@@ -1,15 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { inventoryService } from '../services/InventoryService';
 
-export default function StockBreak({ onGoToPurchases }) {
+export default function StockBreak({ onGoToPurchases, currentStoreId }) {
   const [analysis, setAnalysis] = useState(null);
-  const [activeTab, setActiveTab] = useState('critical'); // 'critical' | 'broken' | 'projections' | 'byProvider'
+  const [activeTab, setActiveTab] = useState('critical'); // 'critical' | 'broken' | 'projections' | 'weeklyProjections' | 'byProvider'
   const [minStockFilter, setMinStockFilter] = useState('');
+  const [weeklyPeriod, setWeeklyPeriod] = useState(4); // default 4 weeks
+  const [weeklyProjections, setWeeklyProjections] = useState([]);
 
   useEffect(() => {
-    const data = inventoryService.getStockBreakAnalysis();
+    const data = inventoryService.getStockBreakAnalysis(currentStoreId);
     setAnalysis(data);
-  }, []);
+    const weeklyData = inventoryService.getWeeklyProjections(currentStoreId, weeklyPeriod);
+    setWeeklyProjections(weeklyData);
+  }, [currentStoreId, weeklyPeriod]);
 
   const formatCOP = (amount) =>
     new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(amount || 0);
@@ -38,6 +42,7 @@ export default function StockBreak({ onGoToPurchases }) {
     { id: 'critical', label: '⚠️ Stock Crítico', count: analysis.criticalCount, color: 'var(--warning)' },
     { id: 'broken', label: '🔴 Agotados', count: analysis.brokenCount, color: 'var(--danger)' },
     { id: 'projections', label: '📋 Plan de Reposición', count: analysis.projections.length, color: 'var(--primary)' },
+    { id: 'weeklyProjections', label: '📈 Sugerido Semanal', count: weeklyProjections.filter(p => p.suggestedToBuy > 0).length, color: 'var(--secondary)' },
     { id: 'byProvider', label: '🏭 Por Proveedor', count: analysis.providerProjections.length, color: 'var(--secondary)' }
   ];
 
@@ -64,11 +69,19 @@ export default function StockBreak({ onGoToPurchases }) {
         </div>
         <div className="card-stat">
           <div className="stat-info">
-            <span className="stat-label">Inversión Recomendada</span>
-            <span className="stat-value" style={{ fontSize: '20px' }}>
-              {formatCOP(analysis.projections.reduce((s, p) => s + p.estimatedCost, 0))}
+            <span className="stat-label">
+              {activeTab === 'weeklyProjections' ? 'Inversión Sugerida (Semanal)' : 'Inversión Recomendada (Mínimo)'}
             </span>
-            <span className="stat-desc">Para reponer inventario crítico</span>
+            <span className="stat-value" style={{ fontSize: '20px' }}>
+              {activeTab === 'weeklyProjections' 
+                ? formatCOP(weeklyProjections.reduce((s, p) => s + p.estimatedCost, 0))
+                : formatCOP(analysis.projections.reduce((s, p) => s + p.estimatedCost, 0))}
+            </span>
+            <span className="stat-desc">
+              {activeTab === 'weeklyProjections' 
+                ? `Para cubrir demanda de ${weeklyPeriod} semanas`
+                : 'Para reponer inventario crítico y agotados'}
+            </span>
           </div>
           <div className="stat-icon">💰</div>
         </div>
@@ -330,6 +343,119 @@ export default function StockBreak({ onGoToPurchases }) {
               ✅ No hay quiebres por proveedor actualmente.
             </div>
           )}
+        </div>
+      )}
+
+      {/* TAB: Weekly Projections */}
+      {activeTab === 'weeklyProjections' && (
+        <div className="card-table-wrapper">
+          <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+            <div>
+              <h3 className="card-title">📈 Sugerido de Compra por Historial Semanal</h3>
+              <span className="card-subtitle">Cálculo basado en la velocidad de ventas real de las últimas 8 semanas</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-muted)' }}>Proyectar demanda:</span>
+              <select
+                className="form-control"
+                style={{ width: '155px', height: '36px', padding: '0 8px', fontSize: '13px' }}
+                value={weeklyPeriod}
+                onChange={e => setWeeklyPeriod(Number(e.target.value))}
+              >
+                <option value={1}>1 Semana</option>
+                <option value={2}>2 Semanas</option>
+                <option value={4}>4 Semanas (1 Mes)</option>
+                <option value={8}>8 Semanas (2 Meses)</option>
+                <option value={12}>12 Semanas (3 Meses)</option>
+              </select>
+            </div>
+          </div>
+          <div className="table-responsive">
+            <table className="table-premium">
+              <thead>
+                <tr>
+                  <th>Producto</th>
+                  <th>Proveedor</th>
+                  <th>Ventas Semanales</th>
+                  <th>Stock Actual</th>
+                  <th>Demanda Proyectada ({weeklyPeriod} sem)</th>
+                  <th>Sugerido a Comprar</th>
+                  <th>Costo Unit.</th>
+                  <th>Inversión Estimada</th>
+                  <th>Estado</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filterByName(weeklyProjections.map(p => ({ ...p.product, ...p, product: p.product }))).length === 0 ? (
+                  <tr>
+                    <td colSpan="9" style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
+                      No se encontraron proyecciones semanales para los filtros especificados.
+                    </td>
+                  </tr>
+                ) : (
+                  weeklyProjections
+                    .filter(proj => {
+                      if (!minStockFilter.trim()) return true;
+                      const q = minStockFilter.toLowerCase();
+                      return proj.product.name.toLowerCase().includes(q) || proj.product.provider.toLowerCase().includes(q);
+                    })
+                    .map(proj => {
+                      const statusBadges = {
+                        healthy: 'success',
+                        out_of_stock: 'danger',
+                        critical: 'warning',
+                        reorder_soon: 'secondary'
+                      };
+                      const statusLabels = {
+                        healthy: 'Saludable',
+                        out_of_stock: 'Agotado',
+                        critical: 'Stock Crítico',
+                        reorder_soon: 'Reordenar pronto'
+                      };
+
+                      return (
+                        <tr key={proj.product.id}>
+                          <td>
+                            <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{proj.product.name}</div>
+                            <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Talla {proj.product.size} | {proj.product.color} | SKU: {proj.product.sku}</div>
+                          </td>
+                          <td style={{ fontSize: '13px' }}>{proj.product.provider}</td>
+                          <td style={{ fontWeight: '600', color: 'var(--primary)' }}>
+                            {proj.weeklyVelocity.toFixed(2)} uds/sem
+                          </td>
+                          <td>
+                            <span className={`badge ${proj.stock === 0 ? 'danger' : proj.stock <= proj.minStock ? 'warning' : 'success'}`}>
+                              {proj.stock} uds
+                            </span>
+                          </td>
+                          <td>
+                            {proj.projectedDemand.toFixed(1)} uds
+                          </td>
+                          <td>
+                            <span style={{ 
+                              fontWeight: 800, 
+                              fontSize: '16px', 
+                              color: proj.suggestedToBuy > 0 ? 'var(--secondary)' : 'var(--text-muted)' 
+                            }}>
+                              {proj.suggestedToBuy} uds
+                            </span>
+                          </td>
+                          <td>{formatCOP(proj.product.costPrice)}</td>
+                          <td style={{ fontWeight: 700, color: proj.estimatedCost > 0 ? 'var(--secondary)' : 'var(--text-muted)' }}>
+                            {formatCOP(proj.estimatedCost)}
+                          </td>
+                          <td>
+                            <span className={`badge ${statusBadges[proj.status]}`}>
+                              {statusLabels[proj.status]}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>

@@ -1,8 +1,10 @@
 import { storageRepository } from './StorageRepository';
 
 class InventoryService {
-  getAll() {
-    return storageRepository.getProducts();
+  getAll(storeId = 'all') {
+    const products = storageRepository.getProducts();
+    if (storeId === 'all') return products;
+    return products.filter(p => p.storeId === storeId || (!p.storeId && storeId === 'store_1'));
   }
 
   getById(id) {
@@ -10,13 +12,13 @@ class InventoryService {
     return products.find(p => p.id === id) || null;
   }
 
-  getByBarcode(barcode) {
-    const products = storageRepository.getProducts();
+  getByBarcode(barcode, storeId = 'all') {
+    const products = this.getAll(storeId);
     return products.find(p => p.barcode === barcode.trim() || p.sku === barcode.trim()) || null;
   }
 
-  search(filters = {}) {
-    const products = storageRepository.getProducts();
+  search(filters = {}, storeId = 'all') {
+    const products = this.getAll(storeId);
     const query = (filters.query || '').toLowerCase().trim();
     const line = filters.line || '';
     const category = filters.category || '';
@@ -47,20 +49,22 @@ class InventoryService {
     });
   }
 
-  create(productData) {
+  create(productData, storeId = 'store_1') {
     const products = storageRepository.getProducts();
 
-    // Check barcode duplication
-    if (productData.barcode && products.some(p => p.barcode === productData.barcode.trim())) {
-      throw new Error('El código de barras ya existe en el inventario.');
+    // Check barcode duplication inside this store
+    const barcodeTrimmed = (productData.barcode || '').trim();
+    if (barcodeTrimmed && products.some(p => p.barcode === barcodeTrimmed && (p.storeId === storeId || (!p.storeId && storeId === 'store_1')))) {
+      throw new Error('El código de barras ya existe en el inventario de esta tienda.');
     }
 
     // Auto-generate barcode if empty
-    const barcode = productData.barcode ? productData.barcode.trim() : `BE-${Math.floor(100000 + Math.random() * 900000)}`;
+    const barcode = barcodeTrimmed ? barcodeTrimmed : `BE-${Math.floor(100000 + Math.random() * 900000)}`;
     const sku = productData.sku ? productData.sku.trim() : `SKU-${Date.now().toString().slice(-6)}`;
 
     const newProduct = {
       id: `prod_${Date.now()}`,
+      storeId,
       barcode,
       sku,
       name: productData.name.trim(),
@@ -94,15 +98,16 @@ class InventoryService {
       throw new Error('Producto no encontrado.');
     }
 
-    // Check barcode duplication
-    if (updatedFields.barcode && products.some(p => p.id !== id && p.barcode === updatedFields.barcode.trim())) {
-      throw new Error('El código de barras ya está asignado a otro producto.');
+    const storeId = products[index].storeId || 'store_1';
+
+    // Check barcode duplication inside this store
+    if (updatedFields.barcode && products.some(p => p.id !== id && p.barcode === updatedFields.barcode.trim() && (p.storeId === storeId || (!p.storeId && storeId === 'store_1')))) {
+      throw new Error('El código de barras ya está asignado a otro producto en esta tienda.');
     }
 
     const updatedProduct = {
       ...products[index],
       ...updatedFields,
-      // Keep immutable ID
       id: products[index].id,
       stock: Number(updatedFields.stock !== undefined ? updatedFields.stock : products[index].stock),
       costPrice: Number(updatedFields.costPrice !== undefined ? updatedFields.costPrice : products[index].costPrice),
@@ -127,14 +132,13 @@ class InventoryService {
       throw new Error('Producto no encontrado.');
     }
 
-    // Check if the product is locked or has transactions (optional, here we just filter it out)
     const updatedProducts = products.filter(p => p.id !== id);
     storageRepository.saveProducts(updatedProducts);
     return true;
   }
 
-  getLowStockAlerts() {
-    const products = storageRepository.getProducts();
+  getLowStockAlerts(storeId = 'all') {
+    const products = this.getAll(storeId);
     return products.filter(p => p.stock <= p.minStock);
   }
 
@@ -163,8 +167,9 @@ class InventoryService {
       storageRepository.saveParams(params);
     }
   }
-  getStockBreakAnalysis() {
-    const products = this.getAll();
+
+  getStockBreakAnalysis(storeId = 'all') {
+    const products = this.getAll(storeId);
     const broken = [];
     const critical = [];
     const projections = [];
@@ -223,6 +228,131 @@ class InventoryService {
       projections: projections.sort((a, b) => b.estimatedCost - a.estimatedCost),
       providerProjections
     };
+  }
+
+  getAdvancedProjections(storeId = 'all', daysPeriod = 30) {
+    const products = this.getAll(storeId);
+    const sales = storageRepository.getSales().filter(s => !s.cancelled && (storeId === 'all' || s.storeId === storeId || (!s.storeId && storeId === 'store_1')));
+    
+    // Calculate sales velocity (units sold in the last 30 days)
+    const salesVelocityMap = {};
+    const now = new Date();
+    const thirtyDaysAgo = new Date(now.getTime() - (30 * 24 * 60 * 60 * 1000));
+    
+    sales.forEach(sale => {
+      const saleDate = new Date(sale.date);
+      if (saleDate >= thirtyDaysAgo) {
+        sale.items.forEach(item => {
+          const key = item.productId;
+          salesVelocityMap[key] = (salesVelocityMap[key] || 0) + item.quantity;
+        });
+      }
+    });
+
+    return products.map(p => {
+      const unitsSold30d = salesVelocityMap[p.id] || 0;
+      const dailyVelocity = unitsSold30d / 30;
+      const weeklyVelocity = dailyVelocity * 7;
+      
+      let daysLeft = Infinity;
+      if (dailyVelocity > 0) {
+        daysLeft = p.stock / dailyVelocity;
+      }
+      
+      const projectedDemand = dailyVelocity * daysPeriod;
+      const stockShortage = (projectedDemand + p.minStock) - p.stock;
+      const suggestedToBuy = Math.ceil(Math.max(0, stockShortage));
+      const estimatedCost = suggestedToBuy * p.costPrice;
+
+      let status = 'healthy';
+      if (p.stock === 0) {
+        status = 'out_of_stock';
+      } else if (p.stock <= p.minStock) {
+        status = 'critical';
+      } else if (daysLeft < daysPeriod) {
+        status = 'reorder_soon';
+      }
+
+      return {
+        product: p,
+        unitsSold30d,
+        dailyVelocity,
+        weeklyVelocity,
+        daysLeft,
+        suggestedToBuy,
+        estimatedCost,
+        status
+      };
+    }).sort((a, b) => b.estimatedCost - a.estimatedCost);
+  }
+
+  getWeeklyProjections(storeId = 'all', weeksPeriod = 4) {
+    const products = this.getAll(storeId);
+    const sales = storageRepository.getSales().filter(s => 
+      !s.cancelled && (storeId === 'all' || s.storeId === storeId || (!s.storeId && storeId === 'store_1'))
+    );
+    
+    // Look back at last 60 days (~8.5 weeks) to calculate stable weekly velocity
+    const now = new Date();
+    const periodDays = 60;
+    const startDate = new Date(now.getTime() - (periodDays * 24 * 60 * 60 * 1000));
+    
+    const salesVelocityMap = {};
+    sales.forEach(sale => {
+      const saleDate = new Date(sale.date);
+      if (saleDate >= startDate) {
+        sale.items.forEach(item => {
+          const key = item.productId;
+          salesVelocityMap[key] = (salesVelocityMap[key] || 0) + item.quantity;
+        });
+      }
+    });
+
+    const weeksInPeriod = periodDays / 7;
+
+    return products.map(p => {
+      const totalSoldInPeriod = salesVelocityMap[p.id] || 0;
+      const weeklyVelocity = totalSoldInPeriod / weeksInPeriod;
+      
+      const projectedDemand = weeklyVelocity * weeksPeriod;
+      
+      let suggestedToBuy = 0;
+      if (p.stock < projectedDemand) {
+        suggestedToBuy = Math.ceil(projectedDemand - p.stock);
+      }
+      
+      // Ensure we always respect minimum stock
+      if (p.stock < p.minStock) {
+        suggestedToBuy = Math.max(suggestedToBuy, p.minStock - p.stock);
+      }
+
+      const estimatedCost = suggestedToBuy * p.costPrice;
+      const estimatedRevenue = suggestedToBuy * p.sellPrice;
+      const estimatedProfit = estimatedRevenue - estimatedCost;
+
+      let status = 'healthy';
+      if (p.stock === 0) {
+        status = 'out_of_stock';
+      } else if (p.stock <= p.minStock) {
+        status = 'critical';
+      } else if (p.stock < projectedDemand) {
+        status = 'reorder_soon';
+      }
+
+      return {
+        product: p,
+        weeklyVelocity,
+        totalSoldInPeriod,
+        projectedDemand,
+        suggestedToBuy,
+        estimatedCost,
+        estimatedRevenue,
+        estimatedProfit,
+        stock: p.stock,
+        minStock: p.minStock,
+        status
+      };
+    }).sort((a, b) => b.suggestedToBuy - a.suggestedToBuy);
   }
 }
 

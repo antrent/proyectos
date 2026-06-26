@@ -10,25 +10,41 @@ class StorageRepository {
     if (!localStorage.getItem('becasual_db_initialized')) {
       console.log('Initializing localStorage with seed data from Excel...');
       
-      // Seed configuration
-      const storeConfig = {
-        name: seedData.config.nombre || 'tienda.Be casual',
-        slogan: seedData.config.slogan || 'Vístete para ser tú mismo.',
-        address: seedData.config.dirección || 'Calle 132 # 92-32',
-        phone: seedData.config.celular || '3115929346',
-        email: seedData.config.correo || 'ventas@tiendabecasual.com',
-        rent: seedData.config.arriendo || '2 millones',
-        taxRate: 19 // Default IVA 19%
-      };
-      localStorage.setItem('becasual_config', JSON.stringify(storeConfig));
+      // Seed default stores list
+      const defaultStores = [
+        {
+          id: 'store_1',
+          name: seedData.config.nombre || 'tienda.Be casual Principal',
+          slogan: seedData.config.slogan || 'Vístete para ser tú mismo.',
+          address: seedData.config.dirección || 'Calle 132 # 92-32',
+          phone: seedData.config.celular || '3115929346',
+          email: seedData.config.correo || 'ventas@tiendabecasual.com',
+          rent: seedData.config.arriendo || '2 millones',
+          taxRate: 19 // Default IVA 19%
+        },
+        {
+          id: 'store_2',
+          name: 'tienda.Be casual Centro',
+          slogan: 'Calidad y diseño para tu estilo.',
+          address: 'Carrera 10 # 12-45',
+          phone: '3204567890',
+          email: 'centro@tiendabecasual.com',
+          rent: '1.5 millones',
+          taxRate: 19
+        }
+      ];
+      localStorage.setItem('becasual_stores', JSON.stringify(defaultStores));
+
+      // Seed configuration (defaults to store_1 config)
+      localStorage.setItem('becasual_config', JSON.stringify(defaultStores[0]));
 
       // Seed parameters
       localStorage.setItem('becasual_params', JSON.stringify(seedData.params));
 
-      // Seed products (Inventory)
-      // Map initial seed products, generating a unique ID and parsing numeric fields
+      // Seed products (Inventory) with storeId: 'store_1'
       const products = seedData.products.map((p, index) => ({
         id: `prod_${Date.now()}_${index}`,
+        storeId: 'store_1',
         barcode: p.barcode,
         sku: p.sku,
         name: p.name,
@@ -46,9 +62,10 @@ class StorageRepository {
       }));
       localStorage.setItem('becasual_products', JSON.stringify(products));
 
-      // Seed purchases
+      // Seed purchases with storeId: 'store_1'
       const purchases = seedData.purchases.map((pur, index) => ({
         id: `pur_${Date.now()}_${index}`,
+        storeId: 'store_1',
         date: pur.date,
         barcode: pur.barcode,
         sku: pur.sku,
@@ -80,6 +97,7 @@ class StorageRepository {
         }
       ]));
       localStorage.setItem('becasual_closings', JSON.stringify([]));
+      localStorage.setItem('becasual_layaways', JSON.stringify([]));
 
       // Mark database as initialized
       localStorage.setItem('becasual_db_initialized', 'true');
@@ -148,6 +166,42 @@ class StorageRepository {
 
   getClosings()       { return this.getData('closings'); }
   saveClosings(c)     { return this.setData('closings', c); }
+
+  // Multi-Store and Layaways
+  getStores() {
+    let stores = this.getData('stores');
+    if (!stores || stores.length === 0) {
+      const config = this.getConfig();
+      stores = [
+        {
+          id: 'store_1',
+          name: config.name || 'tienda.Be casual Principal',
+          slogan: config.slogan || 'Vístete para ser tú mismo.',
+          address: config.address || 'Calle 132 # 92-32',
+          phone: config.phone || '3115929346',
+          email: config.email || 'ventas@tiendabecasual.com',
+          rent: config.rent || '2 millones',
+          taxRate: config.taxRate || 19
+        },
+        {
+          id: 'store_2',
+          name: 'tienda.Be casual Centro',
+          slogan: 'Calidad y diseño para tu estilo.',
+          address: 'Carrera 10 # 12-45',
+          phone: '3204567890',
+          email: 'centro@tiendabecasual.com',
+          rent: '1.5 millones',
+          taxRate: 19
+        }
+      ];
+      this.saveStores(stores);
+    }
+    return stores;
+  }
+  saveStores(stores) { return this.setData('stores', stores); }
+
+  getLayaways() { return this.getData('layaways'); }
+  saveLayaways(layaways) { return this.setData('layaways', layaways); }
 }
 
 export const storageRepository = new StorageRepository();

@@ -4,7 +4,7 @@ const _orig = _auth.hasPermission.bind(_auth);
 _auth.hasPermission = function (role, moduleName) {
   if (role === 'admin') return true;
   const extras = {
-    vendedor:  ['sales', 'inventory_view', 'clients', 'invoices'],
+    vendedor:  ['sales', 'inventory_view', 'clients', 'invoices', 'layaways'],
     comprador: ['purchases', 'inventory_view', 'inventory_edit']
   };
   const allowed = extras[role] || [];
@@ -25,12 +25,28 @@ import StockBreak from './components/StockBreak';
 import Clients from './components/Clients';
 import Employees from './components/Employees';
 import InvoiceHistory from './components/InvoiceHistory';
+import Layaways from './components/Layaways';
 import { authService } from './services/AuthService';
+import { storageRepository } from './services/StorageRepository';
 
 export default function App() {
   const [user, setUser] = useState(null);
   const [currentTab, setCurrentTab] = useState('dashboard');
   const [triggerUpdate, setTriggerUpdate] = useState(false);
+  const [currentStore, setCurrentStore] = useState(null);
+  const [stores, setStores] = useState([]);
+
+  useEffect(() => {
+    const list = storageRepository.getStores();
+    setStores(list);
+    const savedStoreId = localStorage.getItem('becasual_current_store_id');
+    if (savedStoreId === 'all') {
+      setCurrentStore({ id: 'all', name: 'Todas las Sedes (Consolidado)', slogan: 'Visión General', address: 'Reporte General' });
+    } else {
+      const savedStore = list.find(s => s.id === savedStoreId);
+      setCurrentStore(savedStore || list[0] || null);
+    }
+  }, [triggerUpdate]);
 
   useEffect(() => {
     const activeUser = authService.getCurrentUser();
@@ -57,9 +73,21 @@ export default function App() {
     setCurrentTab('dashboard');
   };
 
+  const handleStoreChange = (store) => {
+    setCurrentStore(store);
+    if (store) {
+      localStorage.setItem('becasual_current_store_id', store.id);
+    } else {
+      localStorage.removeItem('becasual_current_store_id');
+    }
+    toggleUpdate();
+  };
+
   const toggleUpdate = () => setTriggerUpdate(prev => !prev);
 
   if (!user) return <Login onLoginSuccess={handleLoginSuccess} />;
+
+  const storeId = currentStore?.id || 'store_1';
 
   return (
     <Layout
@@ -67,17 +95,21 @@ export default function App() {
       currentTab={currentTab}
       setCurrentTab={setCurrentTab}
       onLogout={handleLogout}
+      currentStore={currentStore}
+      stores={stores}
+      onStoreChange={handleStoreChange}
     >
-      {currentTab === 'dashboard'    && <Dashboard triggerUpdate={triggerUpdate} />}
-      {currentTab === 'inventory'    && <Inventory user={user} onDataChange={toggleUpdate} />}
-      {currentTab === 'sales'        && <Sales user={user} onSaleSuccess={toggleUpdate} />}
-      {currentTab === 'invoices'     && <InvoiceHistory user={user} />}
-      {currentTab === 'purchases'    && <Purchases user={user} onPurchaseSuccess={toggleUpdate} />}
-      {currentTab === 'stockbreak'   && <StockBreak onGoToPurchases={() => setCurrentTab('purchases')} />}
-      {currentTab === 'dailyclosing' && <DailyClosing user={user} />}
+      {currentTab === 'dashboard'    && <Dashboard triggerUpdate={triggerUpdate} currentStoreId={storeId} />}
+      {currentTab === 'inventory'    && <Inventory user={user} onDataChange={toggleUpdate} currentStoreId={storeId} />}
+      {currentTab === 'sales'        && <Sales user={user} onSaleSuccess={toggleUpdate} currentStoreId={storeId} />}
+      {currentTab === 'invoices'     && <InvoiceHistory user={user} currentStoreId={storeId} />}
+      {currentTab === 'purchases'    && <Purchases user={user} onPurchaseSuccess={toggleUpdate} currentStoreId={storeId} />}
+      {currentTab === 'stockbreak'   && <StockBreak onGoToPurchases={() => setCurrentTab('purchases')} currentStoreId={storeId} />}
+      {currentTab === 'dailyclosing' && <DailyClosing user={user} currentStoreId={storeId} />}
       {currentTab === 'clients'      && <Clients user={user} />}
       {currentTab === 'employees'    && <Employees user={user} />}
-      {currentTab === 'config'       && <Configuration user={user} onConfigChange={toggleUpdate} />}
+      {currentTab === 'layaways'     && <Layaways user={user} currentStoreId={storeId} onDataChange={toggleUpdate} />}
+      {currentTab === 'config'       && <Configuration user={user} onConfigChange={toggleUpdate} currentStoreId={storeId} />}
     </Layout>
   );
 }

@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { inventoryService } from '../services/InventoryService';
 import { salesService } from '../services/SalesService';
+import { layawayService } from '../services/LayawayService';
 
-export default function Sales({ user, onSaleSuccess }) {
+export default function Sales({ user, onSaleSuccess, currentStoreId }) {
   const [catalog, setCatalog] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [cart, setCart] = useState([]);
@@ -16,15 +17,24 @@ export default function Sales({ user, onSaleSuccess }) {
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
   
+  // Layaway Modal state
+  const [isLayawayModalOpen, setIsLayawayModalOpen] = useState(false);
+  const [layawayClientName, setLayawayClientName] = useState('');
+  const [layawayClientPhone, setLayawayClientPhone] = useState('');
+  const [layawayClientDocument, setLayawayClientDocument] = useState('');
+  const [layawayInitialPayment, setLayawayInitialPayment] = useState(0);
+  const [layawayPaymentMethod, setLayawayPaymentMethod] = useState('Efectivo');
+  const [layawayError, setLayawayError] = useState('');
+  
   const barcodeRef = useRef(null);
 
   useEffect(() => {
     loadCatalog();
-  }, [searchQuery]);
+  }, [searchQuery, currentStoreId]);
 
   const loadCatalog = () => {
-    // Only search products that actually have stock
-    const products = inventoryService.search({ query: searchQuery, stockStatus: 'in' });
+    // Only search products that actually have stock in the current store
+    const products = inventoryService.search({ query: searchQuery, stockStatus: 'in' }, currentStoreId);
     setCatalog(products.slice(0, 10)); // limit visible items for responsiveness
   };
 
@@ -35,7 +45,7 @@ export default function Sales({ user, onSaleSuccess }) {
 
     if (!barcodeInput.trim()) return;
 
-    const product = inventoryService.getByBarcode(barcodeInput.trim());
+    const product = inventoryService.getByBarcode(barcodeInput.trim(), currentStoreId);
     if (product) {
       if (product.stock <= 0) {
         setError(`El producto "${product.name}" está agotado.`);
@@ -119,7 +129,8 @@ export default function Sales({ user, onSaleSuccess }) {
         items: cart,
         paymentMethod,
         clientName,
-        sellerId: user.username
+        sellerId: user.username,
+        storeId: currentStoreId
       });
 
       setSuccessMsg(`¡Venta realizada con éxito! Factura: ${sale.invoiceNumber}`);
@@ -129,6 +140,57 @@ export default function Sales({ user, onSaleSuccess }) {
       onSaleSuccess(); // Notify layout/app
     } catch (err) {
       setError(err.message || 'Error al completar la venta.');
+    }
+  };
+
+  const handleOpenLayawayModal = () => {
+    setLayawayClientName(clientName === 'Cliente Final' ? '' : clientName);
+    setLayawayClientPhone('');
+    setLayawayClientDocument('');
+    setLayawayInitialPayment(0);
+    setLayawayPaymentMethod('Efectivo');
+    setLayawayError('');
+    setIsLayawayModalOpen(true);
+  };
+
+  const handleConfirmLayaway = (e) => {
+    e.preventDefault();
+    setLayawayError('');
+
+    if (!layawayClientName.trim()) {
+      setLayawayError('El nombre del cliente es obligatorio.');
+      return;
+    }
+
+    if (layawayInitialPayment < 0) {
+      setLayawayError('El abono inicial no puede ser negativo.');
+      return;
+    }
+
+    if (layawayInitialPayment > summary.total) {
+      setLayawayError('El abono inicial no puede ser mayor al total.');
+      return;
+    }
+
+    try {
+      const layaway = layawayService.createLayaway({
+        clientName: layawayClientName,
+        clientPhone: layawayClientPhone,
+        clientDocument: layawayClientDocument,
+        items: cart,
+        initialPayment: layawayInitialPayment,
+        paymentMethod: layawayPaymentMethod,
+        sellerId: user.username
+      }, currentStoreId);
+
+      setSuccessMsg(`¡Separación registrada con éxito! Número: ${layaway.layawayNumber}`);
+      setCart([]);
+      setClientName('Cliente Final');
+      setPaymentMethod('Efectivo');
+      setIsLayawayModalOpen(false);
+      onSaleSuccess();
+    } catch (err) {
+      setLayawayError(err.message || 'Error al crear la separación.');
     }
   };
 
@@ -316,16 +378,130 @@ export default function Sales({ user, onSaleSuccess }) {
             </div>
           </div>
 
-          <button
-            className="btn btn-primary"
-            style={{ width: '100%', padding: '14px', marginTop: '8px' }}
-            disabled={cart.length === 0}
-            onClick={handleCheckout}
-          >
-            🏁 Registrar y Cobrar
-          </button>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '12px' }}>
+            <button
+              className="btn btn-primary"
+              style={{ width: '100%', padding: '12px', justifyContent: 'center' }}
+              disabled={cart.length === 0}
+              onClick={handleCheckout}
+            >
+              🏁 Registrar y Cobrar
+            </button>
+            <button
+              className="btn btn-secondary"
+              style={{ width: '100%', padding: '12px', justifyContent: 'center' }}
+              disabled={cart.length === 0}
+              onClick={handleOpenLayawayModal}
+            >
+              🛍️ Separar Productos (Abono)
+            </button>
+          </div>
         </div>
       </div>
+
+      {isLayawayModalOpen && (
+        <div className="modal-overlay" style={{ zIndex: 1000 }}>
+          <div className="modal-content" style={{ maxWidth: '500px' }}>
+            <div className="modal-header">
+              <h3 className="modal-title">🛍️ Separar Productos</h3>
+              <button className="modal-close" onClick={() => setIsLayawayModalOpen(false)}>✕</button>
+            </div>
+            <form onSubmit={handleConfirmLayaway}>
+              <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                {layawayError && (
+                  <div className="alert alert-error">
+                    <span>⚠️</span> <span>{layawayError}</span>
+                  </div>
+                )}
+                
+                <div style={{ padding: '12px', background: 'var(--bg-body)', borderRadius: 'var(--radius-sm)', border: '1px dashed var(--border-color)', fontSize: '14px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>Artículos a separar:</span>
+                    <strong style={{ color: 'var(--text-primary)' }}>{cart.reduce((sum, i) => sum + i.quantity, 0)} uds</strong>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '16px', fontWeight: 'bold' }}>
+                    <span style={{ color: 'var(--text-primary)' }}>Total de Compra:</span>
+                    <span style={{ color: 'var(--secondary)' }}>{formatCOP(summary.total)}</span>
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Nombre del Cliente *</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    placeholder="Ej. Juan Pérez"
+                    value={layawayClientName}
+                    onChange={(e) => setLayawayClientName(e.target.value)}
+                    required
+                  />
+                </div>
+
+                <div className="grid-2">
+                  <div className="form-group">
+                    <label className="form-label">Cédula / Documento</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      placeholder="10203040"
+                      value={layawayClientDocument}
+                      onChange={(e) => setLayawayClientDocument(e.target.value)}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Celular / Teléfono</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      placeholder="3001234567"
+                      value={layawayClientPhone}
+                      onChange={(e) => setLayawayClientPhone(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid-2">
+                  <div className="form-group">
+                    <label className="form-label">Abono Inicial (COP) *</label>
+                    <input
+                      type="number"
+                      className="form-control"
+                      min="0"
+                      value={layawayInitialPayment}
+                      onChange={(e) => setLayawayInitialPayment(parseFloat(e.target.value) || 0)}
+                      required
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Método de Pago</label>
+                    <select
+                      className="form-control"
+                      value={layawayPaymentMethod}
+                      onChange={(e) => setLayawayPaymentMethod(e.target.value)}
+                    >
+                      <option value="Efectivo">💵 Efectivo</option>
+                      <option value="Tarjeta">💳 Tarjeta</option>
+                      <option value="Transferencia">📱 Transferencia</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
+                  Saldo pendiente proyectado: <strong>{formatCOP(Math.max(0, summary.total - layawayInitialPayment))}</strong>
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-outline" onClick={() => setIsLayawayModalOpen(false)}>
+                  Cancelar
+                </button>
+                <button type="submit" className="btn btn-primary" disabled={layawayInitialPayment > summary.total}>
+                  Confirmar Separado
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

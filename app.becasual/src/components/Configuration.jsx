@@ -2,10 +2,17 @@ import React, { useState, useEffect } from 'react';
 import { storageRepository } from '../services/StorageRepository';
 import { authService } from '../services/AuthService';
 
-export default function Configuration({ user, onConfigChange }) {
+export default function Configuration({ user, onConfigChange, currentStoreId }) {
   const [config, setConfig] = useState({});
   const [usersList, setUsersList] = useState([]);
   const [params, setParams] = useState({ lines: [], categories: [], styles: [], genders: [], colors: [], sizes: [], providers: [] });
+  const [storesList, setStoresList] = useState([]);
+  const [editingStore, setEditingStore] = useState(null); // null | store object
+  const [storeForm, setStoreForm] = useState({ name: '', slogan: '', address: '', phone: '', email: '', rent: '', taxRate: 19 });
+  const [storeSuccess, setStoreSuccess] = useState('');
+  const [storeError, setStoreError] = useState('');
+  const [isCreatingStore, setIsCreatingStore] = useState(false);
+  const [newStoreForm, setNewStoreForm] = useState({ name: '', slogan: '', address: '', phone: '', email: '', rent: '', taxRate: 19 });
   
   // User Form State
   const [userForm, setUserForm] = useState({ id: '', username: '', password: '', name: '', role: 'vendedor' });
@@ -29,6 +36,7 @@ export default function Configuration({ user, onConfigChange }) {
     setConfig(storageRepository.getConfig());
     setUsersList(storageRepository.getUsers());
     setParams(storageRepository.getParams());
+    setStoresList(storageRepository.getStores());
   };
 
   const handleSaveConfig = (e) => {
@@ -125,6 +133,75 @@ export default function Configuration({ user, onConfigChange }) {
       storageRepository.saveParams(updatedParams);
       loadData();
     }
+  };
+
+  // === Store Management Handlers (Admin only) ===
+  const handleEditStore = (store) => {
+    setEditingStore(store);
+    setIsCreatingStore(false);
+    setStoreForm({
+      name: store.name,
+      slogan: store.slogan || '',
+      address: store.address || '',
+      phone: store.phone || '',
+      email: store.email || '',
+      rent: store.rent || '',
+      taxRate: store.taxRate !== undefined ? store.taxRate : 19
+    });
+    setStoreError('');
+    setStoreSuccess('');
+  };
+
+  const handleSaveStore = (e) => {
+    e.preventDefault();
+    setStoreError('');
+    if (!storeForm.name.trim()) { setStoreError('El nombre de la sede es obligatorio.'); return; }
+    const stores = storageRepository.getStores();
+    const idx = stores.findIndex(s => s.id === editingStore.id);
+    if (idx === -1) { setStoreError('Sede no encontrada.'); return; }
+    stores[idx] = { 
+      ...stores[idx], 
+      ...storeForm, 
+      taxRate: parseInt(storeForm.taxRate) || 0 
+    };
+    storageRepository.setData('stores', stores);
+    setStoreSuccess(`Sede "${storeForm.name}" actualizada correctamente.`);
+    setEditingStore(null);
+    loadData();
+    onConfigChange();
+  };
+
+  const handleCreateStore = (e) => {
+    e.preventDefault();
+    setStoreError('');
+    setStoreSuccess('');
+
+    if (!newStoreForm.name.trim()) {
+      setStoreError('El nombre de la sede es obligatorio.');
+      return;
+    }
+
+    const stores = storageRepository.getStores();
+    const newStoreId = `store_${Date.now()}`;
+
+    const newStore = {
+      id: newStoreId,
+      name: newStoreForm.name.trim(),
+      slogan: newStoreForm.slogan.trim() || 'Estilo y moda casual.',
+      address: newStoreForm.address.trim() || 'Dirección no asignada',
+      phone: newStoreForm.phone.trim() || 'Sin teléfono',
+      email: newStoreForm.email.trim() || 'contacto@becasual.com',
+      rent: newStoreForm.rent.trim() || '0',
+      taxRate: parseInt(newStoreForm.taxRate) || 19
+    };
+
+    stores.push(newStore);
+    storageRepository.setData('stores', stores);
+    setStoreSuccess(`Sede "${newStoreForm.name}" creada con éxito.`);
+    setNewStoreForm({ name: '', slogan: '', address: '', phone: '', email: '', rent: '', taxRate: 19 });
+    setIsCreatingStore(false);
+    loadData();
+    onConfigChange();
   };
 
   return (
@@ -426,6 +503,188 @@ export default function Configuration({ user, onConfigChange }) {
           </div>
         </div>
       </div>
+
+      {/* 4. Stores/Branches Management (Admin only) */}
+      {user.role === 'admin' && (
+        <div className="card-table-wrapper" style={{ padding: '28px' }}>
+          <div className="card-header" style={{ marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+            <div>
+              <h3 className="card-title">🏬 Gestión de Sucursales / Sedes</h3>
+              <span className="badge secondary">{storesList.length} tiendas activas</span>
+            </div>
+            {!isCreatingStore && (
+              <button className="btn btn-primary" onClick={() => {
+                setIsCreatingStore(true);
+                setEditingStore(null);
+                setStoreError('');
+                setStoreSuccess('');
+              }}>
+                ➕ Nueva Sede
+              </button>
+            )}
+          </div>
+
+          {storeSuccess && (
+            <div className="alert alert-success" style={{ marginBottom: '16px' }}>
+              <span>✅</span> <span>{storeSuccess}</span>
+            </div>
+          )}
+          {storeError && (
+            <div className="alert alert-error" style={{ marginBottom: '16px' }}>
+              <span>⚠️</span> <span>{storeError}</span>
+            </div>
+          )}
+
+          {isCreatingStore && (
+            <div style={{
+              background: 'var(--bg-body)',
+              border: '2px dashed var(--border-color)',
+              borderRadius: 'var(--radius-md)',
+              padding: '24px',
+              marginBottom: '20px'
+            }}>
+              <form onSubmit={handleCreateStore} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div style={{ fontSize: '14px', fontWeight: '700', color: 'var(--text-primary)', marginBottom: '4px' }}>
+                  🏬 CREAR NUEVA SEDE / SUCURSAL
+                </div>
+                <div className="grid-3">
+                  <div className="form-group">
+                    <label className="form-label">Nombre de la Sede *</label>
+                    <input type="text" className="form-control" placeholder="Ej. Sede Medellín" value={newStoreForm.name}
+                      onChange={e => setNewStoreForm({ ...newStoreForm, name: e.target.value })} required />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Slogan / Descripción</label>
+                    <input type="text" className="form-control" placeholder="Ej. Tu moda en el centro" value={newStoreForm.slogan}
+                      onChange={e => setNewStoreForm({ ...newStoreForm, slogan: e.target.value })} />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Impuesto General (IVA %)</label>
+                    <input type="number" className="form-control" value={newStoreForm.taxRate}
+                      onChange={e => setNewStoreForm({ ...newStoreForm, taxRate: parseInt(e.target.value) || 0 })} required />
+                  </div>
+                </div>
+                <div className="grid-2">
+                  <div className="form-group">
+                    <label className="form-label">Dirección</label>
+                    <input type="text" className="form-control" placeholder="Ej. Calle 50 # 45-20" value={newStoreForm.address}
+                      onChange={e => setNewStoreForm({ ...newStoreForm, address: e.target.value })} />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Teléfono de Contacto</label>
+                    <input type="text" className="form-control" placeholder="Ej. 3001234567" value={newStoreForm.phone}
+                      onChange={e => setNewStoreForm({ ...newStoreForm, phone: e.target.value })} />
+                  </div>
+                </div>
+                <div className="grid-2">
+                  <div className="form-group">
+                    <label className="form-label">Correo Electrónico</label>
+                    <input type="email" className="form-control" placeholder="Ej. medellin@becasual.com" value={newStoreForm.email}
+                      onChange={e => setNewStoreForm({ ...newStoreForm, email: e.target.value })} />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Costo de Arriendo Mensual</label>
+                    <input type="text" className="form-control" placeholder="Ej. 1.8 millones" value={newStoreForm.rent}
+                      onChange={e => setNewStoreForm({ ...newStoreForm, rent: e.target.value })} />
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+                  <button type="button" className="btn btn-outline" onClick={() => setIsCreatingStore(false)}>Cancelar</button>
+                  <button type="submit" className="btn btn-primary">💾 Guardar y Crear Sede</button>
+                </div>
+              </form>
+            </div>
+          )}
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            {storesList.map(store => (
+              <div key={store.id} style={{
+                background: 'var(--bg-body)',
+                border: '1px solid var(--border-color)',
+                borderRadius: 'var(--radius-md)',
+                padding: '20px'
+              }}>
+                {editingStore?.id === store.id ? (
+                  // Edit mode
+                  <form onSubmit={handleSaveStore} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    <div style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-muted)', marginBottom: '4px' }}>
+                      EDITANDO: {store.id === 'store_1' ? '🏬 SEDE PRINCIPAL' : `🏬 SEDE: ${store.name.toUpperCase()}`}
+                    </div>
+                    <div className="grid-3">
+                      <div className="form-group">
+                        <label className="form-label">Nombre de la Sede *</label>
+                        <input type="text" className="form-control" value={storeForm.name}
+                          onChange={e => setStoreForm({ ...storeForm, name: e.target.value })} required />
+                      </div>
+                      <div className="form-group">
+                        <label className="form-label">Slogan / Descripción</label>
+                        <input type="text" className="form-control" value={storeForm.slogan}
+                          onChange={e => setStoreForm({ ...storeForm, slogan: e.target.value })} />
+                      </div>
+                      <div className="form-group">
+                        <label className="form-label">Impuesto General (IVA %)</label>
+                        <input type="number" className="form-control" value={storeForm.taxRate}
+                          onChange={e => setStoreForm({ ...storeForm, taxRate: parseInt(e.target.value) || 0 })} />
+                      </div>
+                    </div>
+                    <div className="grid-2">
+                      <div className="form-group">
+                        <label className="form-label">Dirección</label>
+                        <input type="text" className="form-control" value={storeForm.address}
+                          onChange={e => setStoreForm({ ...storeForm, address: e.target.value })} />
+                      </div>
+                      <div className="form-group">
+                        <label className="form-label">Teléfono</label>
+                        <input type="text" className="form-control" value={storeForm.phone}
+                          onChange={e => setStoreForm({ ...storeForm, phone: e.target.value })} />
+                      </div>
+                    </div>
+                    <div className="grid-2">
+                      <div className="form-group">
+                        <label className="form-label">Correo Electrónico</label>
+                        <input type="email" className="form-control" value={storeForm.email}
+                          onChange={e => setStoreForm({ ...storeForm, email: e.target.value })} />
+                      </div>
+                      <div className="form-group">
+                        <label className="form-label">Costo de Arriendo Mensual</label>
+                        <input type="text" className="form-control" value={storeForm.rent}
+                          onChange={e => setStoreForm({ ...storeForm, rent: e.target.value })} />
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+                      <button type="button" className="btn btn-outline" onClick={() => setEditingStore(null)}>Cancelar</button>
+                      <button type="submit" className="btn btn-primary">💾 Guardar Sede</button>
+                    </div>
+                  </form>
+                ) : (
+                  // View mode
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px' }}>
+                    <div>
+                      <div style={{ fontSize: '16px', fontWeight: '700', color: 'var(--text-primary)', marginBottom: '4px' }}>
+                        🏬 {store.name}
+                        {currentStoreId === store.id && (
+                          <span className="badge primary" style={{ marginLeft: '10px', fontSize: '11px' }}>Sede Activa</span>
+                        )}
+                      </div>
+                      {store.slogan && <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>{store.slogan}</div>}
+                      <div style={{ fontSize: '13px', color: 'var(--text-secondary)', display: 'flex', flexWrap: 'wrap', gap: '16px', marginTop: '6px' }}>
+                        {store.address && <span>📍 {store.address}</span>}
+                        {store.phone && <span>📞 {store.phone}</span>}
+                        {store.email && <span>✉️ {store.email}</span>}
+                        {store.rent && <span>🏢 Arriendo: {store.rent}</span>}
+                        {store.taxRate !== undefined && <span>🏷️ IVA: {store.taxRate}%</span>}
+                      </div>
+                    </div>
+                    <button className="btn btn-outline btn-sm" onClick={() => handleEditStore(store)}>
+                      ✏️ Editar Sede
+                    </button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

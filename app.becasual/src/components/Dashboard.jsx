@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { salesService } from '../services/SalesService';
 import { inventoryService } from '../services/InventoryService';
 
-export default function Dashboard({ triggerUpdate }) {
+export default function Dashboard({ triggerUpdate, currentStoreId }) {
   const [stats, setStats] = useState({
     totalSalesRevenue: 0,
     totalSalesProfit: 0,
@@ -17,18 +17,18 @@ export default function Dashboard({ triggerUpdate }) {
   const [recentSales, setRecentSales] = useState([]);
 
   useEffect(() => {
-    // Load financial stats
-    const financialStats = salesService.getFinancialStats();
+    // Load financial stats for the active store
+    const financialStats = salesService.getFinancialStats(currentStoreId);
     setStats(financialStats);
 
-    // Load low stock alerts
-    const alerts = inventoryService.getLowStockAlerts();
+    // Load low stock alerts for the active store
+    const alerts = inventoryService.getLowStockAlerts(currentStoreId);
     setLowStock(alerts.slice(0, 5)); // show top 5
 
-    // Load recent sales
-    const sales = salesService.getAll();
+    // Load recent sales for the active store
+    const sales = salesService.getAll(currentStoreId);
     setRecentSales(sales.slice(0, 5)); // show top 5
-  }, [triggerUpdate]);
+  }, [triggerUpdate, currentStoreId]);
 
   const formatCOP = (amount) => {
     return new Intl.NumberFormat('es-CO', {
@@ -117,7 +117,14 @@ export default function Dashboard({ triggerUpdate }) {
                 ) : (
                   lowStock.map(p => (
                     <tr key={p.id}>
-                      <td style={{ fontWeight: '600', color: 'var(--text-primary)' }}>{p.name}</td>
+                      <td style={{ fontWeight: '600', color: 'var(--text-primary)' }}>
+                        {p.name}
+                        {currentStoreId === 'all' && (
+                          <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
+                            🏬 {p.storeId === 'store_2' ? 'Sede Centro' : 'Sede Principal'}
+                          </div>
+                        )}
+                      </td>
                       <td><code>{p.sku}</code></td>
                       <td>
                         <span className={`badge ${p.stock === 0 ? 'danger' : 'warning'}`}>
@@ -163,7 +170,14 @@ export default function Dashboard({ triggerUpdate }) {
                   recentSales.map(s => (
                     <tr key={s.id}>
                       <td style={{ fontWeight: '600' }}><code>{s.invoiceNumber}</code></td>
-                      <td>{s.clientName}</td>
+                      <td>
+                        {s.clientName}
+                        {currentStoreId === 'all' && (
+                          <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
+                            🏬 {s.storeId === 'store_2' ? 'Sede Centro' : 'Sede Principal'}
+                          </div>
+                        )}
+                      </td>
                       <td>
                         <span className="badge secondary">{s.paymentMethod}</span>
                       </td>

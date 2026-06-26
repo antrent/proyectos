@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { salesService } from '../services/SalesService';
+import { CsvHelper } from '../services/CsvHelper';
+import { storageRepository } from '../services/StorageRepository';
 
 const PAYMENT_ICONS = {
   Efectivo: '💵',
@@ -13,7 +15,7 @@ const PAYMENT_COLORS = {
   Transferencia: 'var(--secondary)'
 };
 
-export default function DailyClosing({ user }) {
+export default function DailyClosing({ user, currentStoreId }) {
   const today = new Date().toISOString().split('T')[0];
   const [selectedDate, setSelectedDate] = useState(today);
   const [summary, setSummary] = useState(null);
@@ -23,18 +25,127 @@ export default function DailyClosing({ user }) {
   const [error, setError] = useState('');
   const [expandedClosing, setExpandedClosing] = useState(null);
 
+  const CLOSING_COLUMNS = [
+    { label: 'Fecha', key: 'date' },
+    { label: 'Numero Ventas', key: 'salesCount' },
+    { label: 'Total Ventas', key: 'total' },
+    { label: 'Costo Mercancia', key: 'cost' },
+    { label: 'Utilidad', key: 'profit' },
+    { label: 'Efectivo', key: 'efectivo' },
+    { label: 'Tarjeta', key: 'tarjeta' },
+    { label: 'Transferencia', key: 'transferencia' },
+    { label: 'Notas', key: 'notes' },
+    { label: 'Registrado Por', key: 'registeredBy' },
+    { label: 'Fecha Registro', key: 'timestamp' }
+  ];
+
+  const handleExportCSV = () => {
+    const data = history.map(c => ({
+      date: c.date,
+      salesCount: c.salesCount,
+      total: c.total,
+      cost: c.cost,
+      profit: c.profit,
+      efectivo: c.breakdown?.Efectivo || 0,
+      tarjeta: c.breakdown?.Tarjeta || 0,
+      transferencia: c.breakdown?.Transferencia || 0,
+      notes: c.notes || '',
+      registeredBy: c.registeredBy,
+      timestamp: c.timestamp || new Date().toISOString()
+    }));
+    const csvContent = CsvHelper.jsonToCsv(data, CLOSING_COLUMNS);
+    CsvHelper.download(csvContent, 'cierres_caja_becasual.csv');
+  };
+
+  const handleDownloadTemplate = () => {
+    const templateData = [
+      {
+        date: new Date().toISOString().split('T')[0], salesCount: '5', total: '450000',
+        cost: '210000', profit: '240000', efectivo: '200000', tarjeta: '150000',
+        transferencia: '100000', notes: 'Todo cuadra perfectamente', registeredBy: 'Administrador',
+        timestamp: new Date().toISOString()
+      }
+    ];
+    const csvContent = CsvHelper.jsonToCsv(templateData, CLOSING_COLUMNS);
+    CsvHelper.download(csvContent, 'plantilla_cierres.csv');
+  };
+
+  const handleImportCSV = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setError('');
+    setSuccess('');
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const text = event.target.result;
+        const parsed = CsvHelper.csvToJson(text, CLOSING_COLUMNS);
+        if (parsed.length === 0) {
+          setError('El archivo CSV está vacío o no tiene el formato correcto.');
+          return;
+        }
+
+        const closings = salesService.getDailyClosings(currentStoreId);
+        let addedCount = 0;
+        let duplicateCount = 0;
+        const targetStoreId = currentStoreId === 'all' ? 'store_1' : currentStoreId;
+
+        parsed.forEach(row => {
+          if (!row.date) return;
+          
+          const exists = closings.some(c => c.date === row.date.trim() && c.storeId === targetStoreId);
+          if (exists) {
+            duplicateCount++;
+          } else {
+            closings.unshift({
+              id: `closing_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+              storeId: targetStoreId,
+              date: row.date.trim(),
+              salesCount: Number(row.salesCount) || 0,
+              total: Number(row.total) || 0,
+              cost: Number(row.cost) || 0,
+              profit: Number(row.profit) || 0,
+              breakdown: {
+                Efectivo: Number(row.efectivo) || 0,
+                Tarjeta: Number(row.tarjeta) || 0,
+                Transferencia: Number(row.transferencia) || 0
+              },
+              notes: (row.notes || '').trim(),
+              registeredBy: (row.registeredBy || '').trim() || 'Sistema',
+              timestamp: row.timestamp || new Date().toISOString()
+            });
+            addedCount++;
+          }
+        });
+
+        if (addedCount > 0) {
+          storageRepository.saveClosings(closings);
+          loadHistory();
+          setSuccess(`Se importaron ${addedCount} registros de cierre con éxito.${duplicateCount > 0 ? ` Se omitieron ${duplicateCount} duplicados.` : ''}`);
+        } else {
+          setError('No se agregaron registros nuevos (todos duplicados o vacíos).');
+        }
+      } catch (err) {
+        setError('Error al procesar el archivo CSV. Revisa el formato.');
+      }
+    };
+    reader.readAsText(file, 'UTF-8');
+    e.target.value = '';
+  };
+
   useEffect(() => {
     loadSummary();
     loadHistory();
-  }, [selectedDate]);
+  }, [selectedDate, currentStoreId]);
 
   const loadSummary = () => {
-    const s = salesService.getDailySalesSummary(selectedDate);
+    const s = salesService.getDailySalesSummary(selectedDate, currentStoreId);
     setSummary(s);
   };
 
   const loadHistory = () => {
-    const closings = salesService.getDailyClosings();
+    const closings = salesService.getDailyClosings(currentStoreId);
     setHistory(closings);
   };
 
@@ -52,7 +163,7 @@ export default function DailyClosing({ user }) {
         notes,
         registeredBy: user.name,
         registeredByRole: user.role
-      });
+      }, currentStoreId || 'store_1');
       setSuccess(`¡Cierre del día ${selectedDate} registrado exitosamente!`);
       setNotes('');
       loadHistory();
@@ -209,6 +320,29 @@ export default function DailyClosing({ user }) {
           </div>
         </div>
       )}
+
+      {/* Acciones Masivas */}
+      <div className="card-table-wrapper" style={{ padding: '16px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', background: 'var(--bg-body)', border: '1px dashed var(--border-color)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span style={{ fontSize: '20px' }}>🏁</span>
+          <div>
+            <span style={{ fontWeight: '700', fontSize: '13px', color: 'var(--text-primary)' }}>Acciones Masivas de Cierre Diario</span>
+            <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Carga o descarga de cierres diarios en lote (Sede: {currentStoreId === 'all' ? 'Principal (Defecto)' : 'Tienda actual'})</div>
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <button className="btn btn-outline btn-sm" onClick={handleExportCSV}>📥 Exportar CSV</button>
+          <button className="btn btn-outline btn-sm" onClick={() => document.getElementById('csv-file-input').click()}>📤 Importar CSV</button>
+          <button className="btn btn-outline btn-sm" onClick={handleDownloadTemplate} style={{ borderStyle: 'dotted' }}>📄 Plantilla</button>
+          <input 
+            type="file" 
+            id="csv-file-input" 
+            accept=".csv" 
+            style={{ display: 'none' }} 
+            onChange={handleImportCSV} 
+          />
+        </div>
+      </div>
 
       {/* History table */}
       <div className="card-table-wrapper">

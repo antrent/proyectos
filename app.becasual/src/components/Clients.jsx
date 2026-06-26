@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { storageRepository } from '../services/StorageRepository';
+import { CsvHelper } from '../services/CsvHelper';
 
 const EMPTY_FORM = {
   id: '', name: '', document: '', documentType: 'CC',
@@ -19,6 +20,90 @@ export default function Clients({ user }) {
   useEffect(() => { load(); }, []);
 
   const load = () => setClients(storageRepository.getClients());
+
+  const CLIENT_COLUMNS = [
+    { label: 'Nombre Completo', key: 'name' },
+    { label: 'Tipo Documento', key: 'documentType' },
+    { label: 'Documento', key: 'document' },
+    { label: 'Telefono', key: 'phone' },
+    { label: 'Email', key: 'email' },
+    { label: 'Ciudad', key: 'city' },
+    { label: 'Direccion', key: 'address' },
+    { label: 'Notas', key: 'notes' }
+  ];
+
+  const handleExportCSV = () => {
+    const csvContent = CsvHelper.jsonToCsv(clients, CLIENT_COLUMNS);
+    CsvHelper.download(csvContent, 'clientes_becasual.csv');
+  };
+
+  const handleDownloadTemplate = () => {
+    const templateData = [
+      { name: 'Juan Perez', documentType: 'CC', document: '1012345678', phone: '3007654321', email: 'juan.perez@email.com', city: 'Bogota', address: 'Calle 45 # 23-12', notes: 'Cliente frecuente' }
+    ];
+    const csvContent = CsvHelper.jsonToCsv(templateData, CLIENT_COLUMNS);
+    CsvHelper.download(csvContent, 'plantilla_clientes.csv');
+  };
+
+  const handleImportCSV = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setError('');
+    setSuccess('');
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const text = event.target.result;
+        const parsed = CsvHelper.csvToJson(text, CLIENT_COLUMNS);
+        if (parsed.length === 0) {
+          setError('El archivo CSV está vacío o no tiene el formato correcto.');
+          return;
+        }
+
+        const all = storageRepository.getClients();
+        let addedCount = 0;
+        let duplicateCount = 0;
+
+        parsed.forEach(row => {
+          if (!row.name || !row.name.trim()) return;
+          
+          const docTrimmed = (row.document || '').trim();
+          const isDuplicate = docTrimmed && all.some(c => (c.document || '').trim() === docTrimmed);
+          
+          if (isDuplicate) {
+            duplicateCount++;
+          } else {
+            all.unshift({
+              id: `cli_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+              name: row.name.trim(),
+              documentType: row.documentType.trim() || 'CC',
+              document: docTrimmed,
+              phone: (row.phone || '').trim(),
+              email: (row.email || '').trim(),
+              city: (row.city || '').trim() || 'Bogotá',
+              address: (row.address || '').trim(),
+              notes: (row.notes || '').trim(),
+              createdAt: new Date().toISOString()
+            });
+            addedCount++;
+          }
+        });
+
+        if (addedCount > 0) {
+          storageRepository.saveClients(all);
+          load();
+          setSuccess(`Se importaron ${addedCount} clientes con éxito.${duplicateCount > 0 ? ` Se omitieron ${duplicateCount} duplicados.` : ''}`);
+        } else {
+          setError('No se agregaron clientes nuevos (todos estaban duplicados o vacíos).');
+        }
+      } catch (err) {
+        setError('Error al procesar el archivo CSV. Revisa el formato.');
+      }
+    };
+    reader.readAsText(file, 'UTF-8');
+    e.target.value = '';
+  };
 
   const filtered = clients.filter(c => {
     const q = search.toLowerCase();
@@ -84,7 +169,31 @@ export default function Clients({ user }) {
         </div>
       </div>
 
+      {/* Acciones Masivas */}
+      <div className="card-table-wrapper" style={{ padding: '16px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', background: 'var(--bg-body)', border: '1px dashed var(--border-color)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span style={{ fontSize: '20px' }}>👥</span>
+          <div>
+            <span style={{ fontWeight: '700', fontSize: '13px', color: 'var(--text-primary)' }}>Acciones Masivas</span>
+            <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Carga o descarga de clientes en lote por archivos CSV</div>
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <button className="btn btn-outline btn-sm" onClick={handleExportCSV}>📥 Exportar CSV</button>
+          <button className="btn btn-outline btn-sm" onClick={() => document.getElementById('csv-file-input').click()}>📤 Importar CSV</button>
+          <button className="btn btn-outline btn-sm" onClick={handleDownloadTemplate} style={{ borderStyle: 'dotted' }}>📄 Plantilla</button>
+          <input 
+            type="file" 
+            id="csv-file-input" 
+            accept=".csv" 
+            style={{ display: 'none' }} 
+            onChange={handleImportCSV} 
+          />
+        </div>
+      </div>
+
       {success && <div className="alert alert-success"><span>✅</span><span>{success}</span></div>}
+      {error && <div className="alert alert-error"><span>⚠️</span><span>{error}</span></div>}
 
       {/* Stats */}
       <div className="grid-stats">

@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { purchaseService } from '../services/PurchaseService';
 import { inventoryService } from '../services/InventoryService';
 import { storageRepository } from '../services/StorageRepository';
+import { CsvHelper } from '../services/CsvHelper';
 
-export default function Purchases({ user, onPurchaseSuccess }) {
+export default function Purchases({ user, onPurchaseSuccess, currentStoreId }) {
   const [purchaseHistory, setPurchaseHistory] = useState([]);
   const [productsList, setProductsList] = useState([]);
   const [params, setParams] = useState({ lines: [], categories: [], styles: [], genders: [], colors: [], sizes: [], providers: [] });
@@ -29,17 +30,111 @@ export default function Purchases({ user, onPurchaseSuccess }) {
     size: ''
   });
 
-  // UX states
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
+  const PURCHASE_COLUMNS = [
+    { label: 'Fecha', key: 'date' },
+    { label: 'Codigo de Barras', key: 'barcode' },
+    { label: 'SKU', key: 'sku' },
+    { label: 'Nombre Producto', key: 'name' },
+    { label: 'Proveedor', key: 'provider' },
+    { label: 'Cantidad', key: 'quantity' },
+    { label: 'Precio Costo', key: 'costPrice' },
+    { label: 'Precio Venta', key: 'sellPrice' },
+    { label: 'Linea', key: 'line' },
+    { label: 'Categoria', key: 'category' },
+    { label: 'Genero', key: 'gender' },
+    { label: 'Estilo', key: 'style' },
+    { label: 'Color', key: 'color' },
+    { label: 'Talla', key: 'size' }
+  ];
+
+  const handleExportCSV = () => {
+    const csvContent = CsvHelper.jsonToCsv(purchaseHistory, PURCHASE_COLUMNS);
+    CsvHelper.download(csvContent, 'compras_becasual.csv');
+  };
+
+  const handleDownloadTemplate = () => {
+    const templateData = [
+      {
+        date: new Date().toISOString().split('T')[0], barcode: '7701234567890', sku: 'JEAN-SLIM-01',
+        name: 'Jeans Slim Fit Azul', provider: 'Nacional S.A.', quantity: '10',
+        costPrice: '45000', sellPrice: '89000', line: 'Casual', category: 'Jeans',
+        gender: 'Masculino', style: 'Slim', color: 'Azul Claro', size: '32'
+      }
+    ];
+    const csvContent = CsvHelper.jsonToCsv(templateData, PURCHASE_COLUMNS);
+    CsvHelper.download(csvContent, 'plantilla_compras.csv');
+  };
+
+  const handleImportCSV = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setError('');
+    setSuccess('');
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const text = event.target.result;
+        const parsed = CsvHelper.csvToJson(text, PURCHASE_COLUMNS);
+        if (parsed.length === 0) {
+          setError('El archivo CSV está vacío o no tiene el formato correcto.');
+          return;
+        }
+
+        const targetStoreId = currentStoreId === 'all' ? 'store_1' : currentStoreId;
+        let addedCount = 0;
+
+        parsed.forEach(row => {
+          if (!row.name || !row.name.trim()) return;
+          if (!row.quantity || Number(row.quantity) <= 0) return;
+          if (!row.costPrice || Number(row.costPrice) <= 0) return;
+
+          purchaseService.registerPurchase({
+            items: [{
+              barcode: (row.barcode || '').trim(),
+              sku: (row.sku || '').trim(),
+              name: row.name.trim(),
+              provider: (row.provider || '').trim() || '-',
+              quantity: Number(row.quantity),
+              costPrice: Number(row.costPrice),
+              sellPrice: Number(row.sellPrice) || 0,
+              line: (row.line || '').trim() || '-',
+              category: (row.category || '').trim() || '-',
+              gender: (row.gender || '').trim() || '-',
+              style: (row.style || '').trim() || '-',
+              color: (row.color || '').trim() || '-',
+              size: (row.size || '').trim() || '-'
+            }],
+            provider: (row.provider || '').trim() || '-'
+          }, targetStoreId);
+          addedCount++;
+        });
+
+        if (addedCount > 0) {
+          loadData();
+          onPurchaseSuccess();
+          setSuccess(`Se importaron ${addedCount} registros de compra e ingresaron al inventario.`);
+        } else {
+          setError('No se agregaron registros de compra válidos.');
+        }
+      } catch (err) {
+        setError('Error al procesar el archivo CSV. Revisa el formato.');
+      }
+    };
+    reader.readAsText(file, 'UTF-8');
+    e.target.value = '';
+  };
+
   useEffect(() => {
     loadData();
-  }, []);
+  }, [currentStoreId]);
 
   const loadData = () => {
-    setPurchaseHistory(purchaseService.getAll());
-    setProductsList(inventoryService.getAll());
+    setPurchaseHistory(purchaseService.getAll(currentStoreId));
+    setProductsList(inventoryService.getAll(currentStoreId));
     setParams(storageRepository.getParams());
   };
 
@@ -122,7 +217,7 @@ export default function Purchases({ user, onPurchaseSuccess }) {
       purchaseService.registerPurchase({
         items: [formData],
         provider: formData.provider
-      });
+      }, currentStoreId);
 
       setSuccess(`Compra registrada con éxito para "${formData.name}".`);
       handleResetForm();
@@ -144,6 +239,29 @@ export default function Purchases({ user, onPurchaseSuccess }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
       
+      {/* Acciones Masivas */}
+      <div className="card-table-wrapper" style={{ padding: '16px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', background: 'var(--bg-body)', border: '1px dashed var(--border-color)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span style={{ fontSize: '20px' }}>📦</span>
+          <div>
+            <span style={{ fontWeight: '700', fontSize: '13px', color: 'var(--text-primary)' }}>Acciones Masivas de Compras</span>
+            <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Carga o descarga de registros de compra en lote (Sede: {currentStoreId === 'all' ? 'Principal (Defecto)' : 'Tienda actual'})</div>
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <button className="btn btn-outline btn-sm" onClick={handleExportCSV}>📥 Exportar CSV</button>
+          <button className="btn btn-outline btn-sm" onClick={() => document.getElementById('csv-file-input-purchases').click()}>📤 Importar CSV</button>
+          <button className="btn btn-outline btn-sm" onClick={handleDownloadTemplate} style={{ borderStyle: 'dotted' }}>📄 Plantilla</button>
+          <input 
+            type="file" 
+            id="csv-file-input-purchases" 
+            accept=".csv" 
+            style={{ display: 'none' }} 
+            onChange={handleImportCSV} 
+          />
+        </div>
+      </div>
+
       {/* Registration Form Card */}
       <div className="card-table-wrapper" style={{ padding: '32px' }}>
         <h3 className="card-title" style={{ marginBottom: '20px' }}>📦 Registrar Entrada de Mercancía</h3>
@@ -380,6 +498,8 @@ export default function Purchases({ user, onPurchaseSuccess }) {
         </form>
       </div>
 
+
+
       {/* History Log Card */}
       <div className="card-table-wrapper">
         <div className="card-header">
@@ -394,6 +514,7 @@ export default function Purchases({ user, onPurchaseSuccess }) {
             <thead>
               <tr>
                 <th>Fecha</th>
+                {currentStoreId === 'all' && <th>Tienda</th>}
                 <th>Código/SKU</th>
                 <th>Producto</th>
                 <th>Proveedor</th>
@@ -405,7 +526,7 @@ export default function Purchases({ user, onPurchaseSuccess }) {
             <tbody>
               {purchaseHistory.length === 0 ? (
                 <tr>
-                  <td colSpan="7" style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
+                  <td colSpan={currentStoreId === 'all' ? 8 : 7} style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
                     No hay registros de compras.
                   </td>
                 </tr>
@@ -413,6 +534,11 @@ export default function Purchases({ user, onPurchaseSuccess }) {
                 purchaseHistory.map(p => (
                   <tr key={p.id}>
                     <td><code>{p.date}</code></td>
+                    {currentStoreId === 'all' && (
+                      <td style={{ fontSize: '12px', fontWeight: '600' }}>
+                        🏬 {p.storeId === 'store_2' ? 'Sede Centro' : 'Sede Principal'}
+                      </td>
+                    )}
                     <td><code>{p.barcode}</code></td>
                     <td style={{ fontWeight: '600', color: 'var(--text-primary)' }}>{p.name}</td>
                     <td>{p.provider}</td>

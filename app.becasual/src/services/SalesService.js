@@ -49,12 +49,14 @@ class SalesService {
     this.billingStrategy = strategy;
   }
 
-  getAll() {
-    return storageRepository.getSales();
+  getAll(storeId = 'all') {
+    const sales = storageRepository.getSales();
+    if (storeId === 'all') return sales;
+    return sales.filter(s => s.storeId === storeId || (!s.storeId && storeId === 'store_1'));
   }
 
-  getActive() {
-    return this.getAll().filter(s => !s.cancelled);
+  getActive(storeId = 'all') {
+    return this.getAll(storeId).filter(s => !s.cancelled);
   }
 
   cancelSale(saleId, reason) {
@@ -79,7 +81,7 @@ class SalesService {
   }
 
   registerSale(saleData) {
-    const { items, paymentMethod, clientName, sellerId } = saleData;
+    const { items, paymentMethod, clientName, sellerId, storeId } = saleData;
 
     if (!items || items.length === 0) {
       throw new Error('La venta debe tener al menos un artículo.');
@@ -117,6 +119,7 @@ class SalesService {
     const newSale = {
       id: `sale_${Date.now()}`,
       invoiceNumber: `FAC-${1000 + sales.length + 1}`,
+      storeId: storeId || 'store_1',
       date: new Date().toISOString(),
       items: items.map(item => ({
         productId: item.product.id,
@@ -140,13 +143,31 @@ class SalesService {
   }
 
   // Get aggregated financial stats for dashboard (only non-cancelled)
-  getFinancialStats() {
-    const sales = this.getAll().filter(s => !s.cancelled);
-    const purchases = storageRepository.getPurchases();
-    const products = inventoryService.getAll();
+  getFinancialStats(storeId = 'all') {
+    const sales = this.getAll(storeId).filter(s => !s.cancelled);
+    const purchases = storageRepository.getPurchases().filter(p => storeId === 'all' || p.storeId === storeId || (!p.storeId && storeId === 'store_1'));
+    const products = inventoryService.getAll(storeId);
 
-    const totalSalesRevenue = sales.reduce((sum, s) => sum + s.total, 0);
-    const totalSalesProfit = sales.reduce((sum, s) => sum + s.profit, 0);
+    // Add layaways revenue and profit proportionately
+    const layaways = storageRepository.getLayaways().filter(l => l.status !== 'cancelled' && (storeId === 'all' || l.storeId === storeId || (!l.storeId && storeId === 'store_1')));
+    
+    let layawayRevenue = 0;
+    let layawayProfit = 0;
+    layaways.forEach(l => {
+      if (l.total > 0) {
+        const totalCost = l.items.reduce((sum, item) => sum + ((item.costPrice || 0) * item.quantity), 0);
+        const totalProfit = l.total - totalCost;
+        const profitRatio = totalProfit / l.total;
+        
+        l.payments.forEach(p => {
+          layawayRevenue += p.amount;
+          layawayProfit += p.amount * profitRatio;
+        });
+      }
+    });
+
+    const totalSalesRevenue = sales.reduce((sum, s) => sum + s.total, 0) + layawayRevenue;
+    const totalSalesProfit = sales.reduce((sum, s) => sum + s.profit, 0) + layawayProfit;
     const totalPurchasesCost = purchases.reduce((sum, p) => sum + (p.totalPrice || 0), 0);
 
     const totalInventoryValueCost = products.reduce((sum, p) => sum + (p.costPrice * p.stock), 0);
@@ -162,12 +183,15 @@ class SalesService {
       purchasesCount: purchases.length
     };
   }
-  getDailySalesSummary(dateStr) {
-    const sales = this.getAll();
+
+  getDailySalesSummary(dateStr, storeId = 'all') {
+    const sales = this.getAll(storeId);
     const filteredSales = sales.filter(s => {
       const saleDate = s.date.split('T')[0];
       return saleDate === dateStr;
     });
+
+    const layaways = storageRepository.getLayaways().filter(l => l.status !== 'cancelled' && (storeId === 'all' || l.storeId === storeId || (!l.storeId && storeId === 'store_1')));
 
     let total = 0;
     let cost = 0;
@@ -190,26 +214,60 @@ class SalesService {
       }
     });
 
+    // Add layaway payments made on this date
+    layaways.forEach(l => {
+      if (l.total > 0) {
+        const totalCost = l.items.reduce((sum, item) => sum + ((item.costPrice || 0) * item.quantity), 0);
+        const totalProfit = l.total - totalCost;
+        const profitRatio = totalProfit / l.total;
+        const costRatio = totalCost / l.total;
+
+        l.payments.forEach(pay => {
+          const payDate = pay.date.split('T')[0];
+          if (payDate === dateStr) {
+            const payAmount = pay.amount;
+            total += payAmount;
+            profit += payAmount * profitRatio;
+            cost += payAmount * costRatio;
+            
+            const pm = pay.method || 'Efectivo';
+            if (breakdown[pm] !== undefined) {
+              breakdown[pm] += payAmount;
+            } else {
+              breakdown[pm] = payAmount;
+            }
+          }
+        });
+      }
+    });
+
     return {
       date: dateStr,
       salesCount: filteredSales.length,
-      total,
-      cost,
-      profit,
-      breakdown
+      total: Number(total.toFixed(2)),
+      cost: Number(cost.toFixed(2)),
+      profit: Number(profit.toFixed(2)),
+      breakdown: {
+        Efectivo: Number((breakdown.Efectivo || 0).toFixed(2)),
+        Tarjeta: Number((breakdown.Tarjeta || 0).toFixed(2)),
+        Transferencia: Number((breakdown.Transferencia || 0).toFixed(2))
+      }
     };
   }
 
-  getDailyClosings() {
-    return storageRepository.getClosings();
+  getDailyClosings(storeId = 'all') {
+    const closings = storageRepository.getClosings();
+    if (storeId === 'all') return closings;
+    return closings.filter(c => c.storeId === storeId || (!c.storeId && storeId === 'store_1'));
   }
 
-  registerDailyClosing(closingData) {
-    const closings = this.getDailyClosings();
-    const existingIndex = closings.findIndex(c => c.date === closingData.date);
+  registerDailyClosing(closingData, storeId = 'store_1') {
+    const closings = storageRepository.getClosings();
+    const existingIndex = closings.findIndex(c => c.date === closingData.date && (c.storeId === storeId || (!c.storeId && storeId === 'store_1')));
 
     const newClosing = {
       id: `closing_${Date.now()}`,
+      storeId,
       timestamp: new Date().toISOString(),
       ...closingData
     };
