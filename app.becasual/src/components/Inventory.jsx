@@ -3,6 +3,7 @@ import { inventoryService } from '../services/InventoryService';
 import { storageRepository } from '../services/StorageRepository';
 import { authService } from '../services/AuthService';
 import { CsvHelper } from '../services/CsvHelper';
+import { printProductLabels, Barcode128Svg } from '../services/BarcodeService';
 
 export default function Inventory({ user, onDataChange, currentStoreId }) {
   const [products, setProducts] = useState([]);
@@ -19,6 +20,11 @@ export default function Inventory({ user, onDataChange, currentStoreId }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [modalStoreId, setModalStoreId] = useState('store_1');
+
+  // Printing State
+  const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
+  const [selectedProductForPrint, setSelectedProductForPrint] = useState(null);
+  const [printCopies, setPrintCopies] = useState(1);
   const [formData, setFormData] = useState({
     barcode: '',
     sku: '',
@@ -231,6 +237,18 @@ export default function Inventory({ user, onDataChange, currentStoreId }) {
     }
   };
 
+  const handleOpenPrintModal = (product) => {
+    setSelectedProductForPrint(product);
+    setPrintCopies(product.stock > 0 ? product.stock : 1);
+    setIsPrintModalOpen(true);
+  };
+
+  const handleTriggerPrint = () => {
+    if (!selectedProductForPrint) return;
+    printProductLabels(selectedProductForPrint, printCopies);
+    setIsPrintModalOpen(false);
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
     setError('');
@@ -399,7 +417,7 @@ export default function Inventory({ user, onDataChange, currentStoreId }) {
                 <th>Stock</th>
                 <th>Costo</th>
                 <th>Precio Venta</th>
-                {canEdit && <th style={{ textAlign: 'center' }}>Acciones</th>}
+                <th style={{ textAlign: 'center' }}>Acciones</th>
               </tr>
             </thead>
             <tbody>
@@ -440,18 +458,23 @@ export default function Inventory({ user, onDataChange, currentStoreId }) {
                       <td style={{ fontWeight: '700', color: 'var(--text-primary)' }}>
                         {formatCOP(p.sellPrice)}
                       </td>
-                      {canEdit && (
-                        <td style={{ textAlign: 'center' }}>
-                          <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
-                            <button className="btn btn-outline btn-sm" onClick={() => handleOpenEditModal(p)}>
-                              ✏️ Editar
-                            </button>
-                            <button className="btn btn-danger btn-sm" onClick={() => handleDelete(p.id)}>
-                              🗑️ Borrar
-                            </button>
-                          </div>
-                        </td>
-                      )}
+                      <td style={{ textAlign: 'center' }}>
+                        <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                          <button className="btn btn-outline btn-sm" onClick={() => handleOpenPrintModal(p)}>
+                            🖨️ Etiqueta
+                          </button>
+                          {canEdit && (
+                            <>
+                              <button className="btn btn-outline btn-sm" onClick={() => handleOpenEditModal(p)}>
+                                ✏️ Editar
+                              </button>
+                              <button className="btn btn-danger btn-sm" onClick={() => handleDelete(p.id)}>
+                                🗑️ Borrar
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </td>
                     </tr>
                   );
                 })
@@ -690,6 +713,90 @@ export default function Inventory({ user, onDataChange, currentStoreId }) {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Impresión de Etiquetas */}
+      {isPrintModalOpen && selectedProductForPrint && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '500px' }}>
+            <div className="modal-header">
+              <h3 className="modal-title">🖨️ Imprimir Etiqueta de Producto</h3>
+              <button className="modal-close" onClick={() => setIsPrintModalOpen(false)}>✕</button>
+            </div>
+            
+            <div className="modal-body">
+              {/* Vista previa a escala de la etiqueta (50x30mm) */}
+              <div>
+                <span style={{ fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase', color: 'var(--text-muted)', display: 'block', marginBottom: '8px' }}>
+                  Vista Previa de la Etiqueta (50mm x 30mm)
+                </span>
+                
+                {/* Contenedor simulador de etiqueta física */}
+                <div style={{
+                  width: '250px',
+                  height: '150px',
+                  border: '1px solid #ccc',
+                  borderRadius: '4px',
+                  padding: '8px 12px',
+                  boxSizing: 'border-box',
+                  background: 'white',
+                  color: 'black',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  margin: '0 auto',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                  fontFamily: 'sans-serif'
+                }}>
+                  <div style={{ fontSize: '10px', fontWeight: 'bold', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', width: '100%', textAlign: 'center' }}>
+                    {selectedProductForPrint.name.toUpperCase()}
+                  </div>
+                  
+                  <div style={{ width: '100%', height: '55px', display: 'flex', justifyContent: 'center', alignItems: 'center' }} dangerouslySetInnerHTML={{
+                    __html: new Barcode128Svg(selectedProductForPrint.sku || selectedProductForPrint.barcode || '', 1.5, 45).toString()
+                  }} />
+                  
+                  <div style={{ fontSize: '9px', fontFamily: 'monospace', fontWeight: 'bold', marginTop: '-4px' }}>
+                    {selectedProductForPrint.sku || selectedProductForPrint.barcode}
+                  </div>
+                  
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', borderTop: '0.5px dashed black', paddingTop: '4px', fontSize: '11px', fontWeight: 'bold' }}>
+                    <span>{formatCOP(selectedProductForPrint.sellPrice)}</span>
+                    <span style={{ background: 'black', color: 'white', padding: '1px 5px', borderRadius: '2px', fontSize: '9px' }}>
+                      TALLA: {selectedProductForPrint.size || '-'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Selector de copias */}
+              <div className="form-group" style={{ marginTop: '10px' }}>
+                <label className="form-label" style={{ fontWeight: '600' }}>Cantidad de etiquetas a imprimir:</label>
+                <input
+                  type="number"
+                  className="form-control"
+                  min="1"
+                  value={printCopies}
+                  onChange={(e) => setPrintCopies(Math.max(1, parseInt(e.target.value) || 1))}
+                  required
+                />
+                <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px', display: 'block' }}>
+                  Sugerido basado en stock: {selectedProductForPrint.stock} unidades. Cada copia se imprimirá en una página separada para impresoras térmicas de rollo.
+                </span>
+              </div>
+            </div>
+
+            <div className="modal-footer">
+              <button type="button" className="btn btn-outline" onClick={() => setIsPrintModalOpen(false)}>
+                Cancelar
+              </button>
+              <button type="button" className="btn btn-primary" onClick={handleTriggerPrint}>
+                🖨️ Generar e Imprimir
+              </button>
+            </div>
           </div>
         </div>
       )}
