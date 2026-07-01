@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { authService } from '../services/AuthService';
+import ChangelogModal from './ChangelogModal';
 
 const ALL_NAV_ITEMS = [
   { id: 'dashboard',       name: 'Dashboard',          icon: '📊', module: 'dashboard' },
@@ -17,6 +18,7 @@ const ALL_NAV_ITEMS = [
 
 export default function Layout({ user, currentTab, setCurrentTab, onLogout, currentStore, stores, onStoreChange, children }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [changelogOpen, setChangelogOpen] = useState(false);
 
   const allowedNavItems = ALL_NAV_ITEMS.filter(item =>
     authService.hasPermission(user.role, item.module)
@@ -90,6 +92,30 @@ export default function Layout({ user, currentTab, setCurrentTab, onLogout, curr
           >
             👋 Cerrar Sesión
           </button>
+
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            fontSize: '11px',
+            color: 'var(--text-muted)',
+            marginTop: '4px',
+            borderTop: '1px solid var(--border-color)',
+            paddingTop: '8px'
+          }}>
+            <span>Versión: <strong>v1.2.0</strong></span>
+            <span
+              style={{
+                cursor: 'pointer',
+                color: 'var(--primary)',
+                fontWeight: '600',
+                textDecoration: 'underline'
+              }}
+              onClick={() => setChangelogOpen(true)}
+            >
+              Historial
+            </span>
+          </div>
         </div>
       </div>
 
@@ -148,6 +174,8 @@ export default function Layout({ user, currentTab, setCurrentTab, onLogout, curr
           {children}
         </div>
       </div>
+
+      <ChangelogModal isOpen={changelogOpen} onClose={() => setChangelogOpen(false)} />
     </div>
   );
 }

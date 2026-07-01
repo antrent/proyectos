@@ -28,6 +28,12 @@ export default function Configuration({ user, onConfigChange, currentStoreId }) 
   const [configSuccess, setConfigSuccess] = useState('');
   const [userSuccess, setUserSuccess] = useState('');
 
+  // Snapshots State
+  const [snapshotsList, setSnapshotsList] = useState([]);
+  const [snapshotForm, setSnapshotForm] = useState({ name: '', description: '' });
+  const [snapshotSuccess, setSnapshotSuccess] = useState('');
+  const [snapshotError, setSnapshotError] = useState('');
+
   useEffect(() => {
     loadData();
   }, []);
@@ -37,6 +43,7 @@ export default function Configuration({ user, onConfigChange, currentStoreId }) 
     setUsersList(storageRepository.getUsers());
     setParams(storageRepository.getParams());
     setStoresList(storageRepository.getStores());
+    setSnapshotsList(storageRepository.getSnapshots());
   };
 
   const handleSaveConfig = (e) => {
@@ -202,6 +209,85 @@ export default function Configuration({ user, onConfigChange, currentStoreId }) 
     setIsCreatingStore(false);
     loadData();
     onConfigChange();
+  };
+
+  // === Database Versioning & Snapshot Handlers ===
+  const handleCreateSnapshot = (e) => {
+    e.preventDefault();
+    setSnapshotError('');
+    setSnapshotSuccess('');
+    if (!snapshotForm.name.trim()) {
+      setSnapshotError('El nombre de la versión es obligatorio.');
+      return;
+    }
+    try {
+      storageRepository.createSnapshot(snapshotForm.name.trim(), snapshotForm.description.trim());
+      setSnapshotSuccess(`Versión de datos "${snapshotForm.name}" creada con éxito.`);
+      setSnapshotForm({ name: '', description: '' });
+      loadData();
+    } catch (err) {
+      setSnapshotError(err.message || 'Error al crear la versión.');
+    }
+  };
+
+  const handleRestoreSnapshot = (snapshotId, snapshotName) => {
+    if (window.confirm(`⚠️ ADVERTENCIA CRÍTICA:\n¿Estás seguro de que deseas restaurar la versión de datos "${snapshotName}"?\n\nTodos los datos actuales del inventario, ventas, clientes y configuraciones serán reemplazados por el estado guardado. El sistema se reiniciará.`)) {
+      try {
+        storageRepository.restoreSnapshot(snapshotId);
+        alert('Base de datos restaurada con éxito. El sistema se recargará ahora.');
+        window.location.reload();
+      } catch (err) {
+        alert('Error al restaurar: ' + err.message);
+      }
+    }
+  };
+
+  const handleDeleteSnapshot = (snapshotId, snapshotName) => {
+    if (window.confirm(`¿Estás seguro de que deseas eliminar la versión de datos "${snapshotName}"? Esta acción no se puede deshacer.`)) {
+      try {
+        storageRepository.deleteSnapshot(snapshotId);
+        setSnapshotSuccess(`Versión "${snapshotName}" eliminada correctamente.`);
+        loadData();
+      } catch (err) {
+        alert('Error al eliminar: ' + err.message);
+      }
+    }
+  };
+
+  const handleExportSnapshot = (snapshot) => {
+    try {
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify([snapshot], null, 2));
+      const downloadAnchor = document.createElement('a');
+      downloadAnchor.setAttribute("href",     dataStr);
+      const cleanName = snapshot.name.toLowerCase().replace(/[^a-z0-9]/g, "_");
+      downloadAnchor.setAttribute("download", `becasual_backup_${cleanName}_${Date.now()}.json`);
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+      setSnapshotSuccess('Copia de datos exportada y descargada.');
+    } catch (err) {
+      setSnapshotError('Error al exportar la copia.');
+    }
+  };
+
+  const handleImportFileChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const importedData = JSON.parse(event.target.result);
+        storageRepository.importSnapshots(importedData);
+        setSnapshotSuccess('Copia(s) de seguridad importada(s) correctamente.');
+        loadData();
+        e.target.value = null;
+      } catch (err) {
+        setSnapshotError('Error al importar archivo. Asegúrate de que sea un archivo JSON válido de BeCasual: ' + err.message);
+        e.target.value = null;
+      }
+    };
+    reader.readAsText(file);
   };
 
   return (
@@ -682,6 +768,165 @@ export default function Configuration({ user, onConfigChange, currentStoreId }) 
                 )}
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* 5. Database Snapshot and Backups (Admin only) */}
+      {user.role === 'admin' && (
+        <div className="card-table-wrapper" style={{ padding: '32px' }}>
+          <div className="card-header" style={{ marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+            <div>
+              <h3 className="card-title">📂 Control de Versiones y Respaldos de Datos</h3>
+              <span className="badge secondary">{snapshotsList.length} versiones registradas</span>
+            </div>
+            <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+              <label className="btn btn-outline btn-sm" style={{ cursor: 'pointer', margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                📥 Importar JSON
+                <input type="file" accept=".json" onChange={handleImportFileChange} style={{ display: 'none' }} />
+              </label>
+            </div>
+          </div>
+
+          {snapshotSuccess && (
+            <div className="alert alert-success" style={{ marginBottom: '16px' }}>
+              <span>✅</span> <span>{snapshotSuccess}</span>
+            </div>
+          )}
+          {snapshotError && (
+            <div className="alert alert-error" style={{ marginBottom: '16px' }}>
+              <span>⚠️</span> <span>{snapshotError}</span>
+            </div>
+          )}
+
+          <div className="grid-2" style={{ gap: '28px', marginBottom: '28px' }}>
+            {/* Create Snapshot Form */}
+            <div style={{
+              background: 'var(--bg-body)',
+              border: '1px solid var(--border-color)',
+              borderRadius: 'var(--radius-md)',
+              padding: '24px'
+            }}>
+              <form onSubmit={handleCreateSnapshot} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div style={{ fontSize: '14px', fontWeight: '700', color: 'var(--text-primary)', marginBottom: '4px' }}>
+                  📸 CAPTURAR NUEVO PUNTO DE RESTAURACIÓN
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Nombre de la Versión *</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    placeholder="Ej. Antes de carga de invierno"
+                    value={snapshotForm.name}
+                    onChange={e => setSnapshotForm({ ...snapshotForm, name: e.target.value })}
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Descripción / Detalles de Cambios</label>
+                  <textarea
+                    className="form-control"
+                    placeholder="Describe los cambios o estado actual de los datos..."
+                    rows="3"
+                    style={{ resize: 'none', fontFamily: 'inherit' }}
+                    value={snapshotForm.description}
+                    onChange={e => setSnapshotForm({ ...snapshotForm, description: e.target.value })}
+                  />
+                </div>
+                <button type="submit" className="btn btn-primary" style={{ width: '100%', justifyContent: 'center' }}>
+                  💾 Crear Versión de Datos
+                </button>
+              </form>
+            </div>
+
+            {/* General Info */}
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'center',
+              background: 'var(--bg-body)',
+              border: '1px solid var(--border-color)',
+              borderRadius: 'var(--radius-md)',
+              padding: '24px',
+              fontSize: '13px',
+              color: 'var(--text-secondary)',
+              lineHeight: '1.6'
+            }}>
+              <h4 style={{ fontWeight: '700', color: 'var(--text-primary)', marginBottom: '8px' }}>💡 ¿Cómo funciona el Control de Cambios?</h4>
+              <p style={{ marginBottom: '8px' }}>
+                Este panel te permite guardar instantáneas completas de la base de datos de tu tienda (configuración, sucursales, usuarios, inventario, ventas y cierres).
+              </p>
+              <ul style={{ paddingLeft: '18px', listStyleType: 'disc', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <li><strong>Crear Versión:</strong> Toma una foto del estado actual de tu negocio antes de realizar grandes modificaciones.</li>
+                <li><strong>Restaurar:</strong> Regresa al estado exacto guardado. <em>¡Cuidado! Se sobrescribirán los datos actuales.</em></li>
+                <li><strong>Exportar/Importar:</strong> Descarga tus respaldos como archivos JSON para guardarlos fuera del navegador o moverlos a otra computadora.</li>
+              </ul>
+            </div>
+          </div>
+
+          {/* Snapshots Table */}
+          <div className="table-responsive" style={{ border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)' }}>
+            <table className="table-premium">
+              <thead>
+                <tr>
+                  <th>Nombre de Versión</th>
+                  <th>Descripción</th>
+                  <th>Fecha de Creación</th>
+                  <th style={{ textAlign: 'center' }}>Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {snapshotsList.length === 0 ? (
+                  <tr>
+                    <td colSpan="4" style={{ textAlign: 'center', padding: '24px', color: 'var(--text-muted)' }}>
+                      📂 No hay versiones de datos guardadas todavía. Crea una arriba.
+                    </td>
+                  </tr>
+                ) : (
+                  [...snapshotsList].reverse().map(snap => (
+                    <tr key={snap.id}>
+                      <td style={{ fontWeight: '700', color: 'var(--text-primary)' }}>
+                        📸 {snap.name}
+                      </td>
+                      <td style={{ fontSize: '12px', color: 'var(--text-secondary)', maxWidth: '250px', whiteSpace: 'normal', wordBreak: 'break-word' }}>
+                        {snap.description}
+                      </td>
+                      <td style={{ fontSize: '12px' }}>
+                        {new Date(snap.timestamp).toLocaleString()}
+                      </td>
+                      <td style={{ textAlign: 'center' }}>
+                        <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                          <button
+                            className="btn btn-success btn-sm"
+                            onClick={() => handleRestoreSnapshot(snap.id, snap.name)}
+                            title="Restaurar este estado de datos"
+                            style={{ padding: '4px 10px', fontSize: '11px' }}
+                          >
+                            🔄 Restaurar
+                          </button>
+                          <button
+                            className="btn btn-outline btn-sm"
+                            onClick={() => handleExportSnapshot(snap)}
+                            title="Descargar respaldo JSON"
+                            style={{ padding: '4px 10px', fontSize: '11px' }}
+                          >
+                            📤 Exportar
+                          </button>
+                          <button
+                            className="btn btn-danger btn-sm"
+                            onClick={() => handleDeleteSnapshot(snap.id, snap.name)}
+                            title="Eliminar este respaldo"
+                            style={{ padding: '4px 8px', fontSize: '11px' }}
+                          >
+                            🗑️
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
           </div>
         </div>
       )}

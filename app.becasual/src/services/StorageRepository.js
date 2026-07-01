@@ -214,6 +214,105 @@ class StorageRepository {
   savePaymentMethods(methods) {
     return this.setData('payment_methods', methods);
   }
+
+  // === Database Version & Snapshot Control ===
+  getSnapshots() {
+    try {
+      const data = localStorage.getItem('becasual_db_snapshots');
+      return data ? JSON.parse(data) : [];
+    } catch (e) {
+      console.error('Error reading snapshots:', e);
+      return [];
+    }
+  }
+
+  saveSnapshots(snapshots) {
+    try {
+      localStorage.setItem('becasual_db_snapshots', JSON.stringify(snapshots));
+      return true;
+    } catch (e) {
+      console.error('Error saving snapshots:', e);
+      return false;
+    }
+  }
+
+  createSnapshot(name, description) {
+    const snapshotData = {};
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key.startsWith('becasual_') && key !== 'becasual_db_snapshots') {
+        snapshotData[key] = localStorage.getItem(key);
+      }
+    }
+    const newSnapshot = {
+      id: `snap_${Date.now()}`,
+      name: name || `Copia ${new Date().toLocaleDateString()}`,
+      description: description || 'Sin descripción',
+      timestamp: new Date().toISOString(),
+      data: snapshotData
+    };
+    const snapshots = this.getSnapshots();
+    snapshots.push(newSnapshot);
+    this.saveSnapshots(snapshots);
+    return newSnapshot;
+  }
+
+  restoreSnapshot(snapshotId) {
+    const snapshots = this.getSnapshots();
+    const snapshot = snapshots.find(s => s.id === snapshotId);
+    if (!snapshot) throw new Error('Copia de seguridad no encontrada.');
+
+    // Identify all current keys to clean
+    const keysToRemove = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key.startsWith('becasual_') && key !== 'becasual_db_snapshots') {
+        keysToRemove.push(key);
+      }
+    }
+    // Remove them
+    keysToRemove.forEach(k => localStorage.removeItem(k));
+
+    // Restore from snapshot data
+    Object.entries(snapshot.data).forEach(([key, val]) => {
+      localStorage.setItem(key, val);
+    });
+
+    return true;
+  }
+
+  deleteSnapshot(snapshotId) {
+    const snapshots = this.getSnapshots().filter(s => s.id !== snapshotId);
+    this.saveSnapshots(snapshots);
+    return true;
+  }
+
+  importSnapshots(importedList) {
+    if (!Array.isArray(importedList)) throw new Error('El formato importado no es una lista válida.');
+    
+    // Simple validation
+    importedList.forEach(s => {
+      if (!s.id || !s.name || !s.data || typeof s.data !== 'object') {
+        throw new Error('El archivo importado contiene una copia con formato inválido.');
+      }
+    });
+
+    const currentSnapshots = this.getSnapshots();
+    
+    // Merge by id (avoiding duplicates)
+    const merged = [...currentSnapshots];
+    importedList.forEach(imp => {
+      const index = merged.findIndex(s => s.id === imp.id);
+      if (index >= 0) {
+        merged[index] = imp; // Overwrite
+      } else {
+        merged.push(imp); // Append
+      }
+    });
+
+    this.saveSnapshots(merged);
+    return true;
+  }
 }
 
 export const storageRepository = new StorageRepository();
