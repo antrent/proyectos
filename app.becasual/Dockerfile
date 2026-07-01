@@ -16,11 +16,17 @@ RUN npm run build
 # Stage 2: Production stage using Nginx
 FROM nginx:stable-alpine
 
+# Set default port to 8080 (Cloud Run overrides this environment variable)
+ENV PORT=8080
+
 # Copy built assets from the build stage to Nginx's HTML serving folder
 COPY --from=build /app/dist /usr/share/nginx/html
 
-# Expose port 80
-EXPOSE 80
+# Copy Nginx template for dynamic port injection
+COPY default.conf.template /etc/nginx/templates/default.conf.template
+
+# Expose port 8080
+EXPOSE 8080
 
 # Run Nginx in the foreground
 CMD ["nginx", "-g", "daemon off;"]

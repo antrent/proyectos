@@ -53,7 +53,7 @@ docker build -t app-becasual .
 
 # 6. Run the new container
 echo "🚢 Lanzando el contenedor en el puerto 8080..."
-docker run -d -p 8080:80 --name ${CONTAINER_NAME} app-becasual
+docker run -d -p 8080:8080 --name ${CONTAINER_NAME} app-becasual
 
 echo "=============================================="
 echo "🎉 ¡Todo listo! La aplicación se ejecutará en segundo plano."
