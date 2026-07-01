@@ -5,3 +5,7 @@ dist
 .dockerignore
 Dockerfile
 README.md
+._*
+.DS_Store
+**/.DS_Store
+**/._*
