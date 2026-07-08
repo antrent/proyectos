@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { inventoryService } from '../services/InventoryService';
+import { CsvHelper } from '../services/CsvHelper';
 
 export default function StockBreak({ onGoToPurchases, currentStoreId }) {
   const [analysis, setAnalysis] = useState(null);
@@ -7,6 +8,11 @@ export default function StockBreak({ onGoToPurchases, currentStoreId }) {
   const [minStockFilter, setMinStockFilter] = useState('');
   const [weeklyPeriod, setWeeklyPeriod] = useState(4); // default 4 weeks
   const [weeklyProjections, setWeeklyProjections] = useState([]);
+  
+  const [weeklyBudget, setWeeklyBudget] = useState(() => Number(localStorage.getItem('becasual_weekly_budget')) || 2000000);
+  const [checkedItems, setCheckedItems] = useState({});
+  const [selectedItems, setSelectedItems] = useState({});
+  const [saveSuccess, setSaveSuccess] = useState('');
 
   useEffect(() => {
     const data = inventoryService.getStockBreakAnalysis(currentStoreId);
@@ -15,8 +21,109 @@ export default function StockBreak({ onGoToPurchases, currentStoreId }) {
     setWeeklyProjections(weeklyData);
   }, [currentStoreId, weeklyPeriod]);
 
+  useEffect(() => {
+    if (!analysis) return;
+    const savedPlan = localStorage.getItem('becasual_weekly_plan');
+    if (savedPlan) {
+      try {
+        const { budget, checked, quantities } = JSON.parse(savedPlan);
+        if (budget !== undefined) setWeeklyBudget(budget);
+        
+        const newChecked = { ...checked };
+        const newQuantities = { ...quantities };
+        analysis.projections.forEach(proj => {
+          if (newChecked[proj.product.id] === undefined) {
+            newChecked[proj.product.id] = true;
+          }
+          if (newQuantities[proj.product.id] === undefined) {
+            newQuantities[proj.product.id] = proj.suggestedQuantity;
+          }
+        });
+        
+        setCheckedItems(newChecked);
+        setSelectedItems(newQuantities);
+      } catch (e) {
+        console.error("Error loading weekly plan", e);
+      }
+    } else {
+      const initialQuantities = {};
+      const initialChecked = {};
+      analysis.projections.forEach(proj => {
+        initialQuantities[proj.product.id] = proj.suggestedQuantity;
+        initialChecked[proj.product.id] = true;
+      });
+      setSelectedItems(initialQuantities);
+      setCheckedItems(initialChecked);
+    }
+  }, [analysis]);
+
   const formatCOP = (amount) =>
     new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(amount || 0);
+
+  // Calculate total cost for the current plan
+  const totalPlannedCost = analysis?.projections.reduce((sum, proj) => {
+    const isChecked = checkedItems[proj.product.id] ?? false;
+    if (!isChecked) return sum;
+    const qty = selectedItems[proj.product.id] ?? proj.suggestedQuantity;
+    return sum + (qty * (proj.product.costPrice || 0));
+  }, 0) || 0;
+
+  const budgetRemaining = weeklyBudget - totalPlannedCost;
+  const budgetProgressPercent = weeklyBudget > 0 ? Math.min((totalPlannedCost / weeklyBudget) * 100, 100) : 0;
+  const isOverBudget = totalPlannedCost > weeklyBudget;
+
+  const handleSavePlan = () => {
+    localStorage.setItem('becasual_weekly_plan', JSON.stringify({
+      budget: weeklyBudget,
+      checked: checkedItems,
+      quantities: selectedItems
+    }));
+    // Also save budget alone for default loader
+    localStorage.setItem('becasual_weekly_budget', weeklyBudget);
+    setSaveSuccess('¡Plan semanal de reposición guardado con éxito!');
+    setTimeout(() => setSaveSuccess(''), 4000);
+  };
+
+  const handleClearPlan = () => {
+    setCheckedItems({});
+    const resetQuantities = {};
+    analysis.projections.forEach(proj => {
+      resetQuantities[proj.product.id] = 0;
+    });
+    setSelectedItems(resetQuantities);
+  };
+
+  const handleExportPlanCSV = () => {
+    const planItems = analysis.projections
+      .filter(proj => checkedItems[proj.product.id])
+      .map(proj => {
+        const qty = selectedItems[proj.product.id] ?? proj.suggestedQuantity;
+        return {
+          name: proj.product.name,
+          sku: proj.product.sku,
+          provider: proj.provider,
+          stock: proj.stock,
+          priority: proj.stock === 0 ? 'CRÍTICA' : 'ALTA',
+          quantity: qty,
+          costPrice: proj.product.costPrice,
+          totalPrice: qty * proj.product.costPrice
+        };
+      });
+
+    const columns = [
+      { label: 'Producto', key: 'name' },
+      { label: 'SKU', key: 'sku' },
+      { label: 'Proveedor', key: 'provider' },
+      { label: 'Stock Actual', key: 'stock' },
+      { label: 'Prioridad', key: 'priority' },
+      { label: 'Cantidad a Comprar', key: 'quantity' },
+      { label: 'Costo Unitario', key: 'costPrice' },
+      { label: 'Costo Total', key: 'totalPrice' }
+    ];
+
+    const csvContent = CsvHelper.jsonToCsv(planItems, columns);
+    CsvHelper.download(csvContent, 'plan_reposicion_semanal.csv');
+  };
 
   if (!analysis) return <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>Cargando análisis...</div>;
 
@@ -232,68 +339,172 @@ export default function StockBreak({ onGoToPurchases, currentStoreId }) {
 
       {/* TAB: Projections */}
       {activeTab === 'projections' && (
-        <div className="card-table-wrapper">
-          <div className="card-header">
-            <div>
-              <h3 className="card-title">📋 Plan de Reposición de Inventario</h3>
-              <span className="card-subtitle">Cantidades y costos sugeridos para restablecer niveles óptimos</span>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          
+          {saveSuccess && <div className="alert alert-success"><span>✅</span><span>{saveSuccess}</span></div>}
+
+          {/* Budget & Expense Control Panel */}
+          <div className="grid-2">
+            <div className="card-table-wrapper" style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <h4 style={{ margin: 0, fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)' }}>💰 Presupuesto de Compra Semanal</h4>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <span style={{ fontSize: '18px', fontWeight: 'bold' }}>$</span>
+                <input
+                  type="number"
+                  className="form-control"
+                  style={{ flex: 1, fontSize: '18px', fontWeight: 800, padding: '8px 12px' }}
+                  value={weeklyBudget}
+                  onChange={e => setWeeklyBudget(Math.max(0, Number(e.target.value) || 0))}
+                  placeholder="Ingresa presupuesto..."
+                />
+              </div>
+              <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                Establece el tope de gastos estimado para realizar compras de reposición esta semana.
+              </span>
             </div>
-            {onGoToPurchases && (
-              <button className="btn btn-primary" onClick={onGoToPurchases}>
-                ➕ Ir a Registrar Compra
-              </button>
-            )}
+
+            <div className="card-table-wrapper" style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <h4 style={{ margin: 0, fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)' }}>📊 Control de Gastos Proyectados</h4>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                <div>
+                  <div style={{ fontSize: '11px', fontWeight: 'bold', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Inversión Planeada</div>
+                  <div style={{ fontSize: '20px', fontWeight: 800, color: isOverBudget ? 'var(--danger)' : 'var(--primary)' }}>
+                    {formatCOP(totalPlannedCost)}
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '11px', fontWeight: 'bold', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Disponible</div>
+                  <div style={{ fontSize: '20px', fontWeight: 800, color: budgetRemaining < 0 ? 'var(--danger)' : 'var(--success)' }}>
+                    {formatCOP(budgetRemaining)}
+                  </div>
+                </div>
+              </div>
+              {/* Progress bar */}
+              <div style={{ height: '8px', background: 'var(--border-color)', borderRadius: '4px', overflow: 'hidden', marginTop: '4px' }}>
+                <div style={{
+                  height: '100%',
+                  width: `${budgetProgressPercent}%`,
+                  background: isOverBudget ? 'var(--danger)' : 'var(--success)',
+                  borderRadius: '4px',
+                  transition: 'width 0.4s ease'
+                }} />
+              </div>
+              {isOverBudget && (
+                <div style={{ fontSize: '11px', color: 'var(--danger)', fontWeight: 600 }}>
+                  ⚠️ ¡Has excedido el presupuesto semanal asignado! Reduzca cantidades o aumente el presupuesto.
+                </div>
+              )}
+            </div>
           </div>
-          <div className="table-responsive">
-            <table className="table-premium">
-              <thead>
-                <tr>
-                  <th>Producto</th>
-                  <th>Proveedor</th>
-                  <th>Stock Actual</th>
-                  <th>Cantidad Sugerida</th>
-                  <th>Costo Unit.</th>
-                  <th>Inversión Estimada</th>
-                  <th>Estado</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filterByName(analysis.projections.map(p => ({ ...p.product, ...p, product: p.product }))).length === 0 ? (
-                  <tr><td colSpan="7" style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
-                    Sin resultados.
-                  </td></tr>
-                ) : (
-                  analysis.projections
-                    .filter(proj => {
-                      if (!minStockFilter.trim()) return true;
-                      const q = minStockFilter.toLowerCase();
-                      return proj.product.name.toLowerCase().includes(q) || proj.provider.toLowerCase().includes(q);
-                    })
-                    .map(proj => (
-                      <tr key={proj.product.id}>
-                        <td>
-                          <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{proj.product.name}</div>
-                          <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Talla {proj.product.size} | {proj.product.color}</div>
-                        </td>
-                        <td>{proj.provider}</td>
-                        <td><span className={`badge ${proj.stock === 0 ? 'danger' : 'warning'}`}>{proj.stock} uds</span></td>
-                        <td>
-                          <span style={{ fontWeight: 800, fontSize: '16px', color: 'var(--primary)' }}>
-                            {proj.suggestedQuantity} uds
-                          </span>
-                        </td>
-                        <td>{formatCOP(proj.product.costPrice)}</td>
-                        <td style={{ fontWeight: 700, color: 'var(--secondary)' }}>{formatCOP(proj.estimatedCost)}</td>
-                        <td>
-                          {proj.stock === 0
-                            ? <span className="badge danger">🔴 Quiebre</span>
-                            : <span className="badge warning">⚠️ Crítico</span>}
-                        </td>
-                      </tr>
-                    ))
-                )}
-              </tbody>
-            </table>
+
+          {/* Interactive Planner Card */}
+          <div className="card-table-wrapper">
+            <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', paddingBottom: '16px' }}>
+              <div>
+                <h3 className="card-title">📋 Planificador Interactivo Semanal</h3>
+                <span className="card-subtitle">Selecciona los productos y ajusta las cantidades a comprar para la semana</span>
+              </div>
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <button className="btn btn-outline btn-sm" onClick={handleExportPlanCSV}>📥 Exportar CSV</button>
+                <button className="btn btn-outline btn-sm" onClick={handleClearPlan} style={{ color: 'var(--danger)' }}>🗑️ Reiniciar</button>
+                <button className="btn btn-primary btn-sm" onClick={handleSavePlan}>💾 Guardar Plan</button>
+              </div>
+            </div>
+            <div className="table-responsive">
+              <table className="table-premium">
+                <thead>
+                  <tr>
+                    <th style={{ width: '50px', textAlign: 'center' }}>Incluir</th>
+                    <th>Producto</th>
+                    <th>Proveedor</th>
+                    <th>Stock Actual</th>
+                    <th>Prioridad</th>
+                    <th style={{ width: '130px' }}>Cant. a Reponer</th>
+                    <th>Costo Unit.</th>
+                    <th>Costo Proyectado</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filterByName(analysis.projections.map(p => ({ ...p.product, ...p, product: p.product }))).length === 0 ? (
+                    <tr><td colSpan="8" style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
+                      Sin resultados.
+                    </td></tr>
+                  ) : (
+                    analysis.projections
+                      .filter(proj => {
+                        if (!minStockFilter.trim()) return true;
+                        const q = minStockFilter.toLowerCase();
+                        return proj.product.name.toLowerCase().includes(q) || proj.provider.toLowerCase().includes(q);
+                      })
+                      .map(proj => {
+                        const pId = proj.product.id;
+                        const isChecked = checkedItems[pId] ?? false;
+                        const qty = selectedItems[pId] ?? proj.suggestedQuantity;
+                        const unitCost = proj.product.costPrice || 0;
+                        const totalCost = qty * unitCost;
+
+                        // Priority tag
+                        let priorityLabel = 'MEDIA';
+                        let priorityBadge = 'secondary';
+                        if (proj.stock === 0) {
+                          priorityLabel = 'CRÍTICA';
+                          priorityBadge = 'danger';
+                        } else if (proj.stock <= proj.product.minStock) {
+                          priorityLabel = 'ALTA';
+                          priorityBadge = 'warning';
+                        }
+
+                        return (
+                          <tr key={pId} style={{ opacity: isChecked ? 1 : 0.6 }}>
+                            <td style={{ textAlign: 'center' }}>
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={e => setCheckedItems(prev => ({ ...prev, [pId]: e.target.checked }))}
+                                style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                              />
+                            </td>
+                            <td>
+                              <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{proj.product.name}</div>
+                              <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>T. {proj.product.size} | {proj.product.color} | SKU: {proj.product.sku}</div>
+                            </td>
+                            <td style={{ fontSize: '13px' }}>{proj.provider}</td>
+                            <td>
+                              <span className={`badge ${proj.stock === 0 ? 'danger' : 'warning'}`}>
+                                {proj.stock} uds
+                              </span>
+                            </td>
+                            <td>
+                              <span className={`badge ${priorityBadge}`}>{priorityLabel}</span>
+                            </td>
+                            <td>
+                              <input
+                                type="number"
+                                className="form-control"
+                                style={{ width: '90px', padding: '4px 8px', fontSize: '14px', fontWeight: 'bold', textAlign: 'center' }}
+                                min="0"
+                                value={qty}
+                                onChange={e => {
+                                  const val = Math.max(0, parseInt(e.target.value, 10) || 0);
+                                  setSelectedItems(prev => ({ ...prev, [pId]: val }));
+                                  if (val > 0 && !isChecked) {
+                                    setCheckedItems(prev => ({ ...prev, [pId]: true }));
+                                  }
+                                }}
+                                disabled={!isChecked}
+                              />
+                            </td>
+                            <td>{formatCOP(unitCost)}</td>
+                            <td style={{ fontWeight: 700, color: isChecked ? 'var(--secondary)' : 'var(--text-muted)' }}>
+                              {formatCOP(totalCost)}
+                            </td>
+                          </tr>
+                        );
+                      })
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       )}
