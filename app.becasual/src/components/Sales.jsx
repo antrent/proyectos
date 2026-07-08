@@ -27,6 +27,7 @@ export default function Sales({ user, onSaleSuccess, currentStoreId }) {
   const [isLayawayModalOpen, setIsLayawayModalOpen] = useState(false);
   const [layawayClientName, setLayawayClientName] = useState('');
   const [layawayClientPhone, setLayawayClientPhone] = useState('');
+  const [layawayClientEmail, setLayawayClientEmail] = useState('');
   const [layawayClientDocument, setLayawayClientDocument] = useState('');
   const [layawayInitialPayment, setLayawayInitialPayment] = useState(0);
   const [layawayPaymentMethod, setLayawayPaymentMethod] = useState('Efectivo');

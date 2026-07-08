@@ -257,7 +257,7 @@ export default function Layout({ user, currentTab, setCurrentTab, onLogout, curr
             borderTop: '1px solid var(--border-color)',
             paddingTop: '8px'
           }}>
-            <span>Versión: <strong>v1.5.0</strong></span>
+            <span>Versión: <strong>v1.6.0</strong></span>
             <span
               style={{
                 cursor: 'pointer',

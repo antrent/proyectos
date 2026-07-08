@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { layawayService } from '../services/LayawayService';
 import { storageRepository } from '../services/StorageRepository';
+import { notificationService } from '../services/NotificationService';
 import { CsvHelper } from '../services/CsvHelper';
 
 const STATUS_BADGES = {
@@ -49,6 +50,8 @@ export default function Layaways({ user, currentStoreId, onDataChange }) {
   // UX alerts
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [notifLog, setNotifLog] = useState([]);
+  const [showNotifLog, setShowNotifLog] = useState(false);
 
   const LAYAWAY_COLUMNS = [
     { label: 'Numero Registro', key: 'layawayNumber' },
@@ -149,6 +152,7 @@ export default function Layaways({ user, currentStoreId, onDataChange }) {
   useEffect(() => {
     loadLayaways();
     setStores(storageRepository.getStores());
+    setNotifLog(notificationService.getLog());
   }, [currentStoreId]);
 
   const loadLayaways = () => {
@@ -251,14 +255,28 @@ export default function Layaways({ user, currentStoreId, onDataChange }) {
   const handleDeliverProducts = (l) => {
     if (window.confirm('¿Confirmas la entrega de los productos? Esta acción cerrará la separación.')) {
       try {
-        layawayService.deliverProducts(l.id);
-        setSuccess(`Entrega registrada con éxito. Separación finalizada.`);
+        const delivered = layawayService.deliverProducts(l.id);
+        // Send delivery notification
+        try { notificationService.notifyProductReady(delivered || l); } catch (e) { console.warn('Notification error:', e); }
+        setSuccess(`Entrega registrada con éxito. Separación finalizada. Se envió notificación al cliente.`);
+        setNotifLog(notificationService.getLog());
         loadLayaways();
         onDataChange();
-        setTimeout(() => setSuccess(''), 4000);
+        setTimeout(() => setSuccess(''), 5000);
       } catch (err) {
         alert(err.message);
       }
+    }
+  };
+
+  const handleNotifyProductReady = (l) => {
+    try {
+      notificationService.notifyProductReady(l);
+      setNotifLog(notificationService.getLog());
+      setSuccess(`📣 Notificación de llegada enviada a ${l.clientName}.`);
+      setTimeout(() => setSuccess(''), 4000);
+    } catch (err) {
+      setError('Error al enviar la notificación: ' + err.message);
     }
   };
 
@@ -430,6 +448,14 @@ export default function Layaways({ user, currentStoreId, onDataChange }) {
                                 📦 Entregar
                               </button>
                             )}
+                            <button
+                              className="btn btn-outline btn-sm"
+                              onClick={() => handleNotifyProductReady(l)}
+                              title="Notificar al cliente que el producto está listo en tienda"
+                              style={{ borderColor: 'var(--info, #17a2b8)', color: 'var(--info, #17a2b8)' }}
+                            >
+                              📣 Notificar
+                            </button>
                             <button className="btn btn-danger btn-sm" onClick={() => handleOpenCancel(l)} title="Anular Separado">
                               ✕ Anular
                             </button>
@@ -443,6 +469,69 @@ export default function Layaways({ user, currentStoreId, onDataChange }) {
             </tbody>
           </table>
         </div>
+      </div>
+
+      {/* Notification Log Panel */}
+      <div className="card-table-wrapper" style={{ padding: '16px 24px' }}>
+        <div className="card-header" style={{ cursor: 'pointer' }} onClick={() => setShowNotifLog(v => !v)}>
+          <h3 className="card-title">🔔 Historial de Notificaciones Enviadas</h3>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span className="badge primary">{notifLog.length}</span>
+            <button
+              className="btn btn-outline btn-sm"
+              onClick={(e) => { e.stopPropagation(); setShowNotifLog(v => !v); }}
+            >
+              {showNotifLog ? '▲ Ocultar' : '▼ Ver historial'}
+            </button>
+          </div>
+        </div>
+        {showNotifLog && (
+          <div className="table-responsive" style={{ marginTop: '12px' }}>
+            {notifLog.length === 0 ? (
+              <p style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '16px' }}>No hay notificaciones enviadas aún.</p>
+            ) : (
+              <table className="table-premium" style={{ fontSize: '12px' }}>
+                <thead>
+                  <tr>
+                    <th>Fecha/Hora</th>
+                    <th>Tipo</th>
+                    <th>Separación</th>
+                    <th>Canales</th>
+                    <th>Estado</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {notifLog.slice(0, 50).map((n, idx) => {
+                    const typeLabels = {
+                      layaway_created: '🛍️ Separación creada',
+                      payment_registered: '💵 Abono registrado',
+                      product_ready: '📦 Producto listo'
+                    };
+                    return (
+                      <tr key={n.id || idx}>
+                        <td>{n.timestamp ? new Date(n.timestamp).toLocaleString('es-CO') : '—'}</td>
+                        <td><span className="badge secondary">{typeLabels[n.type] || n.type}</span></td>
+                        <td><code>{n.layawayId || '—'}</code></td>
+                        <td>
+                          {(n.channels || []).map((ch, ci) => (
+                            <span key={ci} className="badge" style={{ marginRight: '4px', background: ch.channel === 'whatsapp' ? '#25D366' : '#0072c6', color: 'white' }}>
+                              {ch.channel === 'whatsapp' ? '📱 WA' : '✉️ Email'}
+                            </span>
+                          ))}
+                        </td>
+                        <td>
+                          {(n.channels || []).every(ch => ch.success)
+                            ? <span className="badge success">✅ Enviado</span>
+                            : <span className="badge warning">⚠️ Parcial</span>}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
+          </div>
+        )}
       </div>
 
       {/* 1. Modal: Register Payment (Abonar) */}

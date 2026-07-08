@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { storageRepository } from '../services/StorageRepository';
 import { authService } from '../services/AuthService';
+import { notificationService } from '../services/NotificationService';
 
 export default function Configuration({ user, onConfigChange, currentStoreId }) {
   const [config, setConfig] = useState({});
@@ -27,6 +28,10 @@ export default function Configuration({ user, onConfigChange, currentStoreId }) 
   // UX alerts
   const [configSuccess, setConfigSuccess] = useState('');
   const [userSuccess, setUserSuccess] = useState('');
+
+  // Notification Settings State
+  const [notifConfig, setNotifConfig] = useState(() => notificationService.getConfig());
+  const [notifSuccess, setNotifSuccess] = useState('');
 
   // Snapshots State
   const [snapshotsList, setSnapshotsList] = useState([]);
@@ -772,7 +777,125 @@ export default function Configuration({ user, onConfigChange, currentStoreId }) 
         </div>
       )}
 
-      {/* 5. Database Snapshot and Backups (Admin only) */}
+      {/* 5. Notification Settings */}
+      {user.role === 'admin' && (
+        <div className="card-table-wrapper" style={{ padding: '32px' }}>
+          <div className="card-header" style={{ marginBottom: '20px' }}>
+            <div>
+              <h3 className="card-title">🔔 Configuración de Notificaciones (WhatsApp / Email)</h3>
+              <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Configura cómo y cuándo se envían avisos automáticos a los clientes en separaciones.</span>
+            </div>
+          </div>
+
+          {notifSuccess && (
+            <div className="alert alert-success" style={{ marginBottom: '16px' }}>
+              <span>✅</span> <span>{notifSuccess}</span>
+            </div>
+          )}
+
+          <div className="grid-2" style={{ gap: '28px', marginBottom: '28px' }}>
+            {/* General Config */}
+            <div style={{ background: 'var(--bg-body)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', padding: '24px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
+              <div style={{ fontWeight: '700', fontSize: '14px', color: 'var(--text-primary)' }}>⚙️ Configuración General</div>
+
+              <div className="form-group">
+                <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={notifConfig.enabled}
+                    onChange={e => setNotifConfig(c => ({ ...c, enabled: e.target.checked }))}
+                  />
+                  <span>Activar notificaciones automáticas</span>
+                </label>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">📱 Modo de WhatsApp</label>
+                <select
+                  className="form-control"
+                  value={notifConfig.whatsappMode}
+                  onChange={e => setNotifConfig(c => ({ ...c, whatsappMode: e.target.value }))}
+                >
+                  <option value="whatsapp_link">Enlace wa.me (abre WhatsApp automáticamente)</option>
+                  <option value="log_only">Solo registrar en consola (modo prueba)</option>
+                </select>
+                <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px', display: 'block' }}>
+                  El modo "wa.me" abre una nueva pestaña por cada notificación. El mensaje queda prellenado para confirmar el envío.
+                </span>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">✉️ Modo de Email</label>
+                <select
+                  className="form-control"
+                  value={notifConfig.emailMode}
+                  onChange={e => setNotifConfig(c => ({ ...c, emailMode: e.target.value }))}
+                >
+                  <option value="email_mailto">Cliente de correo (mailto:)</option>
+                  <option value="log_only">Solo registrar en consola (modo prueba)</option>
+                </select>
+                <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px', display: 'block' }}>
+                  El modo "mailto" abre tu cliente de correo con el mensaje prellenado para revisar y enviar.
+                </span>
+              </div>
+            </div>
+
+            {/* Template Editor */}
+            <div style={{ background: 'var(--bg-body)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', padding: '24px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
+              <div style={{ fontWeight: '700', fontSize: '14px', color: 'var(--text-primary)' }}>📝 Personalizar Mensajes</div>
+              <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: 0 }}>
+                Puedes usar las variables: <code>{`{{clientName}}`}</code>, <code>{`{{storeName}}`}</code>, <code>{`{{layawayNumber}}`}</code>, <code>{`{{total}}`}</code>, <code>{`{{paid}}`}</code>, <code>{`{{balance}}`}</code>, <code>{`{{amount}}`}</code>, <code>{`{{itemNames}}`}</code>, <code>{`{{storePhone}}`}</code>.
+              </p>
+
+              <div className="form-group">
+                <label className="form-label">🛍️ Mensaje: Separación Creada</label>
+                <textarea
+                  className="form-control"
+                  rows="4"
+                  style={{ fontFamily: 'monospace', fontSize: '11px', resize: 'vertical' }}
+                  value={notifConfig.templates?.layaway_created || ''}
+                  onChange={e => setNotifConfig(c => ({ ...c, templates: { ...c.templates, layaway_created: e.target.value } }))}
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">💵 Mensaje: Abono Registrado</label>
+                <textarea
+                  className="form-control"
+                  rows="4"
+                  style={{ fontFamily: 'monospace', fontSize: '11px', resize: 'vertical' }}
+                  value={notifConfig.templates?.payment_registered || ''}
+                  onChange={e => setNotifConfig(c => ({ ...c, templates: { ...c.templates, payment_registered: e.target.value } }))}
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">📦 Mensaje: Producto Listo en Tienda</label>
+                <textarea
+                  className="form-control"
+                  rows="4"
+                  style={{ fontFamily: 'monospace', fontSize: '11px', resize: 'vertical' }}
+                  value={notifConfig.templates?.product_ready || ''}
+                  onChange={e => setNotifConfig(c => ({ ...c, templates: { ...c.templates, product_ready: e.target.value } }))}
+                />
+              </div>
+            </div>
+          </div>
+
+          <button
+            className="btn btn-primary"
+            onClick={() => {
+              notificationService.saveConfig(notifConfig);
+              setNotifSuccess('¡Configuración de notificaciones guardada correctamente!');
+              setTimeout(() => setNotifSuccess(''), 4000);
+            }}
+          >
+            💾 Guardar Configuración de Notificaciones
+          </button>
+        </div>
+      )}
+
+      {/* 6. Database Snapshot and Backups (Admin only) */}
       {user.role === 'admin' && (
         <div className="card-table-wrapper" style={{ padding: '32px' }}>
           <div className="card-header" style={{ marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>

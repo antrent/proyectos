@@ -2,6 +2,35 @@ import React from 'react';
 
 const CHANGELOG = [
   {
+    version: 'v1.6.0',
+    date: 'Julio 2026',
+    title: 'Notificaciones Automáticas de Separaciones (WhatsApp y Email)',
+    badge: 'Nueva Funcionalidad',
+    badgeColor: '#25D366',
+    changes: [
+      'Implementado NotificationService con soporte para WhatsApp (enlace wa.me) y Email (mailto:).',
+      'Notificación automática al cliente al crear una separación o registrar un abono.',
+      'Notificación automática al entregar productos o al marcar "producto listo en tienda" desde Separaciones.',
+      'Botón "📣 Notificar" en cada separación activa para avisar al cliente que su producto llegó a tienda.',
+      'Panel de historial de notificaciones enviadas en la pantalla de Separaciones.',
+      'Panel de configuración de notificaciones en Ajustes: activar/desactivar, modo WhatsApp/Email, y personalización de plantillas de mensajes.',
+      'Las plantillas soportan variables dinámicas: nombre de cliente, número de separación, montos, productos y datos de tienda.'
+    ]
+  },
+  {
+    version: 'v1.5.0',
+    date: 'Julio 2026',
+    title: 'Pagos Combinados, Stock Mínimo y Métodos Personalizados',
+    badge: 'Mejora',
+    badgeColor: '#f59e0b',
+    changes: [
+      'Pagos combinados en ventas: posibilidad de usar más de 2 métodos de pago simultáneamente.',
+      'Soporte para métodos de pago personalizados (opción "Otro...").',
+      'Edición individual del stock mínimo por producto desde el inventario.',
+      'Configuración global de stock mínimo de alerta para todos los productos a la vez.'
+    ]
+  },
+  {
     version: 'v1.2.0',
     date: 'Julio 2026',
     title: 'Control de Versiones de Datos e Historial',

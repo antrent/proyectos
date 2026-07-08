@@ -1,6 +1,7 @@
 import { storageRepository } from './StorageRepository';
 import { inventoryService } from './InventoryService';
 import { salesService } from './SalesService';
+import { notificationService } from './NotificationService';
 
 class LayawayService {
   getAll(storeId = 'all') {
@@ -17,7 +18,7 @@ class LayawayService {
   }
 
   createLayaway(layawayData, storeId) {
-    const { clientName, clientPhone, clientDocument, items, initialPayment, paymentMethod, sellerId } = layawayData;
+    const { clientName, clientPhone, clientEmail, clientDocument, items, initialPayment, paymentMethod, sellerId } = layawayData;
 
     if (!items || items.length === 0) {
       throw new Error('La separación debe contener al menos un artículo.');
@@ -65,6 +66,7 @@ class LayawayService {
       storeId,
       clientName: clientName.trim(),
       clientPhone: (clientPhone || '').trim(),
+      clientEmail: (clientEmail || '').trim(),
       clientDocument: (clientDocument || '').trim(),
       date: new Date().toISOString(),
       items: items.map(item => ({
@@ -94,6 +96,10 @@ class LayawayService {
 
     layaways.unshift(newLayaway);
     storageRepository.saveLayaways(layaways);
+
+    // Send notification to client (WhatsApp + Email)
+    try { notificationService.notifyLayawayCreated(newLayaway); } catch (e) { console.warn('Notification error:', e); }
+
     return newLayaway;
   }
 
@@ -132,6 +138,10 @@ class LayawayService {
 
     layaways[index] = layaway;
     storageRepository.saveLayaways(layaways);
+
+    // Send payment notification to client
+    try { notificationService.notifyPaymentRegistered(layaway, amountVal); } catch (e) { console.warn('Notification error:', e); }
+
     return layaway;
   }
 
