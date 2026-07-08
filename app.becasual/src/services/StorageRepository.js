@@ -204,12 +204,9 @@ class StorageRepository {
   saveLayaways(layaways) { return this.setData('layaways', layaways); }
 
   getPaymentMethods() {
-    let methods = this.getData('payment_methods');
-    if (!methods || methods.length === 0) {
-      methods = ['Efectivo', 'Nequi', 'Daviplata', 'Sistecrédito', 'Addi', 'Transferencia', 'Tarjeta de Crédito', 'Tarjeta de Ahorro'];
-      this.savePaymentMethods(methods);
-    }
-    return methods;
+    const requiredMethods = ['Efectivo', 'Nequi', 'Daviplata', 'SisteCredito', 'Addi', 'Bold'];
+    this.savePaymentMethods(requiredMethods);
+    return requiredMethods;
   }
   savePaymentMethods(methods) {
     return this.setData('payment_methods', methods);

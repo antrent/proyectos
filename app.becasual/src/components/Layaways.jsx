@@ -32,6 +32,20 @@ export default function Layaways({ user, currentStoreId, onDataChange }) {
   const [paymentMethod, setPaymentMethod] = useState('Efectivo');
   const [cancelReason, setCancelReason] = useState('');
   
+  const paymentMethodsList = storageRepository.getPaymentMethods();
+
+  const getPaymentMethodEmoji = (method) => {
+    const emojis = {
+      Efectivo: '💵',
+      Nequi: '📱',
+      Daviplata: '📲',
+      SisteCredito: '💳',
+      Addi: '🛍️',
+      Bold: '⚡'
+    };
+    return emojis[method] || '💰';
+  };
+
   // UX alerts
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -469,9 +483,11 @@ export default function Layaways({ user, currentStoreId, onDataChange }) {
                     value={paymentMethod}
                     onChange={e => setPaymentMethod(e.target.value)}
                   >
-                    <option value="Efectivo">💵 Efectivo</option>
-                    <option value="Tarjeta">💳 Tarjeta Débito/Crédito</option>
-                    <option value="Transferencia">📱 Transferencia Nequi/Daviplata</option>
+                    {paymentMethodsList.map(method => (
+                      <option key={method} value={method}>
+                        {getPaymentMethodEmoji(method)} {method}
+                      </option>
+                    ))}
                   </select>
                 </div>
               </div>

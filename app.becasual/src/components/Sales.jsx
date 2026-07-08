@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { inventoryService } from '../services/InventoryService';
 import { salesService } from '../services/SalesService';
 import { layawayService } from '../services/LayawayService';
+import { storageRepository } from '../services/StorageRepository';
 
 export default function Sales({ user, onSaleSuccess, currentStoreId }) {
   const [catalog, setCatalog] = useState([]);
@@ -27,6 +28,20 @@ export default function Sales({ user, onSaleSuccess, currentStoreId }) {
   const [layawayError, setLayawayError] = useState('');
   
   const barcodeRef = useRef(null);
+
+  const paymentMethodsList = storageRepository.getPaymentMethods();
+
+  const getPaymentMethodEmoji = (method) => {
+    const emojis = {
+      Efectivo: '💵',
+      Nequi: '📱',
+      Daviplata: '📲',
+      SisteCredito: '💳',
+      Addi: '🛍️',
+      Bold: '⚡'
+    };
+    return emojis[method] || '💰';
+  };
 
   useEffect(() => {
     loadCatalog();
@@ -353,9 +368,11 @@ export default function Sales({ user, onSaleSuccess, currentStoreId }) {
               value={paymentMethod}
               onChange={(e) => setPaymentMethod(e.target.value)}
             >
-              <option value="Efectivo">💵 Efectivo</option>
-              <option value="Tarjeta">💳 Tarjeta Débito/Crédito</option>
-              <option value="Transferencia">📱 Transferencia Nequi/Daviplata</option>
+              {paymentMethodsList.map(method => (
+                <option key={method} value={method}>
+                  {getPaymentMethodEmoji(method)} {method}
+                </option>
+              ))}
             </select>
           </div>
 
@@ -479,9 +496,11 @@ export default function Sales({ user, onSaleSuccess, currentStoreId }) {
                       value={layawayPaymentMethod}
                       onChange={(e) => setLayawayPaymentMethod(e.target.value)}
                     >
-                      <option value="Efectivo">💵 Efectivo</option>
-                      <option value="Tarjeta">💳 Tarjeta</option>
-                      <option value="Transferencia">📱 Transferencia</option>
+                      {paymentMethodsList.map(method => (
+                        <option key={method} value={method}>
+                          {getPaymentMethodEmoji(method)} {method}
+                        </option>
+                      ))}
                     </select>
                   </div>
                 </div>

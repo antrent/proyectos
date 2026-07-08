@@ -198,15 +198,27 @@ class SalesService {
     let profit = 0;
     const breakdown = {
       Efectivo: 0,
-      Tarjeta: 0,
-      Transferencia: 0
+      Nequi: 0,
+      Daviplata: 0,
+      SisteCredito: 0,
+      Addi: 0,
+      Bold: 0
+    };
+
+    const mapPaymentMethod = (pm) => {
+      if (!pm) return 'Efectivo';
+      const cleanPm = pm.trim();
+      if (cleanPm === 'Tarjeta' || cleanPm === 'Tarjeta de Crédito' || cleanPm === 'Tarjeta de Ahorro') return 'Bold';
+      if (cleanPm === 'Transferencia') return 'Nequi';
+      if (cleanPm === 'Sistecrédito' || cleanPm === 'Sistecredito') return 'SisteCredito';
+      return cleanPm;
     };
 
     filteredSales.forEach(s => {
       total += s.total;
       cost += s.cost;
       profit += s.profit;
-      const pm = s.paymentMethod || 'Efectivo';
+      const pm = mapPaymentMethod(s.paymentMethod);
       if (breakdown[pm] !== undefined) {
         breakdown[pm] += s.total;
       } else {
@@ -230,7 +242,7 @@ class SalesService {
             profit += payAmount * profitRatio;
             cost += payAmount * costRatio;
             
-            const pm = pay.method || 'Efectivo';
+            const pm = mapPaymentMethod(pay.method);
             if (breakdown[pm] !== undefined) {
               breakdown[pm] += payAmount;
             } else {
@@ -249,8 +261,11 @@ class SalesService {
       profit: Number(profit.toFixed(2)),
       breakdown: {
         Efectivo: Number((breakdown.Efectivo || 0).toFixed(2)),
-        Tarjeta: Number((breakdown.Tarjeta || 0).toFixed(2)),
-        Transferencia: Number((breakdown.Transferencia || 0).toFixed(2))
+        Nequi: Number((breakdown.Nequi || 0).toFixed(2)),
+        Daviplata: Number((breakdown.Daviplata || 0).toFixed(2)),
+        SisteCredito: Number((breakdown.SisteCredito || 0).toFixed(2)),
+        Addi: Number((breakdown.Addi || 0).toFixed(2)),
+        Bold: Number((breakdown.Bold || 0).toFixed(2))
       }
     };
   }

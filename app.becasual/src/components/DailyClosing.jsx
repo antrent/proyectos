@@ -5,14 +5,20 @@ import { storageRepository } from '../services/StorageRepository';
 
 const PAYMENT_ICONS = {
   Efectivo: '💵',
-  Tarjeta: '💳',
-  Transferencia: '📱'
+  Nequi: '📱',
+  Daviplata: '📲',
+  SisteCredito: '💳',
+  Addi: '🛍️',
+  Bold: '⚡'
 };
 
 const PAYMENT_COLORS = {
   Efectivo: 'var(--success)',
-  Tarjeta: 'var(--primary)',
-  Transferencia: 'var(--secondary)'
+  Nequi: 'var(--primary)',
+  Daviplata: 'var(--secondary)',
+  SisteCredito: '#d32f2f',
+  Addi: '#ff9800',
+  Bold: '#9c27b0'
 };
 
 export default function DailyClosing({ user, currentStoreId }) {
@@ -32,8 +38,11 @@ export default function DailyClosing({ user, currentStoreId }) {
     { label: 'Costo Mercancia', key: 'cost' },
     { label: 'Utilidad', key: 'profit' },
     { label: 'Efectivo', key: 'efectivo' },
-    { label: 'Tarjeta', key: 'tarjeta' },
-    { label: 'Transferencia', key: 'transferencia' },
+    { label: 'Nequi', key: 'nequi' },
+    { label: 'Daviplata', key: 'daviplata' },
+    { label: 'SisteCredito', key: 'sistecredito' },
+    { label: 'Addi', key: 'addi' },
+    { label: 'Bold', key: 'bold' },
     { label: 'Notas', key: 'notes' },
     { label: 'Registrado Por', key: 'registeredBy' },
     { label: 'Fecha Registro', key: 'timestamp' }
@@ -47,8 +56,11 @@ export default function DailyClosing({ user, currentStoreId }) {
       cost: c.cost,
       profit: c.profit,
       efectivo: c.breakdown?.Efectivo || 0,
-      tarjeta: c.breakdown?.Tarjeta || 0,
-      transferencia: c.breakdown?.Transferencia || 0,
+      nequi: c.breakdown?.Nequi || 0,
+      daviplata: c.breakdown?.Daviplata || 0,
+      sistecredito: c.breakdown?.SisteCredito || 0,
+      addi: c.breakdown?.Addi || 0,
+      bold: c.breakdown?.Bold || 0,
       notes: c.notes || '',
       registeredBy: c.registeredBy,
       timestamp: c.timestamp || new Date().toISOString()
@@ -61,8 +73,9 @@ export default function DailyClosing({ user, currentStoreId }) {
     const templateData = [
       {
         date: new Date().toISOString().split('T')[0], salesCount: '5', total: '450000',
-        cost: '210000', profit: '240000', efectivo: '200000', tarjeta: '150000',
-        transferencia: '100000', notes: 'Todo cuadra perfectamente', registeredBy: 'Administrador',
+        cost: '210000', profit: '240000', efectivo: '200000', nequi: '100000',
+        daviplata: '50000', sistecredito: '50000', addi: '0', bold: '50000',
+        notes: 'Todo cuadra perfectamente', registeredBy: 'Administrador',
         timestamp: new Date().toISOString()
       }
     ];
@@ -108,8 +121,11 @@ export default function DailyClosing({ user, currentStoreId }) {
               profit: Number(row.profit) || 0,
               breakdown: {
                 Efectivo: Number(row.efectivo) || 0,
-                Tarjeta: Number(row.tarjeta) || 0,
-                Transferencia: Number(row.transferencia) || 0
+                Nequi: Number(row.nequi) || 0,
+                Daviplata: Number(row.daviplata) || 0,
+                SisteCredito: Number(row.sistecredito) || 0,
+                Addi: Number(row.addi) || 0,
+                Bold: Number(row.bold) || 0
               },
               notes: (row.notes || '').trim(),
               registeredBy: (row.registeredBy || '').trim() || 'Sistema',
@@ -361,8 +377,11 @@ export default function DailyClosing({ user, currentStoreId }) {
                 <th>Ventas</th>
                 <th>Total</th>
                 <th>💵 Efectivo</th>
-                <th>💳 Tarjeta</th>
-                <th>📱 Transferencia</th>
+                <th>📱 Nequi</th>
+                <th>📲 Daviplata</th>
+                <th>💳 SisteCredito</th>
+                <th>🛍️ Addi</th>
+                <th>⚡ Bold</th>
                 <th>Utilidad</th>
                 <th>Registrado por</th>
                 <th>Detalle</th>
@@ -370,7 +389,7 @@ export default function DailyClosing({ user, currentStoreId }) {
             </thead>
             <tbody>
               {history.length === 0 ? (
-                <tr><td colSpan="9" style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
+                <tr><td colSpan="12" style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
                   No se han registrado cierres aún.
                 </td></tr>
               ) : (
@@ -381,8 +400,11 @@ export default function DailyClosing({ user, currentStoreId }) {
                       <td><span className="badge primary">{c.salesCount}</span></td>
                       <td style={{ fontWeight: 700, color: 'var(--success)' }}>{formatCOP(c.total)}</td>
                       <td>{formatCOP(c.breakdown?.Efectivo)}</td>
-                      <td>{formatCOP(c.breakdown?.Tarjeta)}</td>
-                      <td>{formatCOP(c.breakdown?.Transferencia)}</td>
+                      <td>{formatCOP(c.breakdown?.Nequi)}</td>
+                      <td>{formatCOP(c.breakdown?.Daviplata)}</td>
+                      <td>{formatCOP(c.breakdown?.SisteCredito)}</td>
+                      <td>{formatCOP(c.breakdown?.Addi)}</td>
+                      <td>{formatCOP(c.breakdown?.Bold)}</td>
                       <td style={{ fontWeight: 700, color: 'var(--primary)' }}>{formatCOP(c.profit)}</td>
                       <td><span style={{ fontSize: '12px' }}>{c.registeredBy}</span></td>
                       <td>
@@ -394,7 +416,7 @@ export default function DailyClosing({ user, currentStoreId }) {
                     </tr>
                     {expandedClosing === c.id && (
                       <tr>
-                        <td colSpan="9" style={{ background: 'var(--bg-app)', padding: '16px 24px' }}>
+                        <td colSpan="12" style={{ background: 'var(--bg-app)', padding: '16px 24px' }}>
                           <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap' }}>
                             <div>
                               <strong style={{ fontSize: '13px', color: 'var(--text-primary)' }}>Hora de registro:</strong>
