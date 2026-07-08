@@ -12,6 +12,11 @@ export default function Sales({ user, onSaleSuccess, currentStoreId }) {
   // Checkout details
   const [clientName, setClientName] = useState('Cliente Final');
   const [paymentMethod, setPaymentMethod] = useState('Efectivo');
+  const [isCombined, setIsCombined] = useState(false);
+  const [combinedPayments, setCombinedPayments] = useState([
+    { method: 'Efectivo', amount: 0, customMethod: '' }
+  ]);
+  const [customSingleMethod, setCustomSingleMethod] = useState('');
   const [barcodeInput, setBarcodeInput] = useState('');
   
   // UX Alerts
@@ -139,10 +144,28 @@ export default function Sales({ user, onSaleSuccess, currentStoreId }) {
       return;
     }
 
+    const summary = calculateCartSummary();
+
+    let finalPayments = [];
+    if (isCombined) {
+      const sum = combinedPayments.reduce((acc, p) => acc + p.amount, 0);
+      if (sum < summary.total) {
+        setError(`El total registrado (${formatCOP(sum)}) es menor al total a pagar (${formatCOP(summary.total)}).`);
+        return;
+      }
+      finalPayments = combinedPayments.map(p => ({
+        method: p.method === 'Otro' ? (p.customMethod || 'Otro').trim() : p.method,
+        amount: p.amount
+      }));
+    } else {
+      const method = paymentMethod === 'Otro' ? (customSingleMethod || 'Otro').trim() : paymentMethod;
+      finalPayments = [{ method, amount: summary.total }];
+    }
+
     try {
       const sale = salesService.registerSale({
         items: cart,
-        paymentMethod,
+        payments: finalPayments,
         clientName,
         sellerId: user.username,
         storeId: currentStoreId
@@ -152,7 +175,11 @@ export default function Sales({ user, onSaleSuccess, currentStoreId }) {
       setCart([]);
       setClientName('Cliente Final');
       setPaymentMethod('Efectivo');
+      setIsCombined(false);
+      setCombinedPayments([{ method: 'Efectivo', amount: 0, customMethod: '' }]);
+      setCustomSingleMethod('');
       onSaleSuccess(); // Notify layout/app
+      setTimeout(() => setSuccessMsg(''), 5000);
     } catch (err) {
       setError(err.message || 'Error al completar la venta.');
     }
@@ -360,21 +387,174 @@ export default function Sales({ user, onSaleSuccess, currentStoreId }) {
             />
           </div>
 
-          <div className="form-group">
-            <label className="form-label" style={{ fontSize: '12px' }}>Método de Pago</label>
-            <select
-              className="form-control"
-              style={{ padding: '8px 12px' }}
-              value={paymentMethod}
-              onChange={(e) => setPaymentMethod(e.target.value)}
-            >
-              {paymentMethodsList.map(method => (
-                <option key={method} value={method}>
-                  {getPaymentMethodEmoji(method)} {method}
-                </option>
-              ))}
-            </select>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+            <label className="form-label" style={{ fontSize: '12px', margin: 0, fontWeight: 700 }}>Método de Pago</label>
+            <label style={{ fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer', userSelect: 'none' }}>
+              <input
+                type="checkbox"
+                checked={isCombined}
+                onChange={(e) => {
+                  const check = e.target.checked;
+                  setIsCombined(check);
+                  if (check) {
+                    setCombinedPayments([{ method: 'Efectivo', amount: summary.total, customMethod: '' }]);
+                  }
+                }}
+              />
+              Pago Combinado
+            </label>
           </div>
+
+          {!isCombined ? (
+            <div className="form-group" style={{ marginBottom: '16px' }}>
+              <select
+                className="form-control"
+                style={{ padding: '8px 12px' }}
+                value={paymentMethod}
+                onChange={(e) => {
+                  setPaymentMethod(e.target.value);
+                  if (e.target.value !== 'Otro') {
+                    setCustomSingleMethod('');
+                  }
+                }}
+              >
+                {[...paymentMethodsList, 'Otro'].map(method => (
+                  <option key={method} value={method}>
+                    {method === 'Otro' ? '➕ Otro...' : `${getPaymentMethodEmoji(method)} ${method}`}
+                  </option>
+                ))}
+              </select>
+              {paymentMethod === 'Otro' && (
+                <input
+                  type="text"
+                  className="form-control"
+                  placeholder="Nombre de medio de pago..."
+                  style={{ marginTop: '8px', padding: '8px 12px', fontSize: '12px' }}
+                  value={customSingleMethod}
+                  onChange={(e) => setCustomSingleMethod(e.target.value)}
+                  required
+                />
+              )}
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '16px', background: 'var(--bg-app)', padding: '12px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
+              {combinedPayments.map((pay, idx) => (
+                <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: '6px', borderBottom: idx === combinedPayments.length - 1 ? 'none' : '1px dashed var(--border-color)', paddingBottom: idx === combinedPayments.length - 1 ? '0' : '8px' }}>
+                  <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                    <select
+                      className="form-control"
+                      style={{ padding: '6px 8px', fontSize: '12px', flex: '1' }}
+                      value={pay.method}
+                      onChange={(e) => {
+                        const newPayments = [...combinedPayments];
+                        newPayments[idx].method = e.target.value;
+                        if (e.target.value !== 'Otro') {
+                          newPayments[idx].customMethod = '';
+                        }
+                        setCombinedPayments(newPayments);
+                      }}
+                    >
+                      {[...paymentMethodsList, 'Otro'].map(method => (
+                        <option key={method} value={method}>
+                          {method === 'Otro' ? '➕ Otro...' : `${getPaymentMethodEmoji(method)} ${method}`}
+                        </option>
+                      ))}
+                    </select>
+
+                    <input
+                      type="number"
+                      className="form-control"
+                      placeholder="Monto"
+                      style={{ padding: '6px 8px', fontSize: '12px', width: '100px' }}
+                      value={pay.amount || ''}
+                      onChange={(e) => {
+                        const newPayments = [...combinedPayments];
+                        newPayments[idx].amount = Math.max(0, parseInt(e.target.value, 10) || 0);
+                        setCombinedPayments(newPayments);
+                      }}
+                    />
+
+                    {combinedPayments.length > 1 && (
+                      <button
+                        type="button"
+                        className="btn btn-outline btn-sm"
+                        style={{ padding: '6px 8px', color: 'var(--danger)', borderColor: 'var(--danger)30' }}
+                        onClick={() => {
+                          const newPayments = combinedPayments.filter((_, i) => i !== idx);
+                          setCombinedPayments(newPayments);
+                        }}
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
+
+                  {pay.method === 'Otro' && (
+                    <input
+                      type="text"
+                      className="form-control"
+                      placeholder="Nombre del otro medio..."
+                      style={{ padding: '6px 8px', fontSize: '11px' }}
+                      value={pay.customMethod || ''}
+                      onChange={(e) => {
+                        const newPayments = [...combinedPayments];
+                        newPayments[idx].customMethod = e.target.value;
+                        setCombinedPayments(newPayments);
+                      }}
+                      required
+                    />
+                  )}
+                </div>
+              ))}
+
+              <button
+                type="button"
+                className="btn btn-outline btn-sm"
+                style={{ alignSelf: 'flex-start', fontSize: '11px', padding: '4px 8px' }}
+                onClick={() => {
+                  const currentSum = combinedPayments.reduce((sum, p) => sum + p.amount, 0);
+                  const missing = Math.max(0, summary.total - currentSum);
+                  setCombinedPayments([...combinedPayments, { method: 'Efectivo', amount: missing, customMethod: '' }]);
+                }}
+              >
+                ➕ Añadir Medio
+              </button>
+
+              <div style={{ fontSize: '11px', borderTop: '1px solid var(--border-color)', paddingTop: '6px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span>Total Registrado:</span>
+                  <span style={{ fontWeight: '700' }}>
+                    {formatCOP(combinedPayments.reduce((acc, p) => acc + p.amount, 0))}
+                  </span>
+                </div>
+                {(() => {
+                  const currentSum = combinedPayments.reduce((acc, p) => acc + p.amount, 0);
+                  const diff = currentSum - summary.total;
+                  if (diff < 0) {
+                    return (
+                      <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--danger)', fontWeight: '600' }}>
+                        <span>Faltante:</span>
+                        <span>{formatCOP(Math.abs(diff))}</span>
+                      </div>
+                    );
+                  } else if (diff > 0) {
+                    return (
+                      <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--success)', fontWeight: '600' }}>
+                        <span>Cambio (Devuelta):</span>
+                        <span>{formatCOP(diff)}</span>
+                      </div>
+                    );
+                  } else {
+                    return (
+                      <div style={{ color: 'var(--success)', fontWeight: '600', textAlign: 'right' }}>
+                        ✅ Pago Completo
+                      </div>
+                    );
+                  }
+                })()}
+              </div>
+            </div>
+          )}
 
           <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
             <div className="summary-row">

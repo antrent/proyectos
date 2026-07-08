@@ -20,6 +20,8 @@ export default function Inventory({ user, onDataChange, currentStoreId }) {
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isGlobalMinStockModalOpen, setIsGlobalMinStockModalOpen] = useState(false);
+  const [globalMinStockValue, setGlobalMinStockValue] = useState(5);
   const [editingProduct, setEditingProduct] = useState(null);
   const [modalStoreId, setModalStoreId] = useState('store_1');
 
@@ -196,6 +198,21 @@ export default function Inventory({ user, onDataChange, currentStoreId }) {
       currency: 'COP',
       minimumFractionDigits: 0
     }).format(amount);
+  };
+
+  const handleApplyGlobalMinStock = (e) => {
+    e.preventDefault();
+    try {
+      inventoryService.updateGlobalMinStock(globalMinStockValue);
+      loadProducts();
+      setIsGlobalMinStockModalOpen(false);
+      setSuccess(`Se configuró el stock mínimo a ${globalMinStockValue} para todos los productos con éxito.`);
+      if (onDataChange) onDataChange();
+      setTimeout(() => setSuccess(''), 4000);
+    } catch (err) {
+      setError('Error al actualizar el stock mínimo global.');
+      setTimeout(() => setError(''), 4000);
+    }
   };
 
   const handleOpenAddModal = () => {
@@ -383,6 +400,7 @@ export default function Inventory({ user, onDataChange, currentStoreId }) {
             </div>
           </div>
           <div style={{ display: 'flex', gap: '10px' }}>
+            <button className="btn btn-outline btn-sm" onClick={() => setIsGlobalMinStockModalOpen(true)}>⚙️ Mínimo Global</button>
             <button className="btn btn-outline btn-sm" onClick={handleExportCSV}>📥 Exportar CSV</button>
             <button className="btn btn-outline btn-sm" onClick={() => document.getElementById('csv-file-input').click()}>📤 Importar CSV</button>
             <button className="btn btn-outline btn-sm" onClick={handleDownloadTemplate} style={{ borderStyle: 'dotted' }}>📄 Plantilla</button>
@@ -840,6 +858,49 @@ export default function Inventory({ user, onDataChange, currentStoreId }) {
                 🖨️ Generar e Imprimir
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Configuración Mínimo Global */}
+      {isGlobalMinStockModalOpen && (
+        <div className="modal-overlay" style={{ zIndex: 1100 }}>
+          <div className="modal-content" style={{ maxWidth: '420px', width: '95%' }}>
+            <div className="modal-header">
+              <div>
+                <h3 className="modal-title">⚙️ Stock Mínimo Global</h3>
+                <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Configurar para todos los productos</span>
+              </div>
+              <button className="modal-close" onClick={() => setIsGlobalMinStockModalOpen(false)}>✕</button>
+            </div>
+            <form onSubmit={handleApplyGlobalMinStock}>
+              <div className="modal-body" style={{ padding: '24px 0' }}>
+                <div style={{ padding: '0 24px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                    Esta acción actualizará el <strong>Stock Mínimo de Alerta</strong> de todos los productos en el inventario al valor especificado.
+                  </p>
+                  <div className="form-group">
+                    <label className="form-label" style={{ fontWeight: '600' }}>Nuevo Stock Mínimo:</label>
+                    <input
+                      type="number"
+                      className="form-control"
+                      min="0"
+                      value={globalMinStockValue}
+                      onChange={(e) => setGlobalMinStockValue(Math.max(0, parseInt(e.target.value, 10) || 0))}
+                      required
+                    />
+                  </div>
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-outline" onClick={() => setIsGlobalMinStockModalOpen(false)}>
+                  Cancelar
+                </button>
+                <button type="submit" className="btn btn-primary">
+                  Aplicar a Todo
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

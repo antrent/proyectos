@@ -137,6 +137,16 @@ class InventoryService {
     return true;
   }
 
+  updateGlobalMinStock(minStock) {
+    const products = storageRepository.getProducts();
+    const updated = products.map(p => ({
+      ...p,
+      minStock: Number(minStock) || 0
+    }));
+    storageRepository.saveProducts(updated);
+    return true;
+  }
+
   getLowStockAlerts(storeId = 'all') {
     const products = this.getAll(storeId);
     return products.filter(p => p.stock <= p.minStock);

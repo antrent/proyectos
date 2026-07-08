@@ -443,7 +443,7 @@ export default function DailyClosing({ user, currentStoreId }) {
                     </tr>
                     {expandedClosing === c.id && (
                       <tr>
-                        <td colSpan="12" style={{ background: 'var(--bg-app)', padding: '16px 24px' }}>
+                        <td colSpan="12" style={{ background: 'var(--bg-app)', padding: '16px 24px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
                           <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap' }}>
                             <div>
                               <strong style={{ fontSize: '13px', color: 'var(--text-primary)' }}>Hora de registro:</strong>
@@ -457,6 +457,16 @@ export default function DailyClosing({ user, currentStoreId }) {
                                 <span style={{ marginLeft: '8px', color: 'var(--text-muted)', fontSize: '13px' }}>{c.notes}</span>
                               </div>
                             )}
+                          </div>
+                          <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '10px' }}>
+                            <strong style={{ fontSize: '12px', color: 'var(--text-primary)', display: 'block', marginBottom: '6px' }}>Desglose detallado de pagos:</strong>
+                            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                              {Object.entries(c.breakdown || {}).map(([method, val]) => (
+                                <span key={method} className="badge secondary" style={{ fontSize: '11px', padding: '4px 8px' }}>
+                                  {method}: <strong>{formatCOP(val)}</strong>
+                                </span>
+                              ))}
+                            </div>
                           </div>
                         </td>
                       </tr>

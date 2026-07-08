@@ -132,7 +132,10 @@ class SalesService {
         discount: item.discount || 0
       })),
       ...billing,
-      paymentMethod: paymentMethod || 'Efectivo',
+      paymentMethod: (saleData.payments && saleData.payments.length > 0) 
+        ? saleData.payments.map(p => p.method).join(', ') 
+        : (paymentMethod || 'Efectivo'),
+      payments: saleData.payments || [{ method: paymentMethod || 'Efectivo', amount: billing.total }],
       clientName: (clientName || 'Cliente Final').trim(),
       sellerId: sellerId || 'admin'
     };
@@ -218,11 +221,23 @@ class SalesService {
       total += s.total;
       cost += s.cost;
       profit += s.profit;
-      const pm = mapPaymentMethod(s.paymentMethod);
-      if (breakdown[pm] !== undefined) {
-        breakdown[pm] += s.total;
+      
+      if (s.payments && s.payments.length > 0) {
+        s.payments.forEach(pay => {
+          const pm = mapPaymentMethod(pay.method);
+          if (breakdown[pm] !== undefined) {
+            breakdown[pm] += pay.amount;
+          } else {
+            breakdown[pm] = pay.amount;
+          }
+        });
       } else {
-        breakdown[pm] = s.total;
+        const pm = mapPaymentMethod(s.paymentMethod);
+        if (breakdown[pm] !== undefined) {
+          breakdown[pm] += s.total;
+        } else {
+          breakdown[pm] = s.total;
+        }
       }
     });
 
