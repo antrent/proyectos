@@ -257,7 +257,7 @@ export default function Layout({ user, currentTab, setCurrentTab, onLogout, curr
             borderTop: '1px solid var(--border-color)',
             paddingTop: '8px'
           }}>
-            <span>Versión: <strong>v1.4.0</strong></span>
+            <span>Versión: <strong>v1.4.1</strong></span>
             <span
               style={{
                 cursor: 'pointer',
@@ -360,7 +360,7 @@ export default function Layout({ user, currentTab, setCurrentTab, onLogout, curr
         (() => {
           const doc = HELP_DOCUMENTATION[currentTab];
           return (
-            <div className="modal-backdrop" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100 }}>
+            <div className="modal-overlay" style={{ zIndex: 1100 }}>
               <div className="modal-content" style={{ maxWidth: '600px', width: '95%', borderRadius: 'var(--radius-lg)', padding: '28px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
                 <div className="modal-header" style={{ paddingBottom: '12px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 800, color: 'var(--primary)' }}>
