@@ -8,6 +8,8 @@ import { printProductLabels, Barcode128Svg } from '../services/BarcodeService';
 export default function Inventory({ user, onDataChange, currentStoreId }) {
   const [products, setProducts] = useState([]);
   const [params, setParams] = useState({ lines: [], categories: [], styles: [], genders: [], colors: [], sizes: [], providers: [] });
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 15;
   
   // Search Filters
   const [searchQuery, setSearchQuery] = useState('');
@@ -185,6 +187,7 @@ export default function Inventory({ user, onDataChange, currentStoreId }) {
 
   useEffect(() => {
     loadProducts();
+    setCurrentPage(1);
   }, [searchQuery, selectedLine, selectedCategory, selectedProvider, selectedStockStatus, currentStoreId]);
 
   const formatCOP = (amount) => {
@@ -292,6 +295,7 @@ export default function Inventory({ user, onDataChange, currentStoreId }) {
     downloadAnchor.click();
     downloadAnchor.remove();
   };
+  const paginatedProducts = products.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -421,14 +425,14 @@ export default function Inventory({ user, onDataChange, currentStoreId }) {
               </tr>
             </thead>
             <tbody>
-              {products.length === 0 ? (
+              {paginatedProducts.length === 0 ? (
                 <tr>
                   <td colSpan={canEdit ? (currentStoreId === 'all' ? 9 : 8) : (currentStoreId === 'all' ? 8 : 7)} style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
                     No se encontraron productos en el inventario.
                   </td>
                 </tr>
               ) : (
-                products.map(p => {
+                paginatedProducts.map(p => {
                   let stockBadgeClass = 'success';
                   if (p.stock === 0) stockBadgeClass = 'danger';
                   else if (p.stock <= p.minStock) stockBadgeClass = 'warning';
@@ -482,6 +486,45 @@ export default function Inventory({ user, onDataChange, currentStoreId }) {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination Controls */}
+        {Math.ceil(products.length / ITEMS_PER_PAGE) > 1 && (
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '16px 24px',
+            borderTop: '1px solid var(--border-color)',
+            fontSize: '13px',
+            color: 'var(--text-muted)'
+          }}>
+            <span>
+              Mostrando <strong>{Math.min(products.length, (currentPage - 1) * ITEMS_PER_PAGE + 1)}</strong> a{' '}
+              <strong>{Math.min(products.length, currentPage * ITEMS_PER_PAGE)}</strong> de <strong>{products.length}</strong> productos
+            </span>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button
+                className="btn btn-outline btn-sm"
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                style={{ padding: '4px 10px' }}
+              >
+                ◀ Anterior
+              </button>
+              <span style={{ display: 'flex', alignItems: 'center', px: '8px', fontWeight: 'bold', color: 'var(--text-primary)' }}>
+                Página {currentPage} de {Math.ceil(products.length / ITEMS_PER_PAGE)}
+              </span>
+              <button
+                className="btn btn-outline btn-sm"
+                onClick={() => setCurrentPage(p => Math.min(Math.ceil(products.length / ITEMS_PER_PAGE), p + 1))}
+                disabled={currentPage === Math.ceil(products.length / ITEMS_PER_PAGE)}
+                style={{ padding: '4px 10px' }}
+              >
+                Siguiente ▶
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Add / Edit Modal Window */}

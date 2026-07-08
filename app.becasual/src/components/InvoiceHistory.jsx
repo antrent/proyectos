@@ -36,6 +36,8 @@ const parseDateString = (dateStr) => {
 
 export default function InvoiceHistory({ user, currentStoreId }) {
   const [sales, setSales] = useState([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 15;
   const [search, setSearch] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
@@ -191,6 +193,10 @@ export default function InvoiceHistory({ user, currentStoreId }) {
 
   useEffect(() => { load(); }, [currentStoreId]);
 
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, dateFrom, dateTo, statusFilter, currentStoreId]);
+
   const load = () => setSales(salesService.getAll(currentStoreId));
 
   const filtered = sales.filter(s => {
@@ -234,6 +240,7 @@ export default function InvoiceHistory({ user, currentStoreId }) {
 
   const totalRevenue = filtered.filter(s => !s.cancelled).reduce((s, sale) => s + sale.total, 0);
   const totalCancelled = filtered.filter(s => s.cancelled).length;
+  const paginatedInvoices = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -376,12 +383,12 @@ export default function InvoiceHistory({ user, currentStoreId }) {
               </tr>
             </thead>
             <tbody>
-              {filtered.length === 0 ? (
+              {paginatedInvoices.length === 0 ? (
                 <tr><td colSpan={currentStoreId === 'all' ? 9 : 8} style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
                   No se encontraron facturas con los filtros seleccionados.
                 </td></tr>
               ) : (
-                filtered.map(s => (
+                paginatedInvoices.map(s => (
                   <React.Fragment key={s.id}>
                     <tr style={{ opacity: s.cancelled ? 0.55 : 1 }}>
                       <td>
@@ -476,6 +483,45 @@ export default function InvoiceHistory({ user, currentStoreId }) {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination Controls */}
+        {Math.ceil(filtered.length / ITEMS_PER_PAGE) > 1 && (
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '16px 24px',
+            borderTop: '1px solid var(--border-color)',
+            fontSize: '13px',
+            color: 'var(--text-muted)'
+          }}>
+            <span>
+              Mostrando <strong>{Math.min(filtered.length, (currentPage - 1) * ITEMS_PER_PAGE + 1)}</strong> a{' '}
+              <strong>{Math.min(filtered.length, currentPage * ITEMS_PER_PAGE)}</strong> de <strong>{filtered.length}</strong> facturas
+            </span>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button
+                className="btn btn-outline btn-sm"
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                style={{ padding: '4px 10px' }}
+              >
+                ◀ Anterior
+              </button>
+              <span style={{ display: 'flex', alignItems: 'center', px: '8px', fontWeight: 'bold', color: 'var(--text-primary)' }}>
+                Página {currentPage} de {Math.ceil(filtered.length / ITEMS_PER_PAGE)}
+              </span>
+              <button
+                className="btn btn-outline btn-sm"
+                onClick={() => setCurrentPage(p => Math.min(Math.ceil(filtered.length / ITEMS_PER_PAGE), p + 1))}
+                disabled={currentPage === Math.ceil(filtered.length / ITEMS_PER_PAGE)}
+                style={{ padding: '4px 10px' }}
+              >
+                Siguiente ▶
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Cancel confirmation modal */}

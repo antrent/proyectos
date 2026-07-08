@@ -13,6 +13,8 @@ export default function StockBreak({ onGoToPurchases, currentStoreId }) {
   const [checkedItems, setCheckedItems] = useState({});
   const [selectedItems, setSelectedItems] = useState({});
   const [saveSuccess, setSaveSuccess] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 15;
 
   useEffect(() => {
     const data = inventoryService.getStockBreakAnalysis(currentStoreId);
@@ -56,6 +58,10 @@ export default function StockBreak({ onGoToPurchases, currentStoreId }) {
       setCheckedItems(initialChecked);
     }
   }, [analysis]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab, minStockFilter, currentStoreId, weeklyPeriod]);
 
   const formatCOP = (amount) =>
     new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(amount || 0);
@@ -152,6 +158,49 @@ export default function StockBreak({ onGoToPurchases, currentStoreId }) {
     { id: 'weeklyProjections', label: '📈 Sugerido Semanal', count: weeklyProjections.filter(p => p.suggestedToBuy > 0).length, color: 'var(--secondary)' },
     { id: 'byProvider', label: '🏭 Por Proveedor', count: analysis.providerProjections.length, color: 'var(--secondary)' }
   ];
+
+  const renderPaginationControls = (totalItems) => {
+    const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
+    if (totalPages <= 1) return null;
+
+    return (
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: '16px 24px',
+        borderTop: '1px solid var(--border-color)',
+        fontSize: '13px',
+        color: 'var(--text-muted)'
+      }}>
+        <span>
+          Mostrando <strong>{Math.min(totalItems, (currentPage - 1) * ITEMS_PER_PAGE + 1)}</strong> a{' '}
+          <strong>{Math.min(totalItems, currentPage * ITEMS_PER_PAGE)}</strong> de <strong>{totalItems}</strong> registros
+        </span>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <button
+            className="btn btn-outline btn-sm"
+            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+            style={{ padding: '4px 10px' }}
+          >
+            ◀ Anterior
+          </button>
+          <span style={{ display: 'flex', alignItems: 'center', px: '8px', fontWeight: 'bold', color: 'var(--text-primary)' }}>
+            Página {currentPage} de {totalPages}
+          </span>
+          <button
+            className="btn btn-outline btn-sm"
+            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+            disabled={currentPage === totalPages}
+            style={{ padding: '4px 10px' }}
+          >
+            Siguiente ▶
+          </button>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
@@ -256,12 +305,17 @@ export default function StockBreak({ onGoToPurchases, currentStoreId }) {
                 </tr>
               </thead>
               <tbody>
-                {filterByName(analysis.criticalProducts).length === 0 ? (
-                  <tr><td colSpan="6" style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
-                    {analysis.criticalCount === 0 ? '✅ ¡No hay productos en stock crítico!' : 'Sin resultados para el filtro.'}
-                  </td></tr>
-                ) : (
-                  filterByName(analysis.criticalProducts).map(p => (
+                {(() => {
+                  const filteredItems = filterByName(analysis.criticalProducts);
+                  const paginated = filteredItems.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+                  if (filteredItems.length === 0) {
+                    return (
+                      <tr><td colSpan="6" style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
+                        {analysis.criticalCount === 0 ? '✅ ¡No hay productos en stock crítico!' : 'Sin resultados para el filtro.'}
+                      </td></tr>
+                    );
+                  }
+                  return paginated.map(p => (
                     <tr key={p.id}>
                       <td>
                         <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{p.name}</div>
@@ -282,11 +336,12 @@ export default function StockBreak({ onGoToPurchases, currentStoreId }) {
                       </td>
                       <td>{formatCOP(p.costPrice)}</td>
                     </tr>
-                  ))
-                )}
+                  ));
+                })()}
               </tbody>
             </table>
           </div>
+          {renderPaginationControls(filterByName(analysis.criticalProducts).length)}
         </div>
       )}
 
@@ -312,12 +367,17 @@ export default function StockBreak({ onGoToPurchases, currentStoreId }) {
                 </tr>
               </thead>
               <tbody>
-                {filterByName(analysis.brokenProducts).length === 0 ? (
-                  <tr><td colSpan="6" style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
-                    {analysis.brokenCount === 0 ? '✅ ¡No hay quiebres de inventario!' : 'Sin resultados para el filtro.'}
-                  </td></tr>
-                ) : (
-                  filterByName(analysis.brokenProducts).map(p => (
+                {(() => {
+                  const filteredItems = filterByName(analysis.brokenProducts);
+                  const paginated = filteredItems.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+                  if (filteredItems.length === 0) {
+                    return (
+                      <tr><td colSpan="6" style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
+                        {analysis.brokenCount === 0 ? '✅ ¡No hay quiebres de inventario!' : 'Sin resultados para el filtro.'}
+                      </td></tr>
+                    );
+                  }
+                  return paginated.map(p => (
                     <tr key={p.id}>
                       <td>
                         <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{p.name}</div>
@@ -329,11 +389,12 @@ export default function StockBreak({ onGoToPurchases, currentStoreId }) {
                       <td>{formatCOP(p.costPrice)}</td>
                       <td><span className="badge danger">🔴 AGOTADO</span></td>
                     </tr>
-                  ))
-                )}
+                  ));
+                })()}
               </tbody>
             </table>
           </div>
+          {renderPaginationControls(filterByName(analysis.brokenProducts).length)}
         </div>
       )}
 
@@ -425,86 +486,96 @@ export default function StockBreak({ onGoToPurchases, currentStoreId }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {filterByName(analysis.projections.map(p => ({ ...p.product, ...p, product: p.product }))).length === 0 ? (
-                    <tr><td colSpan="8" style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
-                      Sin resultados.
-                    </td></tr>
-                  ) : (
-                    analysis.projections
-                      .filter(proj => {
-                        if (!minStockFilter.trim()) return true;
-                        const q = minStockFilter.toLowerCase();
-                        return proj.product.name.toLowerCase().includes(q) || proj.provider.toLowerCase().includes(q);
-                      })
-                      .map(proj => {
-                        const pId = proj.product.id;
-                        const isChecked = checkedItems[pId] ?? false;
-                        const qty = selectedItems[pId] ?? proj.suggestedQuantity;
-                        const unitCost = proj.product.costPrice || 0;
-                        const totalCost = qty * unitCost;
+                  {(() => {
+                    const filteredProjections = analysis.projections.filter(proj => {
+                      if (!minStockFilter.trim()) return true;
+                      const q = minStockFilter.toLowerCase();
+                      return proj.product.name.toLowerCase().includes(q) || proj.provider.toLowerCase().includes(q);
+                    });
+                    const paginated = filteredProjections.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+                    if (filteredProjections.length === 0) {
+                      return (
+                        <tr><td colSpan="8" style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
+                          Sin resultados.
+                        </td></tr>
+                      );
+                    }
+                    return paginated.map(proj => {
+                      const pId = proj.product.id;
+                      const isChecked = checkedItems[pId] ?? false;
+                      const qty = selectedItems[pId] ?? proj.suggestedQuantity;
+                      const unitCost = proj.product.costPrice || 0;
+                      const totalCost = qty * unitCost;
 
-                        // Priority tag
-                        let priorityLabel = 'MEDIA';
-                        let priorityBadge = 'secondary';
-                        if (proj.stock === 0) {
-                          priorityLabel = 'CRÍTICA';
-                          priorityBadge = 'danger';
-                        } else if (proj.stock <= proj.product.minStock) {
-                          priorityLabel = 'ALTA';
-                          priorityBadge = 'warning';
-                        }
+                      // Priority tag
+                      let priorityLabel = 'MEDIA';
+                      let priorityBadge = 'secondary';
+                      if (proj.stock === 0) {
+                        priorityLabel = 'CRÍTICA';
+                        priorityBadge = 'danger';
+                      } else if (proj.stock <= proj.product.minStock) {
+                        priorityLabel = 'ALTA';
+                        priorityBadge = 'warning';
+                      }
 
-                        return (
-                          <tr key={pId} style={{ opacity: isChecked ? 1 : 0.6 }}>
-                            <td style={{ textAlign: 'center' }}>
-                              <input
-                                type="checkbox"
-                                checked={isChecked}
-                                onChange={e => setCheckedItems(prev => ({ ...prev, [pId]: e.target.checked }))}
-                                style={{ width: '18px', height: '18px', cursor: 'pointer' }}
-                              />
-                            </td>
-                            <td>
-                              <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{proj.product.name}</div>
-                              <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>T. {proj.product.size} | {proj.product.color} | SKU: {proj.product.sku}</div>
-                            </td>
-                            <td style={{ fontSize: '13px' }}>{proj.provider}</td>
-                            <td>
-                              <span className={`badge ${proj.stock === 0 ? 'danger' : 'warning'}`}>
-                                {proj.stock} uds
-                              </span>
-                            </td>
-                            <td>
-                              <span className={`badge ${priorityBadge}`}>{priorityLabel}</span>
-                            </td>
-                            <td>
-                              <input
-                                type="number"
-                                className="form-control"
-                                style={{ width: '90px', padding: '4px 8px', fontSize: '14px', fontWeight: 'bold', textAlign: 'center' }}
-                                min="0"
-                                value={qty}
-                                onChange={e => {
-                                  const val = Math.max(0, parseInt(e.target.value, 10) || 0);
-                                  setSelectedItems(prev => ({ ...prev, [pId]: val }));
-                                  if (val > 0 && !isChecked) {
-                                    setCheckedItems(prev => ({ ...prev, [pId]: true }));
-                                  }
-                                }}
-                                disabled={!isChecked}
-                              />
-                            </td>
-                            <td>{formatCOP(unitCost)}</td>
-                            <td style={{ fontWeight: 700, color: isChecked ? 'var(--secondary)' : 'var(--text-muted)' }}>
-                              {formatCOP(totalCost)}
-                            </td>
-                          </tr>
-                        );
-                      })
-                  )}
+                      return (
+                        <tr key={pId} style={{ opacity: isChecked ? 1 : 0.6 }}>
+                          <td style={{ textAlign: 'center' }}>
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={e => setCheckedItems(prev => ({ ...prev, [pId]: e.target.checked }))}
+                              style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                            />
+                          </td>
+                          <td>
+                            <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{proj.product.name}</div>
+                            <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>T. {proj.product.size} | {proj.product.color} | SKU: {proj.product.sku}</div>
+                          </td>
+                          <td style={{ fontSize: '13px' }}>{proj.provider}</td>
+                          <td>
+                            <span className={`badge ${proj.stock === 0 ? 'danger' : 'warning'}`}>
+                              {proj.stock} uds
+                            </span>
+                          </td>
+                          <td>
+                            <span className={`badge ${priorityBadge}`}>{priorityLabel}</span>
+                          </td>
+                          <td>
+                            <input
+                              type="number"
+                              className="form-control"
+                              style={{ width: '90px', padding: '4px 8px', fontSize: '14px', fontWeight: 'bold', textAlign: 'center' }}
+                              min="0"
+                              value={qty}
+                              onChange={e => {
+                                const val = Math.max(0, parseInt(e.target.value, 10) || 0);
+                                setSelectedItems(prev => ({ ...prev, [pId]: val }));
+                                if (val > 0 && !isChecked) {
+                                  setCheckedItems(prev => ({ ...prev, [pId]: true }));
+                                }
+                              }}
+                              disabled={!isChecked}
+                            />
+                          </td>
+                          <td>{formatCOP(unitCost)}</td>
+                          <td style={{ fontWeight: 700, color: isChecked ? 'var(--secondary)' : 'var(--text-muted)' }}>
+                            {formatCOP(totalCost)}
+                          </td>
+                        </tr>
+                      );
+                    });
+                  })()}
                 </tbody>
               </table>
             </div>
+            {renderPaginationControls(
+              analysis.projections.filter(proj => {
+                if (!minStockFilter.trim()) return true;
+                const q = minStockFilter.toLowerCase();
+                return proj.product.name.toLowerCase().includes(q) || proj.provider.toLowerCase().includes(q);
+              }).length
+            )}
           </div>
         </div>
       )}
@@ -597,76 +668,86 @@ export default function StockBreak({ onGoToPurchases, currentStoreId }) {
                 </tr>
               </thead>
               <tbody>
-                {filterByName(weeklyProjections.map(p => ({ ...p.product, ...p, product: p.product }))).length === 0 ? (
-                  <tr>
-                    <td colSpan="9" style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
-                      No se encontraron proyecciones semanales para los filtros especificados.
-                    </td>
-                  </tr>
-                ) : (
-                  weeklyProjections
-                    .filter(proj => {
-                      if (!minStockFilter.trim()) return true;
-                      const q = minStockFilter.toLowerCase();
-                      return proj.product.name.toLowerCase().includes(q) || proj.product.provider.toLowerCase().includes(q);
-                    })
-                    .map(proj => {
-                      const statusBadges = {
-                        healthy: 'success',
-                        out_of_stock: 'danger',
-                        critical: 'warning',
-                        reorder_soon: 'secondary'
-                      };
-                      const statusLabels = {
-                        healthy: 'Saludable',
-                        out_of_stock: 'Agotado',
-                        critical: 'Stock Crítico',
-                        reorder_soon: 'Reordenar pronto'
-                      };
+                {(() => {
+                  const filteredItems = weeklyProjections.filter(proj => {
+                    if (!minStockFilter.trim()) return true;
+                    const q = minStockFilter.toLowerCase();
+                    return proj.product.name.toLowerCase().includes(q) || proj.product.provider.toLowerCase().includes(q);
+                  });
+                  const paginated = filteredItems.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+                  if (filteredItems.length === 0) {
+                    return (
+                      <tr>
+                        <td colSpan="9" style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
+                          No se encontraron proyecciones semanales para los filtros especificados.
+                        </td>
+                      </tr>
+                    );
+                  }
+                  return paginated.map(proj => {
+                    const statusBadges = {
+                      healthy: 'success',
+                      out_of_stock: 'danger',
+                      critical: 'warning',
+                      reorder_soon: 'secondary'
+                    };
+                    const statusLabels = {
+                      healthy: 'Saludable',
+                      out_of_stock: 'Agotado',
+                      critical: 'Stock Crítico',
+                      reorder_soon: 'Reordenar pronto'
+                    };
 
-                      return (
-                        <tr key={proj.product.id}>
-                          <td>
-                            <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{proj.product.name}</div>
-                            <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Talla {proj.product.size} | {proj.product.color} | SKU: {proj.product.sku}</div>
-                          </td>
-                          <td style={{ fontSize: '13px' }}>{proj.product.provider}</td>
-                          <td style={{ fontWeight: '600', color: 'var(--primary)' }}>
-                            {proj.weeklyVelocity.toFixed(2)} uds/sem
-                          </td>
-                          <td>
-                            <span className={`badge ${proj.stock === 0 ? 'danger' : proj.stock <= proj.minStock ? 'warning' : 'success'}`}>
-                              {proj.stock} uds
-                            </span>
-                          </td>
-                          <td>
-                            {proj.projectedDemand.toFixed(1)} uds
-                          </td>
-                          <td>
-                            <span style={{ 
-                              fontWeight: 800, 
-                              fontSize: '16px', 
-                              color: proj.suggestedToBuy > 0 ? 'var(--secondary)' : 'var(--text-muted)' 
-                            }}>
-                              {proj.suggestedToBuy} uds
-                            </span>
-                          </td>
-                          <td>{formatCOP(proj.product.costPrice)}</td>
-                          <td style={{ fontWeight: 700, color: proj.estimatedCost > 0 ? 'var(--secondary)' : 'var(--text-muted)' }}>
-                            {formatCOP(proj.estimatedCost)}
-                          </td>
-                          <td>
-                            <span className={`badge ${statusBadges[proj.status]}`}>
-                              {statusLabels[proj.status]}
-                            </span>
-                          </td>
-                        </tr>
-                      );
-                    })
-                )}
+                    return (
+                      <tr key={proj.product.id}>
+                        <td>
+                          <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{proj.product.name}</div>
+                          <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Talla {proj.product.size} | {proj.product.color} | SKU: {proj.product.sku}</div>
+                        </td>
+                        <td style={{ fontSize: '13px' }}>{proj.product.provider}</td>
+                        <td style={{ fontWeight: '600', color: 'var(--primary)' }}>
+                          {proj.weeklyVelocity.toFixed(2)} uds/sem
+                        </td>
+                        <td>
+                          <span className={`badge ${proj.stock === 0 ? 'danger' : proj.stock <= proj.minStock ? 'warning' : 'success'}`}>
+                            {proj.stock} uds
+                          </span>
+                        </td>
+                        <td>
+                          {proj.projectedDemand.toFixed(1)} uds
+                        </td>
+                        <td>
+                          <span style={{ 
+                            fontWeight: 800, 
+                            fontSize: '16px', 
+                            color: proj.suggestedToBuy > 0 ? 'var(--secondary)' : 'var(--text-muted)' 
+                          }}>
+                            {proj.suggestedToBuy} uds
+                          </span>
+                        </td>
+                        <td>{formatCOP(proj.product.costPrice)}</td>
+                        <td style={{ fontWeight: 700, color: proj.estimatedCost > 0 ? 'var(--secondary)' : 'var(--text-muted)' }}>
+                          {formatCOP(proj.estimatedCost)}
+                        </td>
+                        <td>
+                          <span className={`badge ${statusBadges[proj.status]}`}>
+                            {statusLabels[proj.status]}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  });
+                })()}
               </tbody>
             </table>
           </div>
+          {renderPaginationControls(
+            weeklyProjections.filter(proj => {
+              if (!minStockFilter.trim()) return true;
+              const q = minStockFilter.toLowerCase();
+              return proj.product.name.toLowerCase().includes(q) || proj.product.provider.toLowerCase().includes(q);
+            }).length
+          )}
         </div>
       )}
     </div>
