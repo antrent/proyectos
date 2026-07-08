@@ -3,6 +3,37 @@ import { salesService } from '../services/SalesService';
 import { CsvHelper } from '../services/CsvHelper';
 import { storageRepository } from '../services/StorageRepository';
 
+const parseDateString = (dateStr) => {
+  if (!dateStr) return new Date().toISOString();
+  dateStr = dateStr.trim();
+  
+  // Try ISO format first (YYYY-MM-DD)
+  if (/^\d{4}-\d{2}-\d{2}/.test(dateStr)) {
+    const d = new Date(dateStr);
+    if (!isNaN(d.getTime())) return d.toISOString();
+  }
+  
+  // Try Spanish/Colombian format (DD/MM/YYYY or DD-MM-YYYY)
+  const spRegex = /^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?/;
+  const match = dateStr.match(spRegex);
+  if (match) {
+    const day = parseInt(match[1], 10);
+    const month = parseInt(match[2], 10) - 1; // 0-indexed
+    const year = parseInt(match[3], 10);
+    const hour = match[4] ? parseInt(match[4], 10) : 12;
+    const min = match[5] ? parseInt(match[5], 10) : 0;
+    const sec = match[6] ? parseInt(match[6], 10) : 0;
+    const d = new Date(year, month, day, hour, min, sec);
+    if (!isNaN(d.getTime())) return d.toISOString();
+  }
+
+  // Fallback to standard Date parsing
+  const parsed = new Date(dateStr);
+  if (!isNaN(parsed.getTime())) return parsed.toISOString();
+
+  return new Date().toISOString();
+};
+
 export default function InvoiceHistory({ user, currentStoreId }) {
   const [sales, setSales] = useState([]);
   const [search, setSearch] = useState('');
@@ -15,6 +46,7 @@ export default function InvoiceHistory({ user, currentStoreId }) {
   const [expandedSale, setExpandedSale] = useState(null);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [showHelpGuide, setShowHelpGuide] = useState(false);
 
   const INVOICE_COLUMNS = [
     { label: 'Numero Factura', key: 'invoiceNumber' },
@@ -101,7 +133,7 @@ export default function InvoiceHistory({ user, currentStoreId }) {
           if (!grouped[invNum]) {
             grouped[invNum] = {
               invoiceNumber: invNum,
-              date: row.date || new Date().toISOString(),
+              date: parseDateString(row.date),
               clientName: row.clientName || 'Cliente Genérico',
               clientDocument: row.clientDocument || '',
               paymentMethod: row.paymentMethod || 'Efectivo',
@@ -240,6 +272,13 @@ export default function InvoiceHistory({ user, currentStoreId }) {
           </div>
         </div>
         <div style={{ display: 'flex', gap: '10px' }}>
+          <button 
+            className={`btn btn-sm ${showHelpGuide ? 'btn-primary' : 'btn-outline'}`} 
+            onClick={() => setShowHelpGuide(!showHelpGuide)}
+            style={{ fontWeight: 600 }}
+          >
+            ❓ Guía de Carga
+          </button>
           <button className="btn btn-outline btn-sm" onClick={handleExportCSV}>📥 Exportar CSV</button>
           <button className="btn btn-outline btn-sm" onClick={() => document.getElementById('csv-file-input').click()}>📤 Importar CSV</button>
           <button className="btn btn-outline btn-sm" onClick={handleDownloadTemplate} style={{ borderStyle: 'dotted' }}>📄 Plantilla</button>
@@ -252,6 +291,40 @@ export default function InvoiceHistory({ user, currentStoreId }) {
           />
         </div>
       </div>
+
+      {showHelpGuide && (
+        <div className="card-table-wrapper" style={{ padding: '24px', background: 'var(--bg-card)', borderLeft: '4px solid var(--primary)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <h4 style={{ margin: 0, fontSize: '15px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px' }}>
+            📖 Guía Interactiva para Carga Masiva de Ventas
+          </h4>
+          <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.5 }}>
+            Sigue estos pasos para estructurar tu archivo de historial de ventas en formato CSV e importarlo sin errores:
+          </p>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px', marginTop: '4px' }}>
+            <div style={{ padding: '16px', background: 'var(--bg-app)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
+              <strong style={{ fontSize: '12px', color: 'var(--primary)', display: 'block', marginBottom: '6px' }}>1. ESTRUCTURA MULTI-ITEM</strong>
+              <span style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: 1.4, display: 'block' }}>
+                Si una factura tiene múltiples artículos vendidos, debes escribir <strong>el mismo número de factura</strong> en varias filas. El sistema las agrupará automáticamente en una sola factura con varios ítems.
+              </span>
+            </div>
+            <div style={{ padding: '16px', background: 'var(--bg-app)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
+              <strong style={{ fontSize: '12px', color: 'var(--primary)', display: 'block', marginBottom: '6px' }}>2. FORMATO DE FECHAS</strong>
+              <span style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: 1.4, display: 'block' }}>
+                Admite formatos de Excel en español, como <code>DD/MM/AAAA HH:MM:SS</code> o <code>DD/MM/AAAA</code> (ej: <code>15/06/2026 18:30:00</code>), y también formato ISO estándar <code>AAAA-MM-DD</code>.
+              </span>
+            </div>
+            <div style={{ padding: '16px', background: 'var(--bg-app)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
+              <strong style={{ fontSize: '12px', color: 'var(--primary)', display: 'block', marginBottom: '6px' }}>3. CAMPOS REQUERIDOS</strong>
+              <span style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: 1.4, display: 'block' }}>
+                Asegúrate de llenar las columnas: <code>Numero Factura</code>, <code>Codigo de Barras</code>, <code>Cantidad</code> y <code>Precio</code>. Si el cliente es genérico, puedes dejar el nombre en blanco y se le asignará "Cliente Genérico".
+              </span>
+            </div>
+          </div>
+          <div style={{ fontSize: '12px', background: 'hsla(190, 70%, 40%, 0.08)', border: '1px solid hsla(190, 70%, 40%, 0.15)', padding: '12px 16px', borderRadius: 'var(--radius-md)', color: 'var(--text-primary)' }}>
+            💡 <strong>Consejo rápido:</strong> Primero haz clic en el botón <strong>📄 Plantilla</strong> para descargar el archivo de ejemplo, edítalo con tu información histórica de ventas en Excel, guárdalo como <strong>CSV delimitado por comas</strong> y finalmente súbelo.
+          </div>
+        </div>
+      )}
 
       {success && <div className="alert alert-success"><span>✅</span><span>{success}</span></div>}
       {error && <div className="alert alert-error"><span>⚠️</span><span>{error}</span></div>}

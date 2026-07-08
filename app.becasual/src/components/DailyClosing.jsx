@@ -21,6 +21,32 @@ const PAYMENT_COLORS = {
   Bold: '#9c27b0'
 };
 
+const parseDateOnlyString = (dateStr) => {
+  if (!dateStr) return new Date().toISOString().split('T')[0];
+  dateStr = dateStr.trim();
+  
+  // Try YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}/.test(dateStr)) {
+    return dateStr.substring(0, 10);
+  }
+  
+  // Try DD/MM/YYYY or DD-MM-YYYY
+  const match = dateStr.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
+  if (match) {
+    const day = match[1].padStart(2, '0');
+    const month = match[2].padStart(2, '0');
+    const year = match[3];
+    return `${year}-${month}-${day}`;
+  }
+  
+  // Try generic date parsing
+  const d = new Date(dateStr);
+  if (!isNaN(d.getTime())) {
+    return d.toISOString().split('T')[0];
+  }
+  return new Date().toISOString().split('T')[0];
+};
+
 export default function DailyClosing({ user, currentStoreId }) {
   const today = new Date().toISOString().split('T')[0];
   const [selectedDate, setSelectedDate] = useState(today);
@@ -107,14 +133,15 @@ export default function DailyClosing({ user, currentStoreId }) {
         parsed.forEach(row => {
           if (!row.date) return;
           
-          const exists = closings.some(c => c.date === row.date.trim() && c.storeId === targetStoreId);
+          const dateCleaned = parseDateOnlyString(row.date);
+          const exists = closings.some(c => c.date === dateCleaned && c.storeId === targetStoreId);
           if (exists) {
             duplicateCount++;
           } else {
             closings.unshift({
               id: `closing_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
               storeId: targetStoreId,
-              date: row.date.trim(),
+              date: dateCleaned,
               salesCount: Number(row.salesCount) || 0,
               total: Number(row.total) || 0,
               cost: Number(row.cost) || 0,
