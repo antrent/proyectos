@@ -70,7 +70,7 @@ export function printProductLabels(product, quantity = 1) {
   }
 
   const barcodeValue = product.sku || product.barcode || '';
-  const barcodeSvg = new Barcode128Svg(barcodeValue, 1.5, 45).toString();
+  const barcodeSvg = new Barcode128Svg(barcodeValue, 1.0, 35).toString();
 
   const formatCOP = (amount) => {
     return new Intl.NumberFormat('es-CO', {
@@ -107,23 +107,23 @@ export function printProductLabels(product, quantity = 1) {
         <title>Imprimir Etiquetas - BeCasual</title>
         <style>
           @page {
-            size: 50mm 30mm;
+            size: 32mm 25mm;
             margin: 0;
           }
           html, body {
             margin: 0;
             padding: 0;
-            width: 50mm;
-            height: 30mm;
+            width: 32mm;
+            height: 25mm;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             background: white;
             color: black;
           }
           .label-container {
-            width: 50mm;
-            height: 30mm;
+            width: 32mm;
+            height: 25mm;
             box-sizing: border-box;
-            padding: 1.5mm 2.5mm;
+            padding: 1.0mm 1.5mm;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
@@ -133,33 +133,33 @@ export function printProductLabels(product, quantity = 1) {
             overflow: hidden;
           }
           .product-name {
-            font-size: 7pt;
+            font-size: 5.5pt;
             font-weight: 700;
             line-height: 1.1;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
             width: 100%;
-            margin-top: 0.2mm;
+            margin-top: 0.1mm;
           }
           .barcode-wrapper {
-            margin: 0.5mm 0;
+            margin: 0.2mm 0;
             display: flex;
             justify-content: center;
             align-items: center;
             width: 100%;
-            height: 11mm;
+            height: 8mm;
           }
           .barcode-wrapper svg {
-            width: 44mm;
+            width: 28mm;
             height: 100%;
-            max-height: 11mm;
+            max-height: 8mm;
           }
           .barcode-text {
-            font-size: 6pt;
+            font-size: 5pt;
             font-family: "Courier New", Courier, monospace;
             font-weight: bold;
-            margin-top: -0.5mm;
+            margin-top: -0.3mm;
             letter-spacing: 0.5px;
           }
           .footer-info {
@@ -167,22 +167,22 @@ export function printProductLabels(product, quantity = 1) {
             justify-content: space-between;
             align-items: center;
             width: 100%;
-            font-size: 8pt;
+            font-size: 6.5pt;
             font-weight: bold;
             border-top: 0.5px dashed #000;
-            padding-top: 0.8mm;
-            margin-top: 0.2mm;
+            padding-top: 0.5mm;
+            margin-top: 0.1mm;
           }
           .product-price {
-            font-size: 8.5pt;
+            font-size: 7.5pt;
             font-weight: bold;
           }
           .product-size {
             background: #000;
             color: #fff;
-            padding: 0.2mm 1.5mm;
+            padding: 0.1mm 1.0mm;
             border-radius: 2px;
-            font-size: 7pt;
+            font-size: 6pt;
             font-weight: bold;
           }
         </style>
