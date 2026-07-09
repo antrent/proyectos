@@ -34,6 +34,44 @@ const parseDateString = (dateStr) => {
   return new Date().toISOString();
 };
 
+const parseCSVNumber = (val) => {
+  if (val === undefined || val === null) return 0;
+  let str = String(val).trim();
+  if (!str) return 0;
+
+  // Remove currency sign, spaces
+  str = str.replace(/[\$\s]/g, '');
+
+  // Check for thousands separator
+  const hasComma = str.includes(',');
+  const hasDot = str.includes('.');
+
+  if (hasComma && hasDot) {
+    const lastComma = str.lastIndexOf(',');
+    const lastDot = str.lastIndexOf('.');
+    if (lastComma > lastDot) {
+      str = str.replace(/\./g, '').replace(',', '.');
+    } else {
+      str = str.replace(/,/g, '');
+    }
+  } else if (hasComma) {
+    const parts = str.split(',');
+    if (parts[1] && parts[1].length === 3) {
+      str = str.replace(/,/g, '');
+    } else {
+      str = str.replace(',', '.');
+    }
+  } else if (hasDot) {
+    const parts = str.split('.');
+    if (parts[1] && parts[1].length === 3) {
+      str = str.replace(/\./g, '');
+    }
+  }
+
+  const num = Number(str);
+  return isNaN(num) ? 0 : num;
+};
+
 export default function InvoiceHistory({ user, currentStoreId }) {
   const [sales, setSales] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
@@ -127,6 +165,19 @@ export default function InvoiceHistory({ user, currentStoreId }) {
           return;
         }
 
+        const inventoryProducts = storageRepository.getProducts();
+        const getProductCostPrice = (barcode, name) => {
+          let prod = null;
+          if (barcode) {
+            prod = inventoryProducts.find(p => p.barcode === barcode);
+          }
+          if (!prod && name) {
+            const normalizedSearch = name.toLowerCase().trim();
+            prod = inventoryProducts.find(p => p.name.toLowerCase().trim() === normalizedSearch);
+          }
+          return prod ? (prod.costPrice || 0) : 0;
+        };
+
         let emptyInvoiceNumCount = 0;
         const grouped = {};
         parsed.forEach(row => {
@@ -143,22 +194,100 @@ export default function InvoiceHistory({ user, currentStoreId }) {
               clientName: row.clientName || 'Cliente Genérico',
               clientDocument: row.clientDocument || '',
               paymentMethod: row.paymentMethod || 'Efectivo',
-              subtotal: Number(row.subtotal) || 0,
-              tax: Number(row.tax) || 0,
-              total: Number(row.total) || 0,
+              subtotal: 0,
+              tax: 0,
+              total: 0,
+              discount: 0,
+              cost: 0,
+              profit: 0,
               sellerId: row.sellerId || 'admin',
               cancelled: String(row.cancelled).toUpperCase() === 'SÍ',
-              items: []
+              items: [],
+              // Temporary fields for checking row-level vs invoice-level totals
+              firstRowSubtotal: parseCSVNumber(row.subtotal),
+              firstRowTax: parseCSVNumber(row.tax),
+              firstRowTotal: parseCSVNumber(row.total),
+              firstRowDiscount: parseCSVNumber(row.discount),
+              accumulatedSubtotal: 0,
+              accumulatedTax: 0,
+              accumulatedTotal: 0,
+              accumulatedDiscount: 0
             };
           }
 
+          const currentItemSubtotal = parseCSVNumber(row.subtotal);
+          const currentItemTax = parseCSVNumber(row.tax);
+          const currentItemTotal = parseCSVNumber(row.total);
+          const currentItemDiscount = parseCSVNumber(row.discount);
+
+          grouped[invNum].accumulatedSubtotal += currentItemSubtotal;
+          grouped[invNum].accumulatedTax += currentItemTax;
+          grouped[invNum].accumulatedTotal += currentItemTotal;
+          grouped[invNum].accumulatedDiscount += currentItemDiscount;
+
+          const itemCostPrice = getProductCostPrice(row.barcode, row.name);
           grouped[invNum].items.push({
             name: row.name || 'Producto Desconocido',
             barcode: row.barcode || '',
-            quantity: Number(row.quantity) || 1,
-            sellPrice: Number(row.sellPrice) || 0,
-            discount: Number(row.discount) || 0
+            quantity: parseCSVNumber(row.quantity) || 1,
+            sellPrice: parseCSVNumber(row.sellPrice) || 0,
+            discount: parseCSVNumber(row.discount) || 0,
+            costPrice: itemCostPrice
           });
+        });
+
+        // Finalize totals for each grouped invoice
+        Object.values(grouped).forEach(sale => {
+          let calculatedTotal = 0;
+          let calculatedDiscount = 0;
+          let calculatedCost = 0;
+          sale.items.forEach(item => {
+            const itemSubtotal = item.sellPrice * item.quantity;
+            const discountAmount = itemSubtotal * ((item.discount || 0) / 100);
+            calculatedTotal += (itemSubtotal - discountAmount);
+            calculatedDiscount += discountAmount;
+            calculatedCost += (item.costPrice || 0) * item.quantity;
+          });
+
+          // Check if CSV columns are row-level or invoice-level.
+          // If accumulatedTotal is close to calculatedTotal and firstRowTotal is smaller (and close to the first item's total),
+          // it is row-level (item-level).
+          const isRowLevel = sale.firstRowTotal < sale.accumulatedTotal && 
+            Math.abs(sale.accumulatedTotal - calculatedTotal) < Math.abs(sale.firstRowTotal - calculatedTotal);
+
+          if (isRowLevel) {
+            sale.subtotal = sale.accumulatedSubtotal;
+            sale.tax = sale.accumulatedTax;
+            sale.total = sale.accumulatedTotal;
+            sale.discount = sale.accumulatedDiscount;
+          } else {
+            sale.subtotal = sale.firstRowSubtotal;
+            sale.tax = sale.firstRowTax;
+            sale.total = sale.firstRowTotal;
+            sale.discount = sale.firstRowDiscount;
+          }
+
+          // If the CSV total is 0 or empty, calculate it dynamically from the items
+          if (sale.total === 0 && calculatedTotal > 0) {
+            const taxPercentage = 0.19; // Default 19%
+            sale.total = calculatedTotal;
+            sale.subtotal = Number((calculatedTotal / (1 + taxPercentage)).toFixed(2));
+            sale.tax = Number((calculatedTotal - sale.subtotal).toFixed(2));
+            sale.discount = calculatedDiscount;
+          }
+
+          sale.cost = calculatedCost;
+          sale.profit = Number((sale.total - sale.cost).toFixed(2));
+
+          // Clean up temporary properties
+          delete sale.firstRowSubtotal;
+          delete sale.firstRowTax;
+          delete sale.firstRowTotal;
+          delete sale.firstRowDiscount;
+          delete sale.accumulatedSubtotal;
+          delete sale.accumulatedTax;
+          delete sale.accumulatedTotal;
+          delete sale.accumulatedDiscount;
         });
 
         const allSales = storageRepository.getSales();
