@@ -26,6 +26,17 @@ export const CsvHelper = {
     if (csvText.charCodeAt(0) === 0xFEFF) {
       csvText = csvText.slice(1);
     }
+
+    // Auto-detect delimiter (comma or semicolon) based on first line
+    let delimiter = ',';
+    const firstLineEnd = csvText.indexOf('\n');
+    const firstLine = firstLineEnd !== -1 ? csvText.substring(0, firstLineEnd) : csvText;
+    const commaCount = (firstLine.match(/,/g) || []).length;
+    const semicolonCount = (firstLine.match(/;/g) || []).length;
+    if (semicolonCount > commaCount) {
+      delimiter = ';';
+    }
+
     const lines = [];
     let currentLine = [];
     let currentField = '';
@@ -49,7 +60,7 @@ export const CsvHelper = {
       } else {
         if (char === '"') {
           inQuotes = true;
-        } else if (char === ',') {
+        } else if (char === delimiter) {
           currentLine.push(currentField.trim());
           currentField = '';
         } else if (char === '\r' || char === '\n') {
@@ -77,7 +88,36 @@ export const CsvHelper = {
 
     if (lines.length === 0) return [];
 
-    const headers = lines[0].map(h => h.toLowerCase().trim());
+    // Helper to normalize strings (lowercase, strip accents, normalize spaces)
+    const normalizeString = (str) => {
+      if (!str) return '';
+      return str
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/\s+/g, ' ')
+        .trim();
+    };
+
+    const COLUMN_ALIASES = {
+      invoiceNumber: ['numero factura', 'nro factura', 'factura', 'id factura', 'consecutivo', 'consecutivo factura', 'nro. factura', 'nro_factura', 'nro', 'numero_factura', 'numero', 'num factura', 'num. factura', 'nro de factura', 'numero de factura'],
+      date: ['fecha y hora', 'fecha', 'fecha_hora', 'fecha factura', 'fecha de factura', 'date', 'fecha/hora', 'creado el', 'creado'],
+      clientName: ['nombre cliente', 'cliente', 'nombre', 'nombre_cliente', 'cliente nombre', 'client', 'comprador'],
+      clientDocument: ['documento cliente', 'documento', 'documento_cliente', 'cedula', 'nit', 'id cliente', 'identificacion', 'cc', 'doc', 'documento de identidad'],
+      name: ['nombre producto', 'producto', 'articulo', 'descripcion', 'name', 'nombre_producto', 'detalle', 'descripcion producto', 'concepto', 'item'],
+      barcode: ['codigo de barras', 'codigo', 'codigo_barras', 'barcode', 'ref', 'referencia', 'cod barras', 'cod. barras', 'codigo barras', 'plu'],
+      quantity: ['cantidad', 'cant', 'quantity', 'cant.', 'unidades', 'uds', 'cant_vendida', 'cantidad vendida'],
+      sellPrice: ['precio', 'precio venta', 'precio unitario', 'valor unitario', 'valor', 'precio_venta', 'price', 'vlr unitario', 'valor venta', 'valor unitario'],
+      discount: ['descuento porcentaje', 'descuento', 'desc', 'descuento %', '% descuento', 'dcto', 'descuento valor'],
+      paymentMethod: ['metodo pago', 'forma pago', 'metodo de pago', 'forma de pago', 'medio pago', 'medio de pago', 'tipo pago', 'pago', 'metodo_pago'],
+      subtotal: ['subtotal factura', 'subtotal', 'sub_total', 'sub total', 'subtotal_factura', 'valor subtotal'],
+      tax: ['iva factura', 'iva', 'impuesto', 'valor iva', 'iva_factura', 'impuestos'],
+      total: ['total factura', 'total', 'valor total', 'total_factura', 'vlr total', 'total pagado'],
+      sellerId: ['usuario vendedor', 'vendedor', 'usuario', 'seller', 'vendedor id', 'id vendedor', 'cajero'],
+      cancelled: ['anulada', 'estado', 'anulado', 'cancelado', 'cancelada', 'cancelado?', 'anulado?', 'anulada?']
+    };
+
+    const headers = lines[0].map(h => normalizeString(h));
     const jsonRows = [];
 
     for (let rowIdx = 1; rowIdx < lines.length; rowIdx++) {
@@ -86,12 +126,21 @@ export const CsvHelper = {
 
       const obj = {};
       columns.forEach(col => {
-        const colLabelNormalized = col.label.toLowerCase().trim();
-        const headerIdx = headers.findIndex(h => h === colLabelNormalized);
+        const key = col.key;
+        const aliases = COLUMN_ALIASES[key] || [];
+        const labelNormalized = normalizeString(col.label);
+        const keyNormalized = normalizeString(key);
+
+        const headerIdx = headers.findIndex(h => 
+          h === labelNormalized || 
+          h === keyNormalized || 
+          aliases.includes(h)
+        );
+
         if (headerIdx !== -1 && row[headerIdx] !== undefined) {
-          obj[col.key] = row[headerIdx];
+          obj[key] = row[headerIdx];
         } else {
-          obj[col.key] = ''; // Default empty
+          obj[key] = ''; // Default empty
         }
       });
       jsonRows.push(obj);

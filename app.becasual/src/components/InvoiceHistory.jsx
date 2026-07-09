@@ -127,10 +127,14 @@ export default function InvoiceHistory({ user, currentStoreId }) {
           return;
         }
 
+        let emptyInvoiceNumCount = 0;
         const grouped = {};
         parsed.forEach(row => {
           const invNum = (row.invoiceNumber || '').trim();
-          if (!invNum) return;
+          if (!invNum) {
+            emptyInvoiceNumCount++;
+            return;
+          }
 
           if (!grouped[invNum]) {
             grouped[invNum] = {
@@ -181,7 +185,15 @@ export default function InvoiceHistory({ user, currentStoreId }) {
           load();
           setSuccess(`Se importaron ${addedCount} facturas con éxito.${duplicateCount > 0 ? ` Se omitieron ${duplicateCount} duplicadas.` : ''}`);
         } else {
-          setError('No se agregaron facturas nuevas (todas estaban duplicadas o vacías).');
+          if (duplicateCount > 0 && emptyInvoiceNumCount > 0) {
+            setError(`No se agregaron facturas nuevas: ${duplicateCount} facturas ya existen en el sistema (duplicadas) y ${emptyInvoiceNumCount} filas se omitieron por no tener número de factura.`);
+          } else if (duplicateCount > 0) {
+            setError(`No se agregaron facturas: todas las ${duplicateCount} facturas del archivo ya existen en el sistema (duplicadas).`);
+          } else if (emptyInvoiceNumCount > 0) {
+            setError(`No se encontraron facturas válidas: se leyeron ${emptyInvoiceNumCount} filas pero ninguna tenía número de factura. Revisa que el archivo tenga la columna "Numero Factura" (o equivalente).`);
+          } else {
+            setError('No se agregaron facturas nuevas (todas estaban duplicadas o vacías).');
+          }
         }
       } catch (err) {
         setError('Error al procesar el archivo CSV. Revisa el formato.');
