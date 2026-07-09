@@ -86,15 +86,15 @@ export function printProductLabels(product, quantity = 1) {
   for (let i = 0; i < quantity; i++) {
     labelsHtml += `
       <div class="label-container">
+        <div class="header-info">
+          <span class="product-price">${priceFormatted}</span>
+          <span class="product-size">(${product.size || '-'})</span>
+        </div>
         <div class="product-name">${product.name.toUpperCase()}</div>
         <div class="barcode-wrapper">
           ${barcodeSvg}
         </div>
-        <div class="barcode-text">${barcodeValue}</div>
-        <div class="footer-info">
-          <span class="product-price">${priceFormatted}</span>
-          <span class="product-size">TALLA: ${product.size || '-'}</span>
-        </div>
+        <div class="barcode-text">*${barcodeValue}*</div>
       </div>
     `;
   }
@@ -123,7 +123,7 @@ export function printProductLabels(product, quantity = 1) {
             width: 32mm;
             height: 25mm;
             box-sizing: border-box;
-            padding: 1.0mm 1.5mm;
+            padding: 1.2mm 1.5mm;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
@@ -132,58 +132,50 @@ export function printProductLabels(product, quantity = 1) {
             page-break-after: always;
             overflow: hidden;
           }
+          .header-info {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 1.5mm;
+            width: 100%;
+            font-weight: 800;
+            margin-top: 0.1mm;
+          }
+          .product-price {
+            font-size: 8.5pt;
+          }
+          .product-size {
+            font-size: 8.5pt;
+          }
           .product-name {
             font-size: 5.5pt;
-            font-weight: 700;
+            font-weight: 600;
             line-height: 1.1;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
             width: 100%;
-            margin-top: 0.1mm;
+            margin: 0.2mm 0;
           }
           .barcode-wrapper {
-            margin: 0.2mm 0;
+            margin: 0.1mm 0;
             display: flex;
             justify-content: center;
             align-items: center;
             width: 100%;
-            height: 8mm;
+            height: 8.5mm;
           }
           .barcode-wrapper svg {
-            width: 28mm;
+            width: 29mm;
             height: 100%;
-            max-height: 8mm;
+            max-height: 8.5mm;
           }
           .barcode-text {
             font-size: 5pt;
             font-family: "Courier New", Courier, monospace;
             font-weight: bold;
-            margin-top: -0.3mm;
+            margin-top: -0.4mm;
             letter-spacing: 0.5px;
-          }
-          .footer-info {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            width: 100%;
-            font-size: 6.5pt;
-            font-weight: bold;
-            border-top: 0.5px dashed #000;
-            padding-top: 0.5mm;
-            margin-top: 0.1mm;
-          }
-          .product-price {
-            font-size: 7.5pt;
-            font-weight: bold;
-          }
-          .product-size {
-            background: #000;
-            color: #fff;
-            padding: 0.1mm 1.0mm;
-            border-radius: 2px;
-            font-size: 6pt;
-            font-weight: bold;
           }
         </style>
       </head>

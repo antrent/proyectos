@@ -800,7 +800,7 @@ export default function Inventory({ user, onDataChange, currentStoreId }) {
                   height: '175px',
                   border: '1px solid #ccc',
                   borderRadius: '4px',
-                  padding: '8px 10px',
+                  padding: '10px 12px',
                   boxSizing: 'border-box',
                   background: 'white',
                   color: 'black',
@@ -812,23 +812,21 @@ export default function Inventory({ user, onDataChange, currentStoreId }) {
                   boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
                   fontFamily: 'sans-serif'
                 }}>
-                  <div style={{ fontSize: '9px', fontWeight: 'bold', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', width: '100%', textAlign: 'center' }}>
+                  <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', width: '100%', fontSize: '13px', fontWeight: '800' }}>
+                    <span>{formatCOP(selectedProductForPrint.sellPrice)}</span>
+                    <span>({selectedProductForPrint.size || '-'})</span>
+                  </div>
+
+                  <div style={{ fontSize: '8.5px', fontWeight: '600', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', width: '100%', textAlign: 'center', margin: '2px 0' }}>
                     {selectedProductForPrint.name.toUpperCase()}
                   </div>
                   
-                  <div style={{ width: '100%', height: '48px', display: 'flex', justifyContent: 'center', alignItems: 'center' }} dangerouslySetInnerHTML={{
+                  <div style={{ width: '100%', height: '52px', display: 'flex', justifyContent: 'center', alignItems: 'center' }} dangerouslySetInnerHTML={{
                     __html: new Barcode128Svg(selectedProductForPrint.sku || selectedProductForPrint.barcode || '', 1.0, 35).toString()
                   }} />
                   
-                  <div style={{ fontSize: '8px', fontFamily: 'monospace', fontWeight: 'bold', marginTop: '-4px' }}>
-                    {selectedProductForPrint.sku || selectedProductForPrint.barcode}
-                  </div>
-                  
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', borderTop: '0.5px dashed black', paddingTop: '4px', fontSize: '10px', fontWeight: 'bold' }}>
-                    <span>{formatCOP(selectedProductForPrint.sellPrice)}</span>
-                    <span style={{ background: 'black', color: 'white', padding: '1px 4px', borderRadius: '2px', fontSize: '8px' }}>
-                      TALLA: {selectedProductForPrint.size || '-'}
-                    </span>
+                  <div style={{ fontSize: '8px', fontFamily: 'monospace', fontWeight: 'bold', marginTop: '-3px' }}>
+                    *{selectedProductForPrint.sku || selectedProductForPrint.barcode}*
                   </div>
                 </div>
               </div>
