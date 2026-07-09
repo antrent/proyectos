@@ -22,6 +22,10 @@ export const CsvHelper = {
 
   // Parse CSV string into JSON array of objects mapped by headers
   csvToJson(csvText, columns) {
+    // Remove UTF-8 BOM if present (added on export for Excel compatibility)
+    if (csvText.charCodeAt(0) === 0xFEFF) {
+      csvText = csvText.slice(1);
+    }
     const lines = [];
     let currentLine = [];
     let currentField = '';
