@@ -230,6 +230,17 @@ export default function DailyClosing({ user, currentStoreId }) {
 
   const alreadyClosed = history.some(c => c.date === selectedDate);
 
+  const getOpeningBaseCash = () => {
+    const openings = storageRepository.getOpenings();
+    const targetStoreId = currentStoreId === 'all' ? 'store_1' : currentStoreId;
+    const match = openings.find(o => o.date === selectedDate && o.storeId === targetStoreId);
+    return match ? match.openingCash : 0;
+  };
+
+  const baseCash = getOpeningBaseCash();
+  const cashSales = summary && summary.breakdown && summary.breakdown.Efectivo ? summary.breakdown.Efectivo : 0;
+  const expectedCashInRegister = baseCash + cashSales;
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
 
@@ -305,6 +316,27 @@ export default function DailyClosing({ user, currentStoreId }) {
                     </div>
                   );
                 })}
+              </div>
+            </div>
+            {/* Arqueo de Caja */}
+            <div style={{ marginTop: '24px', padding: '20px', background: 'var(--bg-app)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
+              <h5 style={{ margin: '0 0 12px', fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                💵 Arqueo de Efectivo Esperado
+              </h5>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '12.5px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--text-secondary)' }}>Base inicial de Caja:</span>
+                  <span style={{ fontWeight: '600' }}>{formatCOP(baseCash)}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--text-secondary)' }}>Ventas en Efectivo:</span>
+                  <span style={{ fontWeight: '600' }}>{formatCOP(cashSales)}</span>
+                </div>
+                <hr style={{ border: 'none', borderTop: '1px solid var(--border-color)', margin: '4px 0' }} />
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', fontWeight: 'bold' }}>
+                  <span style={{ color: 'var(--text-primary)' }}>Total Efectivo en Caja:</span>
+                  <span style={{ color: 'var(--success)' }}>{formatCOP(expectedCashInRegister)}</span>
+                </div>
               </div>
             </div>
           </div>

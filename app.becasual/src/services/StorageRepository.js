@@ -98,6 +98,7 @@ class StorageRepository {
       ]));
       localStorage.setItem('becasual_closings', JSON.stringify([]));
       localStorage.setItem('becasual_layaways', JSON.stringify([]));
+      localStorage.setItem('becasual_openings', JSON.stringify([]));
 
       // Mark database as initialized
       localStorage.setItem('becasual_db_initialized', 'true');
@@ -134,6 +135,9 @@ class StorageRepository {
 
   getSales() { return this.getData('sales'); }
   saveSales(sales) { return this.setData('sales', sales); }
+
+  getOpenings() { return this.getData('openings'); }
+  saveOpenings(openings) { return this.setData('openings', openings); }
 
   getParams() {
     try {

@@ -2,6 +2,20 @@ import React from 'react';
 
 const CHANGELOG = [
   {
+    version: 'v1.7.0',
+    date: 'Julio 2026',
+    title: 'Control de Apertura de Caja y Devoluciones de Productos',
+    badge: 'Nueva Funcionalidad',
+    badgeColor: '#a855f7',
+    changes: [
+      'Implementado control de acceso restrictivo: obliga a realizar la Apertura de Caja Diaria antes de operar en cualquier sucursal.',
+      'Añadida vista interactiva de arqueo en el Cierre de Caja Diario (Base Inicial + Ventas Efectivo = Efectivo Esperado).',
+      'Implementado sistema de devoluciones de producto parciales y totales con reintegro automático al inventario.',
+      'Desglose y validación de reembolso en los métodos de pago originales de la factura.',
+      'Bitácora de auditoría y etiquetas de estado de devolución parcial/total en el historial de facturas.'
+    ]
+  },
+  {
     version: 'v1.6.0',
     date: 'Julio 2026',
     title: 'Notificaciones Automáticas de Separaciones (WhatsApp y Email)',
@@ -169,7 +183,7 @@ export default function ChangelogModal({ isOpen, onClose }) {
           borderBottomLeftRadius: 'var(--radius-lg)',
           borderBottomRightRadius: 'var(--radius-lg)'
         }}>
-          <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Versión Activa: <strong>v1.2.0</strong></span>
+          <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Versión Activa: <strong>{CHANGELOG[0].version}</strong></span>
           <button className="btn btn-outline btn-sm" onClick={onClose}>Cerrar</button>
         </div>
       </div>

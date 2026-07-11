@@ -88,6 +88,14 @@ export default function InvoiceHistory({ user, currentStoreId }) {
   const [success, setSuccess] = useState('');
   const [showHelpGuide, setShowHelpGuide] = useState(false);
 
+  // States for product returns
+  const [returnModalOpen, setReturnModalOpen] = useState(false);
+  const [saleToReturn, setSaleToReturn] = useState(null);
+  const [returnQuantities, setReturnQuantities] = useState({}); // productId -> quantity to return
+  const [refundDeductions, setRefundDeductions] = useState({}); // method -> deduction amount
+  const [returnReason, setReturnReason] = useState('');
+  const [returnError, setReturnError] = useState('');
+
   const INVOICE_COLUMNS = [
     { label: 'Numero Factura', key: 'invoiceNumber' },
     { label: 'Fecha y Hora', key: 'date' },
@@ -371,6 +379,89 @@ export default function InvoiceHistory({ user, currentStoreId }) {
     }
   };
 
+  const openReturnModal = (sale) => {
+    setSaleToReturn(sale);
+    // Initialize quantities to return as 0 for all items in the sale
+    const initialQty = {};
+    (sale.items || []).forEach(item => {
+      initialQty[item.productId] = 0;
+    });
+    setReturnQuantities(initialQty);
+
+    // Initialize refund deductions as 0 for all payments in the sale
+    const initialDeductions = {};
+    const payments = sale.payments || [{ method: sale.paymentMethod || 'Efectivo', amount: sale.total }];
+    payments.forEach(p => {
+      initialDeductions[p.method] = 0;
+    });
+    setRefundDeductions(initialDeductions);
+
+    setReturnReason('');
+    setReturnError('');
+    setReturnModalOpen(true);
+  };
+
+  const calculateTotalRefund = () => {
+    if (!saleToReturn) return 0;
+    let total = 0;
+    (saleToReturn.items || []).forEach(item => {
+      const qty = returnQuantities[item.productId] || 0;
+      const itemSubtotal = item.sellPrice * qty;
+      const discountAmount = itemSubtotal * ((item.discount || 0) / 100);
+      total += (itemSubtotal - discountAmount);
+    });
+    return Number(total.toFixed(2));
+  };
+
+  const handleConfirmReturn = () => {
+    setReturnError('');
+    try {
+      const totalRefund = calculateTotalRefund();
+      if (totalRefund <= 0) {
+        setReturnError('Debes seleccionar al menos un producto con cantidad mayor a 0 para devolver.');
+        return;
+      }
+
+      // Convert returnQuantities object to array of { productId, name, quantity }
+      const itemsToReturn = [];
+      (saleToReturn.items || []).forEach(item => {
+        const qty = returnQuantities[item.productId] || 0;
+        if (qty > 0) {
+          itemsToReturn.push({
+            productId: item.productId,
+            name: item.name,
+            quantity: qty
+          });
+        }
+      });
+
+      // Convert refundDeductions object to array of { method, amount }
+      const refundPayments = [];
+      Object.entries(refundDeductions).forEach(([method, amt]) => {
+        const amount = Number(parseFloat(amt) || 0);
+        if (amount > 0) {
+          refundPayments.push({ method, amount });
+        }
+      });
+
+      // Validate deductions sum
+      const totalDeducted = refundPayments.reduce((sum, p) => sum + p.amount, 0);
+      if (Math.abs(totalDeducted - totalRefund) > 0.01) {
+        setReturnError(`La suma de las devoluciones de pago (${formatCOP(totalDeducted)}) debe ser igual al valor total a reembolsar (${formatCOP(totalRefund)}).`);
+        return;
+      }
+
+      // Execute return
+      salesService.processReturn(saleToReturn.id, itemsToReturn, refundPayments, returnReason.trim());
+      setReturnModalOpen(false);
+      load();
+      setSuccess(`Devolución procesada con éxito para la factura ${saleToReturn.invoiceNumber}.`);
+      setTimeout(() => setSuccess(''), 5000);
+    } catch (err) {
+      setReturnError(err.message || 'Error al procesar la devolución.');
+    }
+  };
+
   const formatCOP = (amount) =>
     new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(amount || 0);
 
@@ -550,9 +641,17 @@ export default function InvoiceHistory({ user, currentStoreId }) {
                         {s.cancelled ? <del>{formatCOP(s.total)}</del> : formatCOP(s.total)}
                       </td>
                       <td>
-                        {s.cancelled
-                          ? <span className="badge danger">❌ Anulada</span>
-                          : <span className="badge success">✅ Activa</span>}
+                        {s.cancelled ? (
+                          <span className="badge danger">❌ Anulada</span>
+                        ) : s.returns && s.returns.length > 0 ? (
+                          s.total === 0 ? (
+                            <span className="badge danger" style={{ background: '#f5222d', color: '#fff' }}>🔄 Dev. Total</span>
+                          ) : (
+                            <span className="badge warning" style={{ background: '#faad14', color: '#000' }}>🔄 Dev. Parcial</span>
+                          )
+                        ) : (
+                          <span className="badge success">✅ Activa</span>
+                        )}
                       </td>
                       <td style={{ textAlign: 'center' }}>
                         <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
@@ -563,9 +662,16 @@ export default function InvoiceHistory({ user, currentStoreId }) {
                             {expandedSale === s.id ? '▲' : '▼'} Detalle
                           </button>
                           {!s.cancelled && (user.role === 'admin' || user.role === 'vendedor') && (
-                            <button className="btn btn-danger btn-sm" onClick={() => openCancelModal(s)}>
-                              ❌ Anular
-                            </button>
+                            <>
+                              {s.total > 0 && (
+                                <button className="btn btn-warning btn-sm" onClick={() => openReturnModal(s)} style={{ background: 'var(--warning)', color: 'black' }}>
+                                  🔄 Devolver
+                                </button>
+                              )}
+                              <button className="btn btn-danger btn-sm" onClick={() => openCancelModal(s)}>
+                                ❌ Anular
+                              </button>
+                            </>
                           )}
                         </div>
                       </td>
@@ -600,7 +706,14 @@ export default function InvoiceHistory({ user, currentStoreId }) {
                                     <tr key={i} style={{ borderBottom: '1px solid var(--border-color)' }}>
                                       <td style={{ padding: '10px 16px', fontWeight: 600, color: 'var(--text-primary)' }}>{item.name}</td>
                                       <td style={{ padding: '10px 16px' }}><code>{item.barcode}</code></td>
-                                      <td style={{ padding: '10px 16px', textAlign: 'center' }}>{item.quantity}</td>
+                                      <td style={{ padding: '10px 16px', textAlign: 'center' }}>
+                                        {item.quantity}
+                                        {item.returnedQuantity > 0 && (
+                                          <span style={{ display: 'block', fontSize: '11px', color: 'var(--danger)', fontWeight: 'bold' }}>
+                                            ({item.returnedQuantity} dev.)
+                                          </span>
+                                        )}
+                                      </td>
                                       <td style={{ padding: '10px 16px' }}>{formatCOP(item.sellPrice)}</td>
                                       <td style={{ padding: '10px 16px', textAlign: 'center' }}>{item.discount || 0}%</td>
                                       <td style={{ padding: '10px 16px', fontWeight: 700, color: 'var(--success)' }}>{formatCOP(lineTotal)}</td>
@@ -614,6 +727,39 @@ export default function InvoiceHistory({ user, currentStoreId }) {
                               <span>Descuento: <strong style={{ color: 'var(--danger)' }}>-{formatCOP(s.discount)}</strong></span>
                               <span style={{ fontSize: '16px' }}>Total: <strong style={{ color: 'var(--success)' }}>{formatCOP(s.total)}</strong></span>
                             </div>
+
+                            {s.returns && s.returns.length > 0 && (
+                              <div style={{ marginTop: '20px', padding: '16px', background: 'rgba(250, 173, 20, 0.05)', border: '1px solid rgba(250, 173, 20, 0.2)', borderRadius: 'var(--radius-md)' }}>
+                                <h4 style={{ margin: '0 0 12px 0', fontSize: '14px', fontWeight: 700, color: '#d46b08', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                  🔄 Historial de Devoluciones
+                                </h4>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                  {s.returns.map((ret, rIdx) => (
+                                    <div key={ret.id || rIdx} style={{ fontSize: '12px', borderBottom: rIdx < s.returns.length - 1 ? '1px dashed var(--border-color)' : 'none', paddingBottom: '10px' }}>
+                                      <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: '600', color: 'var(--text-primary)' }}>
+                                        <span>Fecha: {formatDateTime(ret.date)}</span>
+                                        <span style={{ color: 'var(--danger)' }}>Reembolsado: {formatCOP(ret.items.reduce((sum, item) => sum + item.refundAmount, 0))}</span>
+                                      </div>
+                                      <div style={{ margin: '6px 0', color: 'var(--text-secondary)' }}>
+                                        <strong>Motivo:</strong> {ret.reason}
+                                      </div>
+                                      <div style={{ paddingLeft: '12px', color: 'var(--text-muted)' }}>
+                                        <div><strong>Productos Reintegrados:</strong></div>
+                                        {ret.items.map((it, itIdx) => (
+                                          <div key={itIdx}>• {it.name} x {it.quantity} (Reembolso: {formatCOP(it.refundAmount)})</div>
+                                        ))}
+                                        {ret.refundPayments && ret.refundPayments.length > 0 && (
+                                          <div style={{ marginTop: '4px' }}>
+                                            <strong>Deducido de Pagos:</strong>{' '}
+                                            {ret.refundPayments.map(p => `${p.method}: -${formatCOP(p.amount)}`).join(', ')}
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -705,6 +851,175 @@ export default function InvoiceHistory({ user, currentStoreId }) {
               <button className="btn btn-outline" onClick={() => setCancelModalOpen(false)}>Cancelar</button>
               <button className="btn btn-danger" onClick={handleConfirmCancel} style={{ background: 'var(--danger)', color: 'white' }}>
                 ❌ Confirmar Anulación
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Return products modal */}
+      {returnModalOpen && saleToReturn && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '600px', width: '90%' }}>
+            <div className="modal-header">
+              <h3 className="modal-title">🔄 Devolución de Productos - Factura {saleToReturn.invoiceNumber}</h3>
+              <button className="modal-close" onClick={() => setReturnModalOpen(false)}>✕</button>
+            </div>
+            <div className="modal-body" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                
+                {/* Meta info */}
+                <div style={{ padding: '12px 16px', background: 'var(--bg-app)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', fontSize: '13px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                    <div><strong>Cliente:</strong> {saleToReturn.clientName}</div>
+                    <div><strong>Fecha Factura:</strong> {formatDateTime(saleToReturn.date)}</div>
+                    <div><strong>Total Original:</strong> {formatCOP(saleToReturn.total)}</div>
+                    <div><strong>Medios Pago Originales:</strong> {saleToReturn.paymentMethod}</div>
+                  </div>
+                </div>
+
+                {/* Items selection */}
+                <div>
+                  <h4 style={{ margin: '0 0 8px 0', fontSize: '13px', fontWeight: '700' }}>Selecciona los productos y cantidades a devolver:</h4>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                    <thead>
+                      <tr style={{ background: 'var(--border-color)', borderBottom: '1px solid var(--border-color)' }}>
+                        <th style={{ padding: '6px 12px', textAlign: 'left' }}>Producto</th>
+                        <th style={{ padding: '6px 12px', textAlign: 'right' }}>Precio Neto</th>
+                        <th style={{ padding: '6px 12px', textAlign: 'center' }}>Disp.</th>
+                        <th style={{ padding: '6px 12px', textAlign: 'center', width: '90px' }}>Devolver</th>
+                        <th style={{ padding: '6px 12px', textAlign: 'right' }}>Reembolso</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(saleToReturn.items || []).map(item => {
+                        const netPrice = item.sellPrice * (1 - (item.discount || 0) / 100);
+                        const qtyToReturn = returnQuantities[item.productId] || 0;
+                        const lineRefund = netPrice * qtyToReturn;
+                        return (
+                          <tr key={item.productId} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                            <td style={{ padding: '8px 12px' }}>
+                              <div style={{ fontWeight: '600' }}>{item.name}</div>
+                              <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>{item.barcode}</div>
+                            </td>
+                            <td style={{ padding: '8px 12px', textAlign: 'right' }}>{formatCOP(netPrice)}</td>
+                            <td style={{ padding: '8px 12px', textAlign: 'center' }}>{item.quantity}</td>
+                            <td style={{ padding: '8px 12px', textAlign: 'center' }}>
+                              <input
+                                type="number"
+                                className="form-control"
+                                style={{ width: '60px', padding: '4px', textAlign: 'center', margin: '0 auto' }}
+                                min="0"
+                                max={item.quantity}
+                                value={qtyToReturn}
+                                onChange={e => {
+                                  const val = Math.min(item.quantity, Math.max(0, parseInt(e.target.value) || 0));
+                                  setReturnQuantities(prev => ({
+                                    ...prev,
+                                    [item.productId]: val
+                                  }));
+                                }}
+                              />
+                            </td>
+                            <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: '700', color: lineRefund > 0 ? 'var(--danger)' : 'var(--text-muted)' }}>
+                              {formatCOP(lineRefund)}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Refund Totals */}
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '16px', padding: '12px 16px', background: 'rgba(245, 34, 45, 0.05)', border: '1px solid rgba(245, 34, 45, 0.1)', borderRadius: 'var(--radius-md)', fontWeight: '700' }}>
+                  <span style={{ fontSize: '14px', color: 'var(--text-primary)' }}>Total a Reembolsar:</span>
+                  <span style={{ fontSize: '16px', color: 'var(--danger)' }}>{formatCOP(calculateTotalRefund())}</span>
+                </div>
+
+                {/* Payment deductions */}
+                {calculateTotalRefund() > 0 && (
+                  <div style={{ padding: '16px', background: 'var(--bg-app)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
+                    <h4 style={{ margin: '0 0 8px 0', fontSize: '13px', fontWeight: '700' }}>Distribución del reembolso en medios de pago:</h4>
+                    <span style={{ display: 'block', fontSize: '11px', color: 'var(--text-muted)', marginBottom: '12px' }}>
+                      Especifica cuánto dinero deducir de cada método de pago de la factura original. La suma de las deducciones debe ser exactamente {formatCOP(calculateTotalRefund())}.
+                    </span>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      {(saleToReturn.payments || [{ method: saleToReturn.paymentMethod || 'Efectivo', amount: saleToReturn.total }]).map(p => {
+                        const currentDeduction = refundDeductions[p.method] || 0;
+                        return (
+                          <div key={p.method} style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr', alignItems: 'center', gap: '16px', fontSize: '13px' }}>
+                            <div><strong>{p.method}</strong> (Pagado: {formatCOP(p.amount)})</div>
+                            <div style={{ textAlign: 'right', color: 'var(--text-muted)' }}>Max ded.: -{formatCOP(p.amount)}</div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                              <span>$</span>
+                              <input
+                                type="number"
+                                className="form-control"
+                                style={{ padding: '4px 8px' }}
+                                min="0"
+                                max={p.amount}
+                                value={currentDeduction || ''}
+                                placeholder="0"
+                                onChange={e => {
+                                  const val = Math.min(p.amount, Math.max(0, parseFloat(e.target.value) || 0));
+                                  setRefundDeductions(prev => ({
+                                    ...prev,
+                                    [p.method]: val
+                                  }));
+                                }}
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    {/* Remaining deduction validation helper */}
+                    <div style={{ marginTop: '12px', textAlign: 'right', fontSize: '12px', fontWeight: 'bold' }}>
+                      {(() => {
+                        const totalDeducted = Object.values(refundDeductions).reduce((sum, v) => sum + (parseFloat(v) || 0), 0);
+                        const diff = calculateTotalRefund() - totalDeducted;
+                        if (Math.abs(diff) < 0.01) {
+                          return <span style={{ color: 'var(--success)' }}>✅ Distribución correcta</span>;
+                        } else if (diff > 0) {
+                          return <span style={{ color: 'var(--warning)' }}>Falta distribuir: {formatCOP(diff)}</span>;
+                        } else {
+                          return <span style={{ color: 'var(--danger)' }}>Exceso distribuido: {formatCOP(Math.abs(diff))}</span>;
+                        }
+                      })()}
+                    </div>
+                  </div>
+                )}
+
+                {/* Reason and Errors */}
+                {returnError && (
+                  <div className="alert alert-error" style={{ fontSize: '12px' }}>
+                    <span>⚠️</span>
+                    <span>{returnError}</span>
+                  </div>
+                )}
+
+                <div className="form-group">
+                  <label className="form-label">Motivo de la Devolución *</label>
+                  <textarea
+                    className="form-control"
+                    style={{ minHeight: '60px' }}
+                    placeholder="Ej: Cambio de talla, producto defectuoso, insatisfacción del cliente..."
+                    value={returnReason}
+                    onChange={e => setReturnReason(e.target.value)}
+                  />
+                </div>
+
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-outline" onClick={() => setReturnModalOpen(false)}>Cancelar</button>
+              <button
+                className="btn btn-warning"
+                onClick={handleConfirmReturn}
+                style={{ background: 'var(--warning)', color: 'black', fontWeight: 'bold' }}
+              >
+                🔄 Procesar Devolución
               </button>
             </div>
           </div>

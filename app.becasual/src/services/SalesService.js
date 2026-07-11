@@ -311,6 +311,121 @@ class SalesService {
     storageRepository.saveClosings(closings);
     return newClosing;
   }
+
+  processReturn(saleId, returnedItems, refundPayments, reason) {
+    const sales = storageRepository.getSales();
+    const index = sales.findIndex(s => s.id === saleId);
+    if (index === -1) throw new Error('Factura no encontrada.');
+    const sale = sales[index];
+    if (sale.cancelled) throw new Error('No se pueden realizar devoluciones de una factura anulada.');
+
+    // Initialize payments if missing (for legacy or imported sales)
+    if (!sale.payments) {
+      sale.payments = [{ method: sale.paymentMethod || 'Efectivo', amount: sale.total }];
+    }
+
+    // Validate that the returned quantities do not exceed current item quantities
+    returnedItems.forEach(ret => {
+      const saleItem = sale.items.find(i => i.productId === ret.productId);
+      if (!saleItem) throw new Error(`El producto no existe en esta factura.`);
+      if (ret.quantity > saleItem.quantity) {
+        throw new Error(`La cantidad a devolver de "${saleItem.name}" (${ret.quantity}) supera la cantidad disponible (${saleItem.quantity}).`);
+      }
+    });
+
+    // Validate that the sum of refund payments equals the calculated total refund
+    let totalRefund = 0;
+    returnedItems.forEach(ret => {
+      const saleItem = sale.items.find(i => i.productId === ret.productId);
+      const itemSubtotal = saleItem.sellPrice * ret.quantity;
+      const discountAmount = itemSubtotal * ((saleItem.discount || 0) / 100);
+      totalRefund += (itemSubtotal - discountAmount);
+    });
+
+    // Check refund payments sum
+    const totalRefundPayments = refundPayments.reduce((sum, p) => sum + p.amount, 0);
+    if (Math.abs(totalRefundPayments - totalRefund) > 0.01) {
+      throw new Error(`La suma de los métodos de pago de devolución (${totalRefundPayments.toFixed(2)}) debe ser igual al total a reembolsar (${totalRefund.toFixed(2)}).`);
+    }
+
+    // Now apply return changes:
+    // 1. Restore product stock in inventory
+    returnedItems.forEach(ret => {
+      const product = inventoryService.getById(ret.productId);
+      if (product) {
+        inventoryService.update(product.id, { stock: product.stock + ret.quantity });
+      }
+    });
+
+    // 2. Update item quantities and returnedQuantity in the sale
+    returnedItems.forEach(ret => {
+      const saleItem = sale.items.find(i => i.productId === ret.productId);
+      saleItem.quantity -= ret.quantity;
+      saleItem.returnedQuantity = (saleItem.returnedQuantity || 0) + ret.quantity;
+    });
+
+    // 3. Deduct from sale payments
+    refundPayments.forEach(ref => {
+      if (sale.payments && sale.payments.length > 0) {
+        const payEntry = sale.payments.find(p => p.method === ref.method);
+        if (payEntry) {
+          payEntry.amount = Number((payEntry.amount - ref.amount).toFixed(2));
+        }
+      }
+    });
+
+    // Recalculate sale totals based on remaining items
+    const taxRate = 19; // Default tax rate
+    let newSubtotal = 0;
+    let newTotalDiscount = 0;
+    let newTotalCost = 0;
+
+    sale.items.forEach(item => {
+      const itemSubtotal = item.sellPrice * item.quantity;
+      const discountAmount = itemSubtotal * ((item.discount || 0) / 100);
+      newSubtotal += itemSubtotal - discountAmount;
+      newTotalDiscount += discountAmount;
+      newTotalCost += (item.costPrice || 0) * item.quantity;
+    });
+
+    const taxPercentage = taxRate / 100;
+    const baseAmount = newSubtotal / (1 + taxPercentage);
+    const taxAmount = newSubtotal - baseAmount;
+
+    sale.subtotal = Number(baseAmount.toFixed(2));
+    sale.tax = Number(taxAmount.toFixed(2));
+    sale.total = Number(newSubtotal.toFixed(2));
+    sale.discount = Number(newTotalDiscount.toFixed(2));
+    sale.cost = Number(newTotalCost.toFixed(2));
+    sale.profit = Number((newSubtotal - newTotalCost).toFixed(2));
+
+    // Update main paymentMethod text to reflect active payments
+    if (sale.payments) {
+      sale.payments = sale.payments.filter(p => p.amount > 0);
+      sale.paymentMethod = sale.payments.map(p => p.method).join(', ') || 'Sin pago';
+    }
+
+    // 4. Log the return in sale.returns
+    sale.returns = sale.returns || [];
+    sale.returns.push({
+      id: `ret_${Date.now()}`,
+      date: new Date().toISOString(),
+      reason: reason || 'Devolución de productos',
+      items: returnedItems.map(ret => {
+        const saleItem = sale.items.find(i => i.productId === ret.productId);
+        return {
+          productId: ret.productId,
+          name: ret.name,
+          quantity: ret.quantity,
+          refundAmount: (saleItem.sellPrice * ret.quantity) * (1 - (saleItem.discount || 0) / 100)
+        };
+      }),
+      refundPayments: refundPayments
+    });
+
+    storageRepository.saveSales(sales);
+    return sale;
+  }
 }
 
 export const salesService = new SalesService();
