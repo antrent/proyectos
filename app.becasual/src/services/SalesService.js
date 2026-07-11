@@ -426,6 +426,200 @@ class SalesService {
     storageRepository.saveSales(sales);
     return sale;
   }
+
+  processExchange(saleId, returnedItems, newItems, additionalPayments, refundPayments, reason) {
+    const sales = storageRepository.getSales();
+    const index = sales.findIndex(s => s.id === saleId);
+    if (index === -1) throw new Error('Factura no encontrada.');
+    const sale = sales[index];
+    if (sale.cancelled) throw new Error('No se pueden realizar cambios en una factura anulada.');
+
+    // Initialize payments if missing
+    if (!sale.payments) {
+      sale.payments = [{ method: sale.paymentMethod || 'Efectivo', amount: sale.total }];
+    }
+
+    // 1. Validate returned items quantities
+    returnedItems.forEach(ret => {
+      const saleItem = sale.items.find(i => i.productId === ret.productId);
+      if (!saleItem) throw new Error(`El producto a devolver no existe en esta factura.`);
+      if (ret.quantity > saleItem.quantity) {
+        throw new Error(`La cantidad a devolver de "${saleItem.name}" (${ret.quantity}) supera la cantidad disponible (${saleItem.quantity}).`);
+      }
+    });
+
+    // 2. Validate new items stock
+    newItems.forEach(newItem => {
+      const product = inventoryService.getById(newItem.product.id);
+      if (!product) {
+        throw new Error(`El producto "${newItem.product.name}" ya no existe en el inventario.`);
+      }
+      if (product.stock < newItem.quantity) {
+        throw new Error(`El producto "${newItem.product.name}" no tiene suficiente stock (${product.stock} disponible).`);
+      }
+    });
+
+    // 3. Calculate financial difference
+    let totalCredit = 0;
+    returnedItems.forEach(ret => {
+      const saleItem = sale.items.find(i => i.productId === ret.productId);
+      const itemSubtotal = saleItem.sellPrice * ret.quantity;
+      const discountAmount = itemSubtotal * ((saleItem.discount || 0) / 100);
+      totalCredit += (itemSubtotal - discountAmount);
+    });
+
+    let totalDebit = 0;
+    newItems.forEach(newItem => {
+      const itemSubtotal = newItem.product.sellPrice * newItem.quantity;
+      const discountAmount = itemSubtotal * ((newItem.discount || 0) / 100);
+      totalDebit += (itemSubtotal - discountAmount);
+    });
+
+    const difference = Number((totalDebit - totalCredit).toFixed(2));
+
+    // Validate payment differences
+    if (difference > 0) {
+      const totalAdditional = additionalPayments.reduce((sum, p) => sum + p.amount, 0);
+      if (Math.abs(totalAdditional - difference) > 0.01) {
+        throw new Error(`Los pagos adicionales (${totalAdditional}) deben sumar la diferencia a pagar (${difference}).`);
+      }
+    } else if (difference < 0) {
+      const totalRefund = refundPayments.reduce((sum, p) => sum + p.amount, 0);
+      const absDiff = Math.abs(difference);
+      if (Math.abs(totalRefund - absDiff) > 0.01) {
+        throw new Error(`Los reembolsos (${totalRefund}) deben sumar la diferencia a favor (${absDiff}).`);
+      }
+      // Ensure we don't refund more from any method than what was paid/exists in payments
+      refundPayments.forEach(ref => {
+        const payEntry = sale.payments.find(p => p.method === ref.method);
+        const existingAmount = payEntry ? payEntry.amount : 0;
+        if (ref.amount > existingAmount) {
+          throw new Error(`No puedes reembolsar ${ref.amount} del medio de pago ${ref.method} porque solo tiene ${existingAmount} registrado.`);
+        }
+      });
+    }
+
+    // 4. Update Inventory
+    // Reintegrate returned stock
+    returnedItems.forEach(ret => {
+      const product = inventoryService.getById(ret.productId);
+      if (product) {
+        inventoryService.update(product.id, { stock: product.stock + ret.quantity });
+      }
+    });
+
+    // Deduct new items stock
+    newItems.forEach(newItem => {
+      const product = inventoryService.getById(newItem.product.id);
+      if (product) {
+        inventoryService.update(product.id, { stock: product.stock - newItem.quantity });
+      }
+    });
+
+    // 5. Update Sale Items
+    // Process returned items in sale.items
+    returnedItems.forEach(ret => {
+      const saleItem = sale.items.find(i => i.productId === ret.productId);
+      saleItem.quantity -= ret.quantity;
+      saleItem.returnedQuantity = (saleItem.returnedQuantity || 0) + ret.quantity;
+    });
+
+    // Process new items in sale.items (append or update existing)
+    newItems.forEach(newItem => {
+      const existingItem = sale.items.find(i => i.productId === newItem.product.id && i.discount === newItem.discount);
+      if (existingItem) {
+        existingItem.quantity += newItem.quantity;
+      } else {
+        sale.items.push({
+          productId: newItem.product.id,
+          name: newItem.product.name,
+          barcode: newItem.product.barcode,
+          quantity: newItem.quantity,
+          sellPrice: newItem.product.sellPrice,
+          discount: newItem.discount || 0,
+          costPrice: newItem.product.costPrice || 0
+        });
+      }
+    });
+
+    // 6. Update payments
+    if (difference > 0) {
+      additionalPayments.forEach(add => {
+        const payEntry = sale.payments.find(p => p.method === add.method);
+        if (payEntry) {
+          payEntry.amount = Number((payEntry.amount + add.amount).toFixed(2));
+        } else {
+          sale.payments.push({ method: add.method, amount: add.amount });
+        }
+      });
+    } else if (difference < 0) {
+      refundPayments.forEach(ref => {
+        const payEntry = sale.payments.find(p => p.method === ref.method);
+        if (payEntry) {
+          payEntry.amount = Number((payEntry.amount - ref.amount).toFixed(2));
+        }
+      });
+    }
+
+    // Filter out payments that became 0
+    sale.payments = sale.payments.filter(p => p.amount > 0);
+    sale.paymentMethod = sale.payments.map(p => p.method).join(', ') || 'Sin pago';
+
+    // 7. Recalculate totals
+    const taxRate = 19;
+    let newSubtotal = 0;
+    let newTotalDiscount = 0;
+    let newTotalCost = 0;
+
+    sale.items.forEach(item => {
+      const itemSubtotal = item.sellPrice * item.quantity;
+      const discountAmount = itemSubtotal * ((item.discount || 0) / 100);
+      newSubtotal += itemSubtotal - discountAmount;
+      newTotalDiscount += discountAmount;
+      newTotalCost += (item.costPrice || 0) * item.quantity;
+    });
+
+    const taxPercentage = taxRate / 100;
+    const baseAmount = newSubtotal / (1 + taxPercentage);
+    const taxAmount = newSubtotal - baseAmount;
+
+    sale.subtotal = Number(baseAmount.toFixed(2));
+    sale.tax = Number(taxAmount.toFixed(2));
+    sale.total = Number(newSubtotal.toFixed(2));
+    sale.discount = Number(newTotalDiscount.toFixed(2));
+    sale.cost = Number(newTotalCost.toFixed(2));
+    sale.profit = Number((newSubtotal - newTotalCost).toFixed(2));
+
+    // 8. Log exchange in sale.exchanges
+    sale.exchanges = sale.exchanges || [];
+    sale.exchanges.push({
+      id: `exch_${Date.now()}`,
+      date: new Date().toISOString(),
+      reason: reason || 'Cambio de producto',
+      returnedItems: returnedItems.map(ret => {
+        const saleItem = sale.items.find(i => i.productId === ret.productId);
+        return {
+          productId: ret.productId,
+          name: ret.name,
+          quantity: ret.quantity,
+          creditAmount: (saleItem.sellPrice * ret.quantity) * (1 - (saleItem.discount || 0) / 100)
+        };
+      }),
+      newItems: newItems.map(n => ({
+        productId: n.product.id,
+        name: n.product.name,
+        quantity: n.quantity,
+        discount: n.discount || 0,
+        debitAmount: (n.product.sellPrice * n.quantity) * (1 - (n.discount || 0) / 100)
+      })),
+      difference: difference,
+      additionalPayments: difference > 0 ? additionalPayments : [],
+      refundPayments: difference < 0 ? refundPayments : []
+    });
+
+    storageRepository.saveSales(sales);
+    return sale;
+  }
 }
 
 export const salesService = new SalesService();

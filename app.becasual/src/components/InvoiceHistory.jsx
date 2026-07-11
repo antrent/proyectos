@@ -96,6 +96,18 @@ export default function InvoiceHistory({ user, currentStoreId }) {
   const [returnReason, setReturnReason] = useState('');
   const [returnError, setReturnError] = useState('');
 
+  // States for product exchanges (canjes)
+  const [exchangeModalOpen, setExchangeModalOpen] = useState(false);
+  const [saleToExchange, setSaleToExchange] = useState(null);
+  const [exchangeReturnedQuantities, setExchangeReturnedQuantities] = useState({}); // productId -> qtyToReturn
+  const [exchangeNewItems, setExchangeNewItems] = useState([]); // array of { product, quantity, discount }
+  const [exchangeAdditionalPayments, setExchangeAdditionalPayments] = useState({}); // method -> amount
+  const [exchangeRefundPayments, setExchangeRefundPayments] = useState({}); // method -> amount
+  const [exchangeReason, setExchangeReason] = useState('');
+  const [exchangeError, setExchangeError] = useState('');
+  const [productSearchQuery, setProductSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+
   const INVOICE_COLUMNS = [
     { label: 'Numero Factura', key: 'invoiceNumber' },
     { label: 'Fecha y Hora', key: 'date' },
@@ -462,6 +474,199 @@ export default function InvoiceHistory({ user, currentStoreId }) {
     }
   };
 
+  const handleProductSearch = (query) => {
+    setProductSearchQuery(query);
+    if (!query.trim()) {
+      setSearchResults([]);
+      return;
+    }
+    const q = query.toLowerCase();
+    const products = storageRepository.getProducts();
+    const filtered = products.filter(p => 
+      p.stock > 0 &&
+      (p.name.toLowerCase().includes(q) || 
+       p.barcode.toLowerCase().includes(q) || 
+       (p.sku && p.sku.toLowerCase().includes(q)))
+    );
+    setSearchResults(filtered.slice(0, 5));
+  };
+
+  const openExchangeModal = (sale) => {
+    setSaleToExchange(sale);
+    
+    // Initialize returned quantities to 0
+    const initialQty = {};
+    (sale.items || []).forEach(item => {
+      initialQty[item.productId] = 0;
+    });
+    setExchangeReturnedQuantities(initialQty);
+    setExchangeNewItems([]);
+
+    // Initialize payment methods structures
+    const paymentMethods = ['Efectivo', 'Nequi', 'Daviplata', 'SisteCredito', 'Addi', 'Bold'];
+    const initialAdd = {};
+    const initialRef = {};
+    paymentMethods.forEach(method => {
+      initialAdd[method] = 0;
+      initialRef[method] = 0;
+    });
+    setExchangeAdditionalPayments(initialAdd);
+    setExchangeRefundPayments(initialRef);
+
+    setProductSearchQuery('');
+    setSearchResults([]);
+    setExchangeReason('');
+    setExchangeError('');
+    setExchangeModalOpen(true);
+  };
+
+  const addExchangeNewItem = (product) => {
+    const existsIndex = exchangeNewItems.findIndex(item => item.product.id === product.id && item.discount === 0);
+    if (existsIndex > -1) {
+      const currentQty = exchangeNewItems[existsIndex].quantity;
+      if (currentQty + 1 > product.stock) {
+        setExchangeError(`No hay suficiente stock para el producto "${product.name}".`);
+        return;
+      }
+      const updated = [...exchangeNewItems];
+      updated[existsIndex].quantity += 1;
+      setExchangeNewItems(updated);
+    } else {
+      if (product.stock < 1) {
+        setExchangeError(`No hay stock para el producto "${product.name}".`);
+        return;
+      }
+      setExchangeNewItems([...exchangeNewItems, { product, quantity: 1, discount: 0 }]);
+    }
+    setExchangeError('');
+    setProductSearchQuery('');
+    setSearchResults([]);
+  };
+
+  const removeExchangeNewItem = (productId, discount) => {
+    setExchangeNewItems(exchangeNewItems.filter(item => !(item.product.id === productId && item.discount === discount)));
+  };
+
+  const updateExchangeNewItemQty = (productId, discount, qty) => {
+    const updated = exchangeNewItems.map(item => {
+      if (item.product.id === productId && item.discount === discount) {
+        const val = Math.min(item.product.stock, Math.max(1, qty));
+        return { ...item, quantity: val };
+      }
+      return item;
+    });
+    setExchangeNewItems(updated);
+  };
+
+  const updateExchangeNewItemDiscount = (productId, discount, discVal) => {
+    const updated = exchangeNewItems.map(item => {
+      if (item.product.id === productId && item.discount === discount) {
+        const val = Math.min(100, Math.max(0, discVal));
+        return { ...item, discount: val };
+      }
+      return item;
+    });
+    setExchangeNewItems(updated);
+  };
+
+  const calculateExchangeCredit = () => {
+    if (!saleToExchange) return 0;
+    let credit = 0;
+    (saleToExchange.items || []).forEach(item => {
+      const qty = exchangeReturnedQuantities[item.productId] || 0;
+      const itemSubtotal = item.sellPrice * qty;
+      const discountAmount = itemSubtotal * ((item.discount || 0) / 100);
+      credit += (itemSubtotal - discountAmount);
+    });
+    return Number(credit.toFixed(2));
+  };
+
+  const calculateExchangeDebit = () => {
+    let debit = 0;
+    exchangeNewItems.forEach(item => {
+      const itemSubtotal = item.product.sellPrice * item.quantity;
+      const discountAmount = itemSubtotal * ((item.discount || 0) / 100);
+      debit += (itemSubtotal - discountAmount);
+    });
+    return Number(debit.toFixed(2));
+  };
+
+  const handleConfirmExchange = () => {
+    setExchangeError('');
+    try {
+      const totalCredit = calculateExchangeCredit();
+      const totalDebit = calculateExchangeDebit();
+      const difference = Number((totalDebit - totalCredit).toFixed(2));
+
+      if (totalCredit <= 0) {
+        setExchangeError('Debes seleccionar al menos un producto a devolver.');
+        return;
+      }
+      if (totalDebit <= 0) {
+        setExchangeError('Debes añadir al menos un producto nuevo para llevar.');
+        return;
+      }
+
+      const returnedItems = [];
+      (saleToExchange.items || []).forEach(item => {
+        const qty = exchangeReturnedQuantities[item.productId] || 0;
+        if (qty > 0) {
+          returnedItems.push({
+            productId: item.productId,
+            name: item.name,
+            quantity: qty
+          });
+        }
+      });
+
+      const additionalPayments = [];
+      const refundPayments = [];
+
+      if (difference > 0) {
+        Object.entries(exchangeAdditionalPayments).forEach(([method, amt]) => {
+          const amount = Number(parseFloat(amt) || 0);
+          if (amount > 0) {
+            additionalPayments.push({ method, amount });
+          }
+        });
+        const totalAdd = additionalPayments.reduce((sum, p) => sum + p.amount, 0);
+        if (Math.abs(totalAdd - difference) > 0.01) {
+          setExchangeError(`La suma de los cobros adicionales (${formatCOP(totalAdd)}) debe ser igual a la diferencia a pagar (${formatCOP(difference)}).`);
+          return;
+        }
+      } else if (difference < 0) {
+        Object.entries(exchangeRefundPayments).forEach(([method, amt]) => {
+          const amount = Number(parseFloat(amt) || 0);
+          if (amount > 0) {
+            refundPayments.push({ method, amount });
+          }
+        });
+        const totalRef = refundPayments.reduce((sum, p) => sum + p.amount, 0);
+        const absDiff = Math.abs(difference);
+        if (Math.abs(totalRef - absDiff) > 0.01) {
+          setExchangeError(`La suma de los reembolsos de pago (${formatCOP(totalRef)}) debe ser igual al saldo a favor (${formatCOP(absDiff)}).`);
+          return;
+        }
+      }
+
+      salesService.processExchange(
+        saleToExchange.id,
+        returnedItems,
+        exchangeNewItems,
+        additionalPayments,
+        refundPayments,
+        exchangeReason.trim()
+      );
+
+      setExchangeModalOpen(false);
+      load();
+      setSuccess(`Cambio de prendas procesado con éxito para la factura ${saleToExchange.invoiceNumber}.`);
+      setTimeout(() => setSuccess(''), 5000);
+    } catch (err) {
+      setExchangeError(err.message || 'Error al procesar el cambio.');
+    }
+  };
+
   const formatCOP = (amount) =>
     new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(amount || 0);
 
@@ -664,9 +869,14 @@ export default function InvoiceHistory({ user, currentStoreId }) {
                           {!s.cancelled && (user.role === 'admin' || user.role === 'vendedor') && (
                             <>
                               {s.total > 0 && (
-                                <button className="btn btn-warning btn-sm" onClick={() => openReturnModal(s)} style={{ background: 'var(--warning)', color: 'black' }}>
-                                  🔄 Devolver
-                                </button>
+                                <>
+                                  <button className="btn btn-warning btn-sm" onClick={() => openReturnModal(s)} style={{ background: 'var(--warning)', color: 'black' }}>
+                                    🔄 Devolver
+                                  </button>
+                                  <button className="btn btn-primary btn-sm" onClick={() => openExchangeModal(s)} style={{ background: 'var(--primary)', color: 'white' }}>
+                                    🔄 Cambio
+                                  </button>
+                                </>
                               )}
                               <button className="btn btn-danger btn-sm" onClick={() => openCancelModal(s)}>
                                 ❌ Anular
@@ -752,6 +962,48 @@ export default function InvoiceHistory({ user, currentStoreId }) {
                                           <div style={{ marginTop: '4px' }}>
                                             <strong>Deducido de Pagos:</strong>{' '}
                                             {ret.refundPayments.map(p => `${p.method}: -${formatCOP(p.amount)}`).join(', ')}
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                            {s.exchanges && s.exchanges.length > 0 && (
+                              <div style={{ marginTop: '20px', padding: '16px', background: 'rgba(168, 85, 247, 0.05)', border: '1px solid rgba(168, 85, 247, 0.2)', borderRadius: 'var(--radius-md)' }}>
+                                <h4 style={{ margin: '0 0 12px 0', fontSize: '14px', fontWeight: 700, color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                  🔄 Historial de Cambios de Prendas
+                                </h4>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                  {s.exchanges.map((exch, eIdx) => (
+                                    <div key={exch.id || eIdx} style={{ fontSize: '12px', borderBottom: eIdx < s.exchanges.length - 1 ? '1px dashed var(--border-color)' : 'none', paddingBottom: '10px' }}>
+                                      <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: '600', color: 'var(--text-primary)' }}>
+                                        <span>Fecha: {formatDateTime(exch.date)}</span>
+                                        <span style={{ fontWeight: '700', color: exch.difference > 0 ? 'var(--success)' : exch.difference < 0 ? 'var(--danger)' : 'var(--text-primary)' }}>
+                                          Diferencia: {exch.difference > 0 ? `+${formatCOP(exch.difference)} (A cobrar)` : exch.difference < 0 ? `-${formatCOP(Math.abs(exch.difference))} (A favor)` : 'Sin diferencia'}
+                                        </span>
+                                      </div>
+                                      <div style={{ margin: '6px 0', color: 'var(--text-secondary)' }}>
+                                        <strong>Motivo:</strong> {exch.reason}
+                                      </div>
+                                      <div style={{ paddingLeft: '12px', color: 'var(--text-muted)' }}>
+                                        <div style={{ fontWeight: '600', marginTop: '4px' }}>Devuelto por Cliente:</div>
+                                        {exch.returnedItems.map((it, itIdx) => (
+                                          <div key={itIdx}>• {it.name} x {it.quantity} (Valor: {formatCOP(it.creditAmount)})</div>
+                                        ))}
+                                        <div style={{ fontWeight: '600', marginTop: '6px' }}>Llevado por Cliente:</div>
+                                        {exch.newItems.map((it, itIdx) => (
+                                          <div key={itIdx}>• {it.name} x {it.quantity} {it.discount > 0 ? `(${it.discount}% desc.)` : ''} (Valor: {formatCOP(it.debitAmount)})</div>
+                                        ))}
+                                        {exch.difference > 0 && exch.additionalPayments && exch.additionalPayments.length > 0 && (
+                                          <div style={{ marginTop: '6px', color: 'var(--text-primary)', fontWeight: '600' }}>
+                                            Cobrado Adicional por: {exch.additionalPayments.map(p => `${p.method}: ${formatCOP(p.amount)}`).join(', ')}
+                                          </div>
+                                        )}
+                                        {exch.difference < 0 && exch.refundPayments && exch.refundPayments.length > 0 && (
+                                          <div style={{ marginTop: '6px', color: 'var(--danger)', fontWeight: '600' }}>
+                                            Reembolsado por: {exch.refundPayments.map(p => `${p.method}: -${formatCOP(p.amount)}`).join(', ')}
                                           </div>
                                         )}
                                       </div>
@@ -1020,6 +1272,361 @@ export default function InvoiceHistory({ user, currentStoreId }) {
                 style={{ background: 'var(--warning)', color: 'black', fontWeight: 'bold' }}
               >
                 🔄 Procesar Devolución
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Exchange products modal */}
+      {exchangeModalOpen && saleToExchange && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '720px', width: '95%' }}>
+            <div className="modal-header">
+              <h3 className="modal-title">🔄 Cambio de Prendas - Factura {saleToExchange.invoiceNumber}</h3>
+              <button className="modal-close" onClick={() => setExchangeModalOpen(false)}>✕</button>
+            </div>
+            <div className="modal-body" style={{ maxHeight: '72vh', overflowY: 'auto' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                
+                {/* Meta info */}
+                <div style={{ padding: '12px 16px', background: 'var(--bg-app)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', fontSize: '13px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                    <div><strong>Cliente:</strong> {saleToExchange.clientName}</div>
+                    <div><strong>Fecha Factura:</strong> {formatDateTime(saleToExchange.date)}</div>
+                    <div><strong>Total Original:</strong> {formatCOP(saleToExchange.total)}</div>
+                    <div><strong>Medios Pago Originales:</strong> {saleToExchange.paymentMethod}</div>
+                  </div>
+                </div>
+
+                {/* Paso 1: Devueltos */}
+                <div>
+                  <h4 style={{ margin: '0 0 8px 0', fontSize: '13px', fontWeight: '700', color: 'var(--danger)' }}>
+                    Paso 1: Prendas a devolver por el cliente:
+                  </h4>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                    <thead>
+                      <tr style={{ background: 'var(--border-color)', borderBottom: '1px solid var(--border-color)' }}>
+                        <th style={{ padding: '6px 12px', textAlign: 'left' }}>Producto</th>
+                        <th style={{ padding: '6px 12px', textAlign: 'right' }}>Precio Neto</th>
+                        <th style={{ padding: '6px 12px', textAlign: 'center' }}>Original</th>
+                        <th style={{ padding: '6px 12px', textAlign: 'center', width: '90px' }}>Cambiar</th>
+                        <th style={{ padding: '6px 12px', textAlign: 'right' }}>Crédito Cliente</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(saleToExchange.items || []).map(item => {
+                        const netPrice = item.sellPrice * (1 - (item.discount || 0) / 100);
+                        const qtyToReturn = exchangeReturnedQuantities[item.productId] || 0;
+                        const lineCredit = netPrice * qtyToReturn;
+                        return (
+                          <tr key={item.productId} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                            <td style={{ padding: '8px 12px' }}>
+                              <div style={{ fontWeight: '600' }}>{item.name}</div>
+                              <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>{item.barcode}</div>
+                            </td>
+                            <td style={{ padding: '8px 12px', textAlign: 'right' }}>{formatCOP(netPrice)}</td>
+                            <td style={{ padding: '8px 12px', textAlign: 'center' }}>{item.quantity}</td>
+                            <td style={{ padding: '8px 12px', textAlign: 'center' }}>
+                              <input
+                                type="number"
+                                className="form-control"
+                                style={{ width: '65px', padding: '4px', textAlign: 'center', margin: '0 auto' }}
+                                min="0"
+                                max={item.quantity}
+                                value={qtyToReturn}
+                                onChange={e => {
+                                  const val = Math.min(item.quantity, Math.max(0, parseInt(e.target.value) || 0));
+                                  setExchangeReturnedQuantities(prev => ({
+                                    ...prev,
+                                    [item.productId]: val
+                                  }));
+                                }}
+                              />
+                            </td>
+                            <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: '700', color: lineCredit > 0 ? 'var(--success)' : 'var(--text-muted)' }}>
+                              {formatCOP(lineCredit)}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                  <div style={{ textAlign: 'right', marginTop: '8px', fontSize: '13px', fontWeight: 'bold' }}>
+                    Total Crédito (A favor): <span style={{ color: 'var(--success)' }}>{formatCOP(calculateExchangeCredit())}</span>
+                  </div>
+                </div>
+
+                {/* Paso 2: Nuevos productos */}
+                <div>
+                  <h4 style={{ margin: '0 0 8px 0', fontSize: '13px', fontWeight: '700', color: 'var(--primary)' }}>
+                    Paso 2: Nuevas prendas que se lleva el cliente:
+                  </h4>
+                  
+                  {/* Search input */}
+                  <div style={{ position: 'relative', marginBottom: '12px' }}>
+                    <input
+                      type="text"
+                      className="form-control"
+                      placeholder="🔎 Buscar prenda nueva por nombre, código de barras o SKU..."
+                      value={productSearchQuery}
+                      onChange={e => handleProductSearch(e.target.value)}
+                    />
+                    {searchResults.length > 0 && (
+                      <div style={{
+                        position: 'absolute',
+                        top: '100%',
+                        left: 0,
+                        right: 0,
+                        background: 'var(--bg-card)',
+                        border: '1px solid var(--border-color)',
+                        borderRadius: 'var(--radius-sm)',
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                        zIndex: 10,
+                        maxHeight: '200px',
+                        overflowY: 'auto'
+                      }}>
+                        {searchResults.map(p => (
+                          <div
+                            key={p.id}
+                            style={{ padding: '10px 14px', borderBottom: '1px solid var(--border-color)', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                            onClick={() => addExchangeNewItem(p)}
+                          >
+                            <div>
+                              <div style={{ fontWeight: '600', fontSize: '13px' }}>{p.name} (Talla: {p.size || 'N/A'})</div>
+                              <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Cód: {p.barcode} | Disp: {p.stock}</div>
+                            </div>
+                            <span style={{ fontWeight: '700', color: 'var(--primary)' }}>{formatCOP(p.sellPrice)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Selected new items list */}
+                  {exchangeNewItems.length === 0 ? (
+                    <div style={{ padding: '16px', border: '1px dashed var(--border-color)', borderRadius: 'var(--radius-md)', textAlign: 'center', color: 'var(--text-muted)', fontSize: '12.5px' }}>
+                      No has añadido ninguna prenda nueva todavía.
+                    </div>
+                  ) : (
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                      <thead>
+                        <tr style={{ background: 'var(--border-color)', borderBottom: '1px solid var(--border-color)' }}>
+                          <th style={{ padding: '6px 12px', textAlign: 'left' }}>Producto</th>
+                          <th style={{ padding: '6px 12px', textAlign: 'right' }}>Precio</th>
+                          <th style={{ padding: '6px 12px', textAlign: 'center', width: '90px' }}>Cant.</th>
+                          <th style={{ padding: '6px 12px', textAlign: 'center', width: '80px' }}>Desc.</th>
+                          <th style={{ padding: '6px 12px', textAlign: 'right' }}>Total Débito</th>
+                          <th style={{ padding: '6px 12px', textAlign: 'center', width: '40px' }}>Acción</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {exchangeNewItems.map(item => {
+                          const netPrice = item.product.sellPrice;
+                          const lineDebit = netPrice * item.quantity * (1 - (item.discount || 0) / 100);
+                          return (
+                            <tr key={`${item.product.id}-${item.discount}`} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                              <td style={{ padding: '8px 12px' }}>
+                                <div style={{ fontWeight: '600' }}>{item.product.name}</div>
+                                <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>{item.product.barcode} (Disp: {item.product.stock})</div>
+                              </td>
+                              <td style={{ padding: '8px 12px', textAlign: 'right' }}>{formatCOP(netPrice)}</td>
+                              <td style={{ padding: '8px 12px', textAlign: 'center' }}>
+                                <input
+                                  type="number"
+                                  className="form-control"
+                                  style={{ width: '60px', padding: '4px', textAlign: 'center', margin: '0 auto' }}
+                                  min="1"
+                                  max={item.product.stock}
+                                  value={item.quantity}
+                                  onChange={e => updateExchangeNewItemQty(item.product.id, item.discount, parseInt(e.target.value) || 1)}
+                                />
+                              </td>
+                              <td style={{ padding: '8px 12px', textAlign: 'center' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '2px', width: '65px', margin: '0 auto' }}>
+                                  <input
+                                    type="number"
+                                    className="form-control"
+                                    style={{ padding: '4px', textAlign: 'center' }}
+                                    min="0"
+                                    max="100"
+                                    value={item.discount}
+                                    onChange={e => updateExchangeNewItemDiscount(item.product.id, item.discount, parseInt(e.target.value) || 0)}
+                                  />
+                                  <span>%</span>
+                                </div>
+                              </td>
+                              <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: '700', color: 'var(--danger)' }}>
+                                {formatCOP(lineDebit)}
+                              </td>
+                              <td style={{ padding: '8px 12px', textAlign: 'center' }}>
+                                <button className="btn btn-outline btn-sm" onClick={() => removeExchangeNewItem(item.product.id, item.discount)} style={{ color: 'var(--danger)', borderColor: 'var(--danger)' }}>
+                                  ✕
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  )}
+                  <div style={{ textAlign: 'right', marginTop: '8px', fontSize: '13px', fontWeight: 'bold' }}>
+                    Total Débito (A cobrar): <span style={{ color: 'var(--danger)' }}>{formatCOP(calculateExchangeDebit())}</span>
+                  </div>
+                </div>
+
+                {/* Paso 3: Diferencia de canje */}
+                {(() => {
+                  const credit = calculateExchangeCredit();
+                  const debit = calculateExchangeDebit();
+                  const diff = Number((debit - credit).toFixed(2));
+                  return (
+                    <div>
+                      <h4 style={{ margin: '0 0 8px 0', fontSize: '13px', fontWeight: '700', color: 'var(--success)' }}>
+                        Paso 3: Balance de Canje y Desglose de Caja:
+                      </h4>
+                      <div style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        padding: '16px',
+                        borderRadius: 'var(--radius-md)',
+                        background: diff > 0 ? 'rgba(245, 34, 45, 0.05)' : diff < 0 ? 'rgba(82, 196, 26, 0.05)' : 'var(--bg-app)',
+                        border: diff > 0 ? '1px solid rgba(245, 34, 45, 0.15)' : diff < 0 ? '1px solid rgba(82, 196, 26, 0.15)' : '1px solid var(--border-color)',
+                        fontWeight: '700',
+                        marginBottom: '16px'
+                      }}>
+                        <span style={{ fontSize: '14px' }}>Diferencia a Liquidar:</span>
+                        <span style={{ fontSize: '20px', color: diff > 0 ? 'var(--danger)' : diff < 0 ? 'var(--success)' : 'var(--text-primary)' }}>
+                          {diff > 0 ? `+${formatCOP(diff)} (Cobrar al Cliente)` : diff < 0 ? `-${formatCOP(Math.abs(diff))} (Reembolsar al Cliente)` : '$ 0 (Cambio Equitativo)'}
+                        </span>
+                      </div>
+
+                      {/* Positive difference: Additional payments */}
+                      {diff > 0 && (
+                        <div style={{ padding: '16px', background: 'var(--bg-app)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)' }}>
+                          <span style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: 'var(--text-primary)', marginBottom: '10px' }}>
+                            Desglose de Pago de Excedente:
+                          </span>
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '12px' }}>
+                            {Object.keys(exchangeAdditionalPayments).map(method => (
+                              <div key={method} className="form-group" style={{ margin: 0 }}>
+                                <label className="form-label" style={{ fontSize: '11px', fontWeight: 'bold' }}>{method}</label>
+                                <input
+                                  type="number"
+                                  className="form-control"
+                                  style={{ padding: '4px 8px', fontSize: '12px' }}
+                                  min="0"
+                                  value={exchangeAdditionalPayments[method] || ''}
+                                  placeholder="0"
+                                  onChange={e => {
+                                    const val = Math.max(0, parseFloat(e.target.value) || 0);
+                                    setExchangeAdditionalPayments(prev => ({ ...prev, [method]: val }));
+                                  }}
+                                />
+                              </div>
+                            ))}
+                          </div>
+                          <div style={{ marginTop: '12px', textAlign: 'right', fontSize: '12px', fontWeight: 'bold' }}>
+                            {(() => {
+                              const sum = Object.values(exchangeAdditionalPayments).reduce((s, v) => s + (parseFloat(v) || 0), 0);
+                              const remaining = diff - sum;
+                              if (Math.abs(remaining) < 0.01) {
+                                return <span style={{ color: 'var(--success)' }}>✅ Excedente liquidado</span>;
+                              } else if (remaining > 0) {
+                                return <span style={{ color: 'var(--warning)' }}>Falta cobrar: {formatCOP(remaining)}</span>;
+                              } else {
+                                return <span style={{ color: 'var(--danger)' }}>Exceso de cobro: {formatCOP(Math.abs(remaining))}</span>;
+                              }
+                            })()}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Negative difference: Refund payments */}
+                      {diff < 0 && (
+                        <div style={{ padding: '16px', background: 'var(--bg-app)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)' }}>
+                          <span style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: 'var(--text-primary)', marginBottom: '6px' }}>
+                            Desglose de Reembolso por Métodos de Pago:
+                          </span>
+                          <span style={{ display: 'block', fontSize: '11px', color: 'var(--text-muted)', marginBottom: '12px' }}>
+                            Deduce del método con el que el cliente pagó originalmente. La suma debe dar exatamente {formatCOP(Math.abs(diff))}.
+                          </span>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                            {(saleToExchange.payments || [{ method: saleToExchange.paymentMethod || 'Efectivo', amount: saleToExchange.total }]).map(p => {
+                              const maxRefund = p.amount;
+                              const currentRefund = exchangeRefundPayments[p.method] || 0;
+                              return (
+                                <div key={p.method} style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr', alignItems: 'center', gap: '16px', fontSize: '12px' }}>
+                                  <div><strong>{p.method}</strong> (Pagado: {formatCOP(p.amount)})</div>
+                                  <div style={{ textAlign: 'right', color: 'var(--text-muted)' }}>Max reembolsable: -{formatCOP(maxRefund)}</div>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                    <span>$</span>
+                                    <input
+                                      type="number"
+                                      className="form-control"
+                                      style={{ padding: '4px 8px' }}
+                                      min="0"
+                                      max={maxRefund}
+                                      value={currentRefund || ''}
+                                      placeholder="0"
+                                      onChange={e => {
+                                        const val = Math.min(maxRefund, Math.max(0, parseFloat(e.target.value) || 0));
+                                        setExchangeRefundPayments(prev => ({ ...prev, [p.method]: val }));
+                                      }}
+                                    />
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                          <div style={{ marginTop: '12px', textAlign: 'right', fontSize: '12px', fontWeight: 'bold' }}>
+                            {(() => {
+                              const sum = Object.values(exchangeRefundPayments).reduce((s, v) => s + (parseFloat(v) || 0), 0);
+                              const remaining = Math.abs(diff) - sum;
+                              if (Math.abs(remaining) < 0.01) {
+                                return <span style={{ color: 'var(--success)' }}>✅ Reembolso liquidado</span>;
+                              } else if (remaining > 0) {
+                                return <span style={{ color: 'var(--warning)' }}>Falta reembolsar: {formatCOP(remaining)}</span>;
+                              } else {
+                                return <span style={{ color: 'var(--danger)' }}>Exceso de reembolso: {formatCOP(Math.abs(remaining))}</span>;
+                              }
+                            })()}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+
+                {/* Reason and Errors */}
+                {exchangeError && (
+                  <div className="alert alert-error" style={{ fontSize: '12px' }}>
+                    <span>⚠️</span>
+                    <span>{exchangeError}</span>
+                  </div>
+                )}
+
+                <div className="form-group">
+                  <label className="form-label">Motivo del Cambio *</label>
+                  <textarea
+                    className="form-control"
+                    style={{ minHeight: '60px' }}
+                    placeholder="Ej: Cambio de color, cambio de talla del mismo estilo, prenda con desperfecto..."
+                    value={exchangeReason}
+                    onChange={e => setExchangeReason(e.target.value)}
+                  />
+                </div>
+
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-outline" onClick={() => setExchangeModalOpen(false)}>Cancelar</button>
+              <button
+                className="btn btn-primary"
+                onClick={handleConfirmExchange}
+                style={{ background: 'var(--primary)', color: 'white', fontWeight: 'bold' }}
+              >
+                🔄 Procesar Cambio
               </button>
             </div>
           </div>

@@ -2,6 +2,21 @@ import React from 'react';
 
 const CHANGELOG = [
   {
+    version: 'v1.8.0',
+    date: 'Julio 2026',
+    title: 'Cambio de Productos (Canjes) y Desglose Financiero',
+    badge: 'Nueva Funcionalidad',
+    badgeColor: '#a855f7',
+    changes: [
+      'Implementada la funcionalidad de Cambio de Productos (Canjes) desde el historial de facturas.',
+      'Buscador interactivo de prendas nuevas en inventario en tiempo real con validación automática de stock.',
+      'Cálculo automático de saldos de canje: crédito (a favor del cliente) y débito (cobros adicionales).',
+      'Desglose y cuadre preciso de diferencias en caja: solicitud de pagos adicionales o reembolsos correspondientes.',
+      'Reajuste atómico de existencias físicas en el inventario al registrar cambios de prendas.',
+      'Bitácora de auditoría histórica de canjes en el detalle de la factura y actualización de ayuda del sistema.'
+    ]
+  },
+  {
     version: 'v1.7.0',
     date: 'Julio 2026',
     title: 'Control de Apertura de Caja y Devoluciones de Productos',

@@ -66,18 +66,19 @@ const HELP_DOCUMENTATION = {
   },
   invoices: {
     title: "🧾 Historial de Facturas",
-    description: "Listado histórico de todas las facturas emitidas en el sistema para consulta, anulación, devolución de productos o exportación masiva.",
+    description: "Listado histórico de todas las facturas emitidas en el sistema para consulta, anulación, devolución de productos, cambios de prendas (canjes) o exportación masiva.",
     useCases: [
       "Buscar facturas específicas por número de factura o nombre de cliente.",
       "Filtrar el historial por rangos de fecha y estado de la factura (activa/anulada).",
-      "Ver el detalle de artículos vendidos, descuentos, devoluciones y el medio de pago utilizado.",
+      "Ver el detalle de artículos vendidos, descuentos, devoluciones, canjes y el medio de pago utilizado.",
       "Procesar devoluciones parciales o totales de productos (reintegrando el stock al inventario y deduciendo el reembolso de los métodos de pago de la venta).",
+      "Registrar cambios de prendas (canjes), permitiendo devolver ítems y seleccionar nuevos reemplazos del inventario, cobrando el excedente o reembolsando el saldo a favor.",
       "Anular facturas erróneas (lo cual devuelve automáticamente el stock de los productos al inventario).",
       "Cargar masivamente facturas antiguas usando archivos CSV."
     ],
     dependencies: [
       "Terminal de Ventas (Sales): Alimenta esta pantalla con cada venta exitosa.",
-      "Inventario (Inventory): Al anular una factura o procesar una devolución, el sistema actualiza el stock físico de vuelta en el inventario."
+      "Inventario (Inventory): Al anular una factura, procesar una devolución o realizar un cambio, el sistema actualiza el stock físico de vuelta en el inventario."
     ]
   },
   layaways: {
@@ -291,7 +292,7 @@ export default function Layout({ user, currentTab, setCurrentTab, onLogout, curr
             borderTop: '1px solid var(--border-color)',
             paddingTop: '8px'
           }}>
-            <span>Versión: <strong>v1.7.0</strong></span>
+            <span>Versión: <strong>v1.8.0</strong></span>
             <span
               style={{
                 cursor: 'pointer',
