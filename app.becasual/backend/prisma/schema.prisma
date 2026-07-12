@@ -1,0 +1,146 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Store {
+  id        String     @id
+  name      String
+  slogan    String?
+  address   String?
+  phone     String?
+  email     String?
+  rent      String?
+  taxRate   Float      @default(19)
+  products  Product[]
+  purchases Purchase[]
+  sales     Sale[]
+  layaways  Layaway[]
+  closings  Closing[]
+}
+
+model User {
+  id       String @id @default(cuid())
+  username String @unique
+  password String
+  name     String
+  role     String // 'admin', 'vendedor', 'comprador'
+}
+
+model Product {
+  id          String       @id @default(cuid())
+  storeId     String
+  store       Store        @relation(fields: [storeId], references: [id])
+  barcode     String
+  sku         String
+  name        String
+  stock       Int          @default(0)
+  costPrice   Float        @default(0)
+  sellPrice   Float        @default(0)
+  line        String       @default("-")
+  category    String       @default("-")
+  gender      String       @default("-")
+  style       String       @default("-")
+  color       String       @default("-")
+  size        String       @default("-")
+  provider    String       @default("-")
+  minStock    Int          @default(5)
+  saleDetails SaleDetail[]
+}
+
+model Purchase {
+  id         String   @id @default(cuid())
+  storeId    String
+  store      Store    @relation(fields: [storeId], references: [id])
+  date       DateTime @default(now())
+  barcode    String
+  sku        String
+  name       String
+  provider   String   @default("-")
+  quantity   Int      @default(0)
+  costPrice  Float    @default(0)
+  totalPrice Float    @default(0)
+  sellPrice  Float    @default(0)
+}
+
+model Sale {
+  id            String       @id @default(cuid())
+  storeId       String
+  store         Store        @relation(fields: [storeId], references: [id])
+  date          DateTime     @default(now())
+  invoiceNumber String?
+  clientName    String?
+  clientId      String?
+  client        Client?      @relation(fields: [clientId], references: [id])
+  employeeId    String?
+  employee      Employee?    @relation(fields: [employeeId], references: [id])
+  paymentMethod String
+  total         Float        @default(0)
+  details       SaleDetail[]
+}
+
+model SaleDetail {
+  id        String  @id @default(cuid())
+  saleId    String
+  sale      Sale    @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+  quantity  Int     @default(1)
+  price     Float   @default(0)
+  subtotal  Float   @default(0)
+}
+
+model Client {
+  id       String  @id @default(cuid())
+  name     String
+  document String? @unique
+  phone    String?
+  email    String?
+  sales    Sale[]
+}
+
+model Employee {
+  id        String   @id @default(cuid())
+  name      String
+  document  String   @unique
+  role      String
+  phone     String?
+  email     String?
+  salary    Float    @default(0)
+  startDate DateTime
+  status    String   @default("activo") // 'activo', 'inactivo'
+  sales     Sale[]
+}
+
+model Layaway {
+  id          String   @id @default(cuid())
+  storeId     String
+  store       Store    @relation(fields: [storeId], references: [id])
+  clientId    String?
+  clientName  String
+  clientPhone String?
+  date        DateTime @default(now())
+  total       Float    @default(0)
+  deposit     Float    @default(0)
+  remaining   Float    @default(0)
+  status      String   @default("pendiente") // 'pendiente', 'entregado', 'anulado'
+  products    Json // Lista de productos guardada como arreglo JSON
+}
+
+model Closing {
+  id             String   @id @default(cuid())
+  storeId        String
+  store          Store    @relation(fields: [storeId], references: [id])
+  date           DateTime @default(now())
+  salesCount     Int      @default(0)
+  totalSales     Float    @default(0)
+  cashCollected  Float    @default(0)
+  cardCollected  Float    @default(0)
+  digitalCollect Float    @default(0) // Bold, Addi, Nequi, etc.
+  difference     Float    @default(0)
+  status         String   @default("abierta") // 'abierta', 'cerrada'
+}
