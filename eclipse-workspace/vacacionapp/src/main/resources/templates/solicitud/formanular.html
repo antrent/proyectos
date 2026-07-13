@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="layout/layout :: head"></head>
+<body>
+	<header th:replace="layout/layout :: header"> </header>
+<div class="row">
+	<div class="container-fluid col-md-2 menu-margen">
+		<div th:replace="layout/menu :: menu"> </div>
+	</div>
+	<div class="container-fluid col-md-10 cuerpo-margen">
+		<div class="card bg-light">
+			<div class="card-header" th:text=${titulo}></div>
+			<div class="card-body">
+
+				<form th:action="@{/solicitud/formanular}" th:object="${solicitud}" method="post">
+
+					<div th:if="${#lists.isEmpty(solicitudes)}"
+							class="alert alert-info my-4"
+							th:text="'No tiene solicitudes para Anular'"></div>					
+				<table th:if="${not #lists.isEmpty(solicitudes)}"
+						class="table table-bordered table-striped table-hover table-sm my-4 text-center">
+					<thead class="thead-dark">
+						<tr>
+							<th>Empleado</th>
+							<th>Fecha </br> Solicitud</th>
+							<th>Fecha Salida</th>
+							<th>Fecha </br> Reingreso</th>
+							<th>Dias </br> Solic.</th>
+							<th>Rechazar</th>
+						</tr>
+					</thead>
+					<tbody>
+						<tr th:each="solicitud: ${solicitudes}">
+							<td th:text="${solicitud.empleado.DocNombre}"></td>
+							<td th:text="${solicitud.fechSolicitud}"></td>
+							<td th:text="${solicitud.fechSalida}"></td>
+							<td th:text="${solicitud.fechReingreso}"></td>
+							<td th:text="${solicitud.diasSolicitados}"></td>
+							<td>
+							<a class="btn btn-danger btn-sm"
+								th:href="@{|/solicitud/formanular/${#authentication.principal}|} +'/'+ ${solicitud.codigo} +'/'+ ${solicitud.codigoEmpSolicita} +'/'+ 'AN'"><i class="fa fa-times"> Anular Solicitud</i></a>	
+							</td>							
+						</tr>
+					</tbody>
+				</table>
+					
+				</form>
+
+			</div>
+		</div>
+	</div>
+		</div>
+	<footer th:replace="layout/layout :: footer"> </footer>
+
+</body>
+</html>

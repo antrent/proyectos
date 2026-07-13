@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+	  xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head th:replace="layout/layout :: head"></head>
+<body>
+	<header th:replace="layout/layout :: header"> </header>
+<div class="row">
+<div class="container-fluid col-md-2 menu-margen">
+		<div th:replace="layout/menu :: menu" > </div>
+</div>
+<div class="container-fluid col-md-10 cuerpo-margen">		
+		<div class="card bg-light">
+			<div class="card-header" th:text=${titulo}></div>
+			<div class="card-body">
+				
+					<input th:value="${errores}" type="hidden" disabled="disabled"
+							class="form-control form-control-sm" id="errores"></input>
+
+				<form th:action="@{/solicitud/listarsolicitud}" method="get">	
+						
+					<input th:value="${codigoEmpSolicita}" type="hidden"
+						class="form-control form-control-sm" disabled="disabled" id="codigoEmpSolicita"></input>
+													
+					
+					<div class="form-row">
+						<div class="form-group col-md-2">
+							<label class="col-form-label">Fecha Inicio</label> 
+							<input type="date" name="fechSolicitudIni" id="fechSolicitudIni" class="form-control form-control-sm"></input>
+						</div>
+						<div class="form-group col-md-2">
+							<label class="col-form-label">Fecha Fin</label> 
+							<input type="date" name="fechSolicitudFin" id="fechSolicitudFin" class="form-control form-control-sm"></input>
+						</div>
+						<div class="form-group col-md-2">
+							<label class="col-form-label">Exportar</label><br> 
+							<!-- a class="btn btn-success btn-sm" title="Solo Aprobadas" 
+							type="submit" ><i class="fa fa-file-excel-o"></i> xls</a-->
+							<button type="submit" class="btn btn-success btn-sm"  name="descarga" value="T"> 
+								<i class="fa fa-file-excel-o"></i> xls
+							</button>
+						</div>						
+												
+					</div>						
+																	
+				<div th:if="${#lists.isEmpty(solicitud)}"
+					class="alert alert-info my-4"
+					th:text="'No existen solicitudes realizadas para el periodo ingresado'"></div>
+				<table th:if="${not #lists.isEmpty(solicitud)}"
+					class="table table-bordered table-hover table-striped table-sm my-4 text-center">
+
+					<thead class="thead-dark">
+						<tr>
+							<th>Nombre </br> Empleado</th>
+							<th>Fecha </br> Solicitud</th>
+							<th>Estado Sol.</th>
+							<th>Periodo Inicio</th>
+							<th>Periodo Fin</th>
+							<th>Fecha Salida</th>
+							<th>Fecha Fin</th>
+							<th>Fecha Inicio </br> Labores</th>
+							<th>Dias </br> Solic.</th>
+							<th>Dias </br> Disfru.</th>
+							<th>Dias </br> Acomu. Ptes.</th>
+							<th>Dias Total </br> General</th>
+						</tr>
+					</thead>
+					<tbody>
+						<tr th:each="solicitud: ${solicitud}">
+							<td th:text="${solicitud.empleado.DocNombre}"></td>
+							<td th:text="${solicitud.fechSolicitud}"></td>
+							<td th:text="${T(com.vacacionapp.app.util.lisval.TipoEstadoSolicitudEnum).valueOf(solicitud.estSolCodigo).getTipoEstadoSolicitud()}"></td>
+							<td th:text="${solicitud.fechIni}"></td>
+							<td th:text="${solicitud.fechFin}"></td>
+							<td th:text="${solicitud.fechSalida}"></td>
+							<td th:text="${solicitud.fechFinVac}"></td>
+							<td th:text="${solicitud.fechReingreso}"></td>
+							<td th:text="${solicitud.diasSolicitados}"></td>
+							<td th:text="${solicitud.diasDisfrutados}"></td>
+							<td th:text="${solicitud.diasAcomuPendientes}"></td>
+							<td th:text="${solicitud.diasTotalGeneral}"></td>
+						</tr>
+					</tbody>
+				</table>
+				<nav sec:authorize="hasRole('ROLE_ADMIN')" th:replace="paginator-nav :: paginator"></nav>
+			</form>				
+			</div>
+		</div>
+	</div>	
+	</div>	
+	<footer th:replace="layout/layout :: footer"> </footer>
+</body>
+</html>

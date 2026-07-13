@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="layout/layout :: head"></head>
+<body>
+	<header th:replace="layout/layout :: header"> </header>
+<div class="row">
+	<div class="container-fluid col-md-2 menu-margen">
+		<div th:replace="layout/menu :: menu"> </div>
+	</div>
+	<div class="container-fluid col-md-10 cuerpo-margen">
+		<div class="card bg-light">
+			<div class="card-header"><h3 class="text-secondary" th:text=${titulo}></h3></div>
+			<div class="card-body">
+				<div th:object="${empleado}" th:remove="tag">
+					<ul th:if="${#fields.hasErrors('*')}" class="alert alert-danger"
+						role="alert">
+						<li th:each="err : ${#fields.errors('*')}" th:text="${err}"></li>
+					</ul>
+
+				</div>
+
+				<form th:action="@{/form}" th:object="${empleado}" method="post"
+					enctype="multipart/form-data">
+
+					<div class="form-row">
+						<div class="form-group col-md-2">
+							<label for="Id" class="col-form-label">Id</label> <input type="text" th:field="*{Id}"
+								class="form-control form-control-sm"
+								th:errorclass="'form-control alert-danger'" /> 
+						</div>					
+						<div class="form-group col-md-2">
+								<label for="rol" class="col-form-label">Tipo Documento</label>
+								<select th:field="*{tipDocumento}"
+									class="form-control form-control-sm" th:errorclass="'form-control alert-danger'">
+									<option value="" >Seleccione</option>									
+									<option th:each="tipdocu : ${T(com.pruebatecnica.springboot.web.app.util.lisval.TipoDocumentoEnum).values()}" th:value="${tipdocu.name()}"
+										th:text="${tipdocu.getTipoDocumento()}"></option>
+								</select><small
+								class="form-text text-danger"
+								th:if="${#fields.hasErrors('tipDocumento')}"
+								th:errors="*{tipDocumento}"></small>								
+						</div>
+						<div class="form-group col-md-2">
+							<label for="numDocumento" class="col-form-label">Numero
+								Documento</label> <input type="text" th:field="*{numDocumento}"
+								class="form-control form-control-sm"
+								th:errorclass="'form-control alert-danger'" /> <small
+								class="form-text text-danger"
+								th:if="${#fields.hasErrors('numDocumento')}"
+								th:errors="*{numDocumento}"></small>
+						</div>
+					</div>
+					<div class="form-row">
+						<div class="form-group col-md-2">
+							<label for="priNombre" class="col-form-label">Primer
+								Nombre</label> <input type="text" th:field="*{priNombre}"
+								class="form-control form-control-sm"
+								onchange="crearEmail();"
+								th:errorclass="'form-control alert-danger'" /> <small
+								class="form-text text-danger"
+								th:if="${#fields.hasErrors('priNombre')}"
+								th:errors="*{priNombre}"></small>
+						</div>
+						<div class="form-group col-md-2">
+							<label for="otrNombre" class="col-form-label">Otro
+								Nombre</label> <input type="text" th:field="*{otrNombre}"
+								class="form-control form-control-sm"
+								onchange="crearEmail();"
+								th:errorclass="'form-control alert-danger'" /> <small
+								class="form-text text-danger"
+								th:if="${#fields.hasErrors('otrNombre')}"
+								th:errors="*{otrNombre}"></small>
+						</div>
+						<div class="form-group col-md-2">
+							<label for="priApellido" class="col-form-label">Primer
+								Apellido</label> <input type="text" th:field="*{priApellido}"
+								class="form-control form-control-sm"
+								onchange="crearEmail();"
+								th:errorclass="'form-control alert-danger'" /> <small
+								class="form-text text-danger"
+								th:if="${#fields.hasErrors('priApellido')}"
+								th:errors="*{priApellido}"></small>
+						</div>
+						<div class="form-group col-md-2">
+							<label for="segApellido" class="col-form-label">Segundo
+								Apellido</label> <input type="text" th:field="*{segApellido}"
+								class="form-control form-control-sm"
+								onchange="crearEmail();"
+								th:errorclass="'form-control alert-danger'" /> <small
+								class="form-text text-danger"
+								th:if="${#fields.hasErrors('segApellido')}"
+								th:errors="*{segApellido}"></small>
+						</div>
+						<div class="form-group col-md-2">
+								<label for="rol" class="col-form-label">Genero</label>
+								<select th:field="*{genero}" 
+									class="form-control form-control-sm" th:errorclass="'form-control alert-danger'">
+									<option value="" >Seleccione</option>									
+									<option th:each="tipgenero : ${T(com.pruebatecnica.springboot.web.app.util.lisval.TipoGeneroEnum).values()}" th:value="${tipgenero.name()}"
+										th:text="${tipgenero.getTipoGenero()}"></option>
+								</select>
+								<small
+									class="form-text text-danger"
+									th:if="${#fields.hasErrors('genero')}" 
+									th:errors="*{genero}"></small>																
+								
+						</div>
+						<div class="form-group col-md-2">
+							<label for="fechNacimiento" class="col-form-label">Fecha
+								Nacimiento</label> 
+							<input type="date" th:field="*{fechNacimiento}"
+								class="form-control form-control-sm" 
+								id="fechNacimiento"
+								th:errorclass="'form-control alert-danger'"/> 
+								<small
+								class="form-text text-danger"
+								th:if="${#fields.hasErrors('fechNacimiento')}"
+								th:errors="*{fechNacimiento}"></small>
+						</div>
+					</div>
+					<div class="form-row">
+						<div class="form-group col-md-2">
+								<label for="paisEmp" class="col-form-label">Pais Empleado</label>
+								<select  th:field="*{paisEmp}"
+									class="form-control form-control-sm"
+									th:errorclass="'form-control alert-danger'"
+									onchange="crearEmail();">
+									<option value="" >Seleccione</option>									
+									<option th:each="paisEmp : ${T(com.pruebatecnica.springboot.web.app.util.lisval.PaisEnum).values()}" th:value="${paisEmp.name()}"
+										th:text="${paisEmp.getPais()}"></option>
+								</select>
+								<small
+									class="form-text text-danger"
+									th:if="${#fields.hasErrors('paisEmp')}" th:errors="*{paisEmp}"></small>																
+								
+						</div>
+
+						<div class="form-group col-md-2">
+								<label for="area" class="col-form-label">Area</label>
+								<select th:field="*{area}"
+									class="form-control form-control-sm"
+									th:errorclass="'form-control alert-danger'">
+									<option value="" >Seleccione</option>									
+									<option th:each="tiparea : ${T(com.pruebatecnica.springboot.web.app.util.lisval.TipoAreaEnum).values()}" th:value="${tiparea.name()}"
+										th:text="${tiparea.getTipoArea()}"></option>
+								</select>
+								<small
+									class="form-text text-danger"
+									th:if="${#fields.hasErrors('area')}" th:errors="*{area}"></small>																
+								
+						</div>
+
+						<div class="form-group col-md-2">
+							<label for="fechIngreso" class="col-form-label">Fecha
+								Ingreso</label> 
+								<input type="date"	th:field="*{fechIngreso}" class="form-control form-control-sm"
+								id="fechIngreso"
+								th:errorclass="'form-control alert-danger'"/> <small
+								class="form-text text-danger"
+								th:if="${#fields.hasErrors('fechIngreso')}"
+								th:errors="*{fechIngreso}"></small>
+						</div>
+						<div class="form-group col-md-3">
+							<label for="email" class="col-form-label">Email</label> <input
+								type="email" th:field="*{email}"
+								class="form-control form-control-sm"
+								placeholder="Ingresa el email"
+								th:errorclass="'form-control alert-danger'" /> <small
+								class="form-text text-danger"
+								th:if="${#fields.hasErrors('email')}" th:errors="*{email}"></small>
+						</div>
+
+						<div class="form-group col-md-2">
+							<label for="fechIngreso" class="col-form-label">Fecha Registro</label> 
+								<input type="date"	th:field="*{fechRegistro}" class="form-control form-control-sm"
+								id="fechRegistro"
+								th:errorclass="'form-control alert-danger'"/> <small
+								class="form-text text-danger"
+								th:if="${#fields.hasErrors('fechRegistro')}"
+								th:errors="*{fechRegistro}"></small>
+						</div>
+						<div class="form-group col-md-2">
+								<label for="rol" class="col-form-label">Rol</label>
+								<select th:field="*{rol}"
+									class="form-control form-control-sm"
+									th:errorclass="'form-control alert-danger'">
+									<option value="" >Seleccione</option>									
+									<option th:each="rol : ${T(com.pruebatecnica.springboot.web.app.util.lisval.RolEnum).values()}" th:value="${rol.name()}"
+										th:text="${rol.getRol()}"></option>
+								</select>
+								<small
+									class="form-text text-danger"
+									th:if="${#fields.hasErrors('rol')}" th:errors="*{rol}"></small>																
+								
+						</div>
+					</div>	
+					<div class="form-row">						
+						<div class="form-group col-md-2">
+							<label for="usuario" class="col-form-label">Usuario</label> <input
+								type="text" th:field="*{usuario}"
+								class="form-control form-control-sm" 
+								th:errorclass="'form-control alert-danger'" /> <small
+								class="form-text text-danger"
+								th:if="${#fields.hasErrors('usuario')}" th:errors="*{usuario}"></small>
+						</div>
+						<div class="form-group col-md-2">
+							<label for="password" class="col-form-label">Password</label> <input
+								type="password" th:field="*{password}"
+								class="form-control form-control-sm" 
+								th:errorclass="'form-control alert-danger'" /> <small
+								class="form-text text-danger"
+								th:if="${#fields.hasErrors('password')}" th:errors="*{password}"></small>
+						</div>
+						<div class="form-group col-md-2">
+							<label for="passwordConfirma" class="col-form-label">Confirmar Password</label> 
+							<input
+								type="password" th:field="*{passwordConfirma}"
+								class="form-control form-control-sm" 
+								th:errorclass="'form-control alert-danger'" /> <small
+								class="form-text text-danger"
+								th:if="${#fields.hasErrors('passwordConfirma')}" th:errors="*{passwordConfirma}"></small>
+						</div>						
+					</div>
+					<div class="form-group row">
+						<div class="form-row col-md-1">
+							<div class="custom-control custom-checkbox">
+								<input type="checkbox" th:field="*{estado}"
+									class="custom-control-input" id="estado" value="S" /> <label
+									class="custom-control-label" for="estado">Activo</label>
+							</div>
+						</div>
+					</div>
+					<div class="dropdown-divider"></div>
+					<div class="form-group row">
+						<div class="col-sm-4">
+							<button type="submit" class="btn btn-success btn-sm" onclick="crearEmail();"> 
+								<i class="fa fa-save"></i> Guardar
+							</button>								
+								
+						</div>
+					</div>
+				</form>
+			</div>
+		</div>
+	</div>
+	</div>	
+	<script>
+		function crearEmail() {
+			// Obteniendo las inidicales
+			var priNombre = document.getElementById('priNombre').value;
+			var segNombre = document.getElementById('otrNombre').value;
+			var priApellido = document.getElementById('priApellido').value;
+			var segApellido = document.getElementById('segApellido').value;
+			var dominio = null;
+			var email = null;
+			/*var pais = document.getElementById('pais').value;
+			var email = document.getElementById('email').value;*/
+			
+			//var combo = document.getElementById("paisEmp");
+			//var selected = combo.options[combo.selectedIndex].text;
+			//var paisEmp = document.getElementById('paisEmp').options.;
+			var paisEmp = document.getElementById("paisEmp").selectedIndex;
+			if(typeof paisEmp !== null && paisEmp !== 'undefined' ) {
+			  //document.getElementById("pais").innerHTML = res;
+						if(paisEmp == 2  ) {
+						  
+							dominio = 'cidenet.com.us';
+						  
+						}else{
+							dominio = 'cidenet.com.co';
+						}
+			  
+			}
+			emial = (priNombre+"."	+ priApellido.trim()).toUpperCase()+"@"+dominio;
+			
+			$(document).ready(function(){
+				
+											$.ajax({
+													url: "/empleado/buscaremail/"+emial,//21-06-2018/25-06-2018", 
+													dataType: "json"
+													})
+													  .done(function(data){
+														//console.log( "antonio festivos en data "+data );
+														//console.log( "antonio dias en contdias "+contdias );
+														$("#email").val(data);
+														})	
+								}
+							  );	
+			
+			
+			//document.getElementById('email').value = 
+			
+		}
+		function obtenerUsuarioPassword() {
+			// Obteniendo usuario
+			/*var email = document.getElementById('email').value;
+			if (email.length > 0) {
+				email = email.split('@');
+				document.getElementById('usuario').value = email[0];
+				document.getElementById('password').value = document.getElementById('numDocumento').value;
+				if ((document.getElementById('password').value).length == 0) {
+					document.getElementById('password').value = document
+							.getElementById('numDocumento').value;
+				}
+				*/
+				NULL;
+		
+
+		}
+			function calcularDiasSolicitados() {
+				
+				//console.log("antonio contdias "+contdias);
+				var fechSalida = document.getElementById('fechSalida').value;
+				var v_fechSalida = document.getElementById('fechSalida').value;
+
+				var fechReingreso = document.getElementById('fechReingreso').value;
+				var v_fechReingreso = document.getElementById('fechReingreso').value;
+
+
+				if (v_fechSalida.length > 0 && v_fechReingreso.length > 0){
+
+					var diasdif = ((isNaN(new Date(fechReingreso).getTime())) ? 0 : new Date(fechReingreso).getTime()) - ((isNaN(new Date(fechSalida).getTime())) ? 0 : new Date(fechSalida).getTime());
+
+					if (fechSalida.length > 0 ){
+						fechSalida=fechSalida.split('-');
+						fechSalida = fechSalida[2]+'/'+fechSalida[1]+'/'+fechSalida[0];
+						
+						v_fechSalida = fechSalida.split('/');	
+						v_fechSalida = v_fechSalida[0]+'-'+v_fechSalida[1]+'-'+v_fechSalida[2];
+					}
+					
+					//fechSalida = new Date(fechSalida).getTime(); 
+					
+					if (fechReingreso.length > 0 ){
+						fechReingreso = fechReingreso.split('-');
+						fechReingreso = fechReingreso[2]+'/'+fechReingreso[1]+'/'+fechReingreso[0];
+							
+						v_fechReingreso = fechReingreso.split('/');	
+						v_fechReingreso = v_fechReingreso[0]+'-'+v_fechReingreso[1]+'-'+v_fechReingreso[2];			
+					}
+				
+					var contdias = Math.round(diasdif/(1000*60*60*24));
+							//consultamos los dias festivos configurados			
+							$(document).ready(function(){
+								
+								$.ajax({
+									url: "/solicitud/contarfestivo/"+v_fechSalida+"/"+v_fechReingreso,//21-06-2018/25-06-2018", 
+									dataType: "json"
+								})
+								.done(function(data){
+									//console.log( "antonio festivos en data "+data );
+									//console.log( "antonio dias en contdias "+contdias );
+									$("#diasSolicitados").val(contdias - data );
+								})	
+							}
+							);	
+					}	
+			}	
+	</script>
+	<footer th:replace="layout/layout :: footer"> </footer>
+
+</body>
+</html>

@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+	  xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head th:replace="layout/layout :: head"></head>
+<body>
+	<header th:replace="layout/layout :: header"> </header>
+<div class="row">
+	<div class="container-fluid col-md-2 menu-margen">
+		<div th:replace="layout/menu :: menu"> </div>
+	</div>
+	<div class="container-fluid col-md-10 cuerpo-margen">
+		<div class="card bg-light">
+			<div class="card-header" th:text=${titulo}></div>
+			<div class="card-body">
+				<h4 class="card-title">
+					<a class="btn btn-success btn-xs" sec:authorize="hasRole('ROLE_USEREMPJEF') or hasRole('ROLE_USEREMP')"
+						th:href="@{'/solicitud/form/'+ ${empleado.codigo}}"><i class="fa fa-plus"></i> Crear Solicitud</a>
+				</h4>
+				<!-- img
+					th:if="${empleado.foto != null && #strings.length(empleado.foto) > 0}"
+					class="img-thumbnail rounded float-left" style="max-width: 25%;"
+					th:src="@{'/uploads/' + ${empleado.foto}}"
+					th:alt="${empleado.foto}" />
+				<ul class="list-group">
+					<li class="list-group-item" th:text="${empleado.tipDocumento}+' '+${empleado.numDocumento}"></li>
+					<li class="list-group-item" th:text="${empleado.priNombre}+' '+${empleado.segNombre}+' '+${empleado.priApellido}+' '+${empleado.segApellido}"></li>
+					<li class="list-group-item" th:text="${empleado.fechIngreso}"></li>
+				</ul-->
+					<input th:value="${errores}" type="hidden" disabled="disabled"
+							class="form-control form-control-sm" id="errores"></input>
+					<input th:value="${codigoEmpSolicita}" type="hidden"
+						class="form-control form-control-sm" disabled="disabled" id="codigoEmpSolicita"></input>							
+											
+				<div th:if="${#lists.isEmpty(empleado.solicitudes)}"
+					class="alert alert-info my-4"
+					th:text="'No tienes solicitudes realizadas'"></div>
+				<table th:if="${not #lists.isEmpty(empleado.solicitudes)}"
+					class="table table-bordered table-hover table-striped table-sm my-4 text-center">
+
+					<thead class="thead-dark">
+						<tr>
+							<th>Fecha </br> Solicitud</th>
+							<!-- th>Tipo sol.</th-->
+							<th>Estado Sol.</th>
+							<th>Periodo Inicio</th>
+							<th>Periodo Fin</th>
+							<!-- th>Dias Periodo </br> a fecha sol.</th-->
+							<th>Fecha Salida</th>
+							<th>Fecha Fin</th>
+							<th>Fecha Inicio </br> Labores</th>
+							<th>Dias </br> Solic.</th>
+							<!-- th>Dias </br> Ptes</th-->
+							<th>Dias </br> Disfru.</th>
+							<th>Dias </br> Acomu. Ptes.</th>
+							<!-- th>Dias por </br> disfrutar</th-->
+							<th>Dias Total </br> General</th>
+						</tr>
+					</thead>
+					<tbody>
+						<tr th:each="solicitud: ${empleado.solicitudes}">
+							<td th:text="${solicitud.fechSolicitud}"></td>
+							<!-- td th:text="${solicitud.tipSolCodigo}"></td-->
+							<td th:text="${T(com.vacacionapp.app.util.lisval.TipoEstadoSolicitudEnum).valueOf(solicitud.estSolCodigo).getTipoEstadoSolicitud()}"></td>
+							<td th:text="${solicitud.fechIni}"></td>
+							<td th:text="${solicitud.fechFin}"></td>
+							<!-- td th:text="${solicitud.diasTotalPeriodo}"></td-->
+							<td th:text="${solicitud.fechSalida}"></td>
+							<td th:text="${solicitud.fechFinVac}"></td>
+							<td th:text="${solicitud.fechReingreso}"></td>
+							<td th:text="${solicitud.diasSolicitados}"></td>
+							<!-- td th:text="${solicitud.diasPendientes}"></td-->
+							<td th:text="${solicitud.diasDisfrutados}"></td>
+							<td th:text="${solicitud.diasAcomuPendientes}"></td>
+							<!-- td th:text="${solicitud.diasPorDisfrutar}"></td-->
+							<td th:text="${solicitud.diasTotalGeneral}"></td>
+
+						</tr>
+					</tbody>
+				</table>
+			</div>
+		</div>
+	</div>
+	</div>	
+ <script>
+	
+	window.onload = generarPdf();
+	function generarPdf() {
+		var codigoEmpSolicita = document.getElementById('codigoEmpSolicita').value;
+		if (codigoEmpSolicita != null && codigoEmpSolicita != ''){
+			console.log("antonio codigoEmpSolicita1 "+codigoEmpSolicita);
+			window.open("/ver/"+codigoEmpSolicita+"?format=pdf");
+		}	
+	}
+	
+	</script>
+	
+	<footer th:replace="layout/layout :: footer"> </footer>
+
+</body>
+</html>
