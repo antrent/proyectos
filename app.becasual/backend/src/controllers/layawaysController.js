@@ -33,7 +33,7 @@ export const getById = async (req, res) => {
 
 export const create = async (req, res) => {
   try {
-    const { storeId, clientId, clientName, clientPhone, total, deposit, products } = req.body;
+    const { id, storeId, clientId, clientName, clientPhone, total, deposit, products } = req.body;
 
     const store_id = storeId || 'store_1';
 
@@ -47,6 +47,7 @@ export const create = async (req, res) => {
 
     const newLayaway = await prisma.layaway.create({
       data: {
+        id: id || undefined,
         storeId: store_id,
         clientId: clientId || null,
         clientName: clientName.trim(),

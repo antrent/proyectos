@@ -32,7 +32,7 @@ export const getById = async (req, res) => {
 
 export const create = async (req, res) => {
   try {
-    const { storeId, cashCollected, cardCollected, digitalCollect } = req.body;
+    const { id, storeId, cashCollected, cardCollected, digitalCollect } = req.body;
 
     const store_id = storeId || 'store_1';
 
@@ -71,6 +71,7 @@ export const create = async (req, res) => {
     // 3. Registrar el Arqueo / Cierre
     const newClosing = await prisma.closing.create({
       data: {
+        id: id || undefined,
         storeId: store_id,
         salesCount: sales.length,
         totalSales,
