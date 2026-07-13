@@ -186,3 +186,20 @@ export const remove = async (req, res) => {
     res.status(500).json({ error: 'Error al eliminar producto.', details: error.message });
   }
 };
+
+export const updateGlobalMinStock = async (req, res) => {
+  try {
+    const { minStock } = req.body;
+    if (minStock === undefined) {
+      return res.status(400).json({ error: 'El parámetro minStock es obligatorio.' });
+    }
+
+    await prisma.product.updateMany({
+      data: { minStock: Number(minStock) || 0 }
+    });
+
+    res.json({ message: 'Stock mínimo global actualizado correctamente en todos los productos.' });
+  } catch (error) {
+    res.status(500).json({ error: 'Error al actualizar el stock mínimo global.', details: error.message });
+  }
+};
