@@ -1,4 +1,5 @@
 import { api } from './api.js';
+import { storageRepository } from './StorageRepository';
 
 class AuthService {
   getCurrentUser() {
@@ -22,11 +23,17 @@ class AuthService {
     };
 
     sessionStorage.setItem('becasual_current_user', JSON.stringify(sessionUser));
+    
+    // Disparar sincronización asíncrona e iniciar intervalo periódico con GCP tras loguearse
+    storageRepository.syncWithCloud();
+    storageRepository.startSyncInterval();
+
     return sessionUser;
   }
 
   logout() {
     sessionStorage.removeItem('becasual_current_user');
+    storageRepository.stopSyncInterval();
   }
 
   // RBAC (Role-Based Access Control) checker

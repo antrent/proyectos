@@ -1,16 +1,43 @@
 import seedData from '../../data/parsed_data.json';
+import { api } from './api.js';
 
 class StorageRepository {
   constructor() {
     this.initDatabase();
+    this.syncInterval = null;
+    // Iniciar sincronización e intervalo recurrente si el usuario ya está autenticado
+    const currentUser = sessionStorage.getItem('becasual_current_user');
+    if (currentUser) {
+      this.syncWithCloud();
+      this.startSyncInterval();
+    }
+  }
+
+  startSyncInterval() {
+    if (this.syncInterval) clearInterval(this.syncInterval);
+    // Realizar sincronización periódica en segundo plano cada 30 segundos
+    this.syncInterval = setInterval(() => {
+      const currentUser = sessionStorage.getItem('becasual_current_user');
+      if (currentUser) {
+        this.syncWithCloud();
+      } else {
+        this.stopSyncInterval();
+      }
+    }, 30000);
+  }
+
+  stopSyncInterval() {
+    if (this.syncInterval) {
+      clearInterval(this.syncInterval);
+      this.syncInterval = null;
+    }
   }
 
   initDatabase() {
-    // If not initialized in localStorage, seed from JSON
+    // Si no está inicializado en localStorage, sembrar por defecto
     if (!localStorage.getItem('becasual_db_initialized')) {
       console.log('Initializing localStorage with seed data from Excel...');
       
-      // Seed default stores list
       const defaultStores = [
         {
           id: 'store_1',
@@ -20,7 +47,7 @@ class StorageRepository {
           phone: seedData.config.celular || '3115929346',
           email: seedData.config.correo || 'ventas@tiendabecasual.com',
           rent: seedData.config.arriendo || '2 millones',
-          taxRate: 19 // Default IVA 19%
+          taxRate: 19
         },
         {
           id: 'store_2',
@@ -34,14 +61,10 @@ class StorageRepository {
         }
       ];
       localStorage.setItem('becasual_stores', JSON.stringify(defaultStores));
-
-      // Seed configuration (defaults to store_1 config)
       localStorage.setItem('becasual_config', JSON.stringify(defaultStores[0]));
-
-      // Seed parameters
       localStorage.setItem('becasual_params', JSON.stringify(seedData.params));
 
-      // Seed products (Inventory) with storeId: 'store_1'
+      // Sembrar productos iniciales
       const products = seedData.products.map((p, index) => ({
         id: `prod_${Date.now()}_${index}`,
         storeId: 'store_1',
@@ -58,11 +81,11 @@ class StorageRepository {
         color: p.color,
         size: p.size,
         provider: p.provider,
-        minStock: 5 // Default warning limit
+        minStock: 5
       }));
       localStorage.setItem('becasual_products', JSON.stringify(products));
 
-      // Seed purchases with storeId: 'store_1'
+      // Sembrar compras iniciales
       const purchases = seedData.purchases.map((pur, index) => ({
         id: `pur_${Date.now()}_${index}`,
         storeId: 'store_1',
@@ -78,7 +101,7 @@ class StorageRepository {
       }));
       localStorage.setItem('becasual_purchases', JSON.stringify(purchases));
 
-      // Seed initial default users
+      // Sembrar usuarios iniciales
       const users = [
         { id: 'usr_1', username: 'admin', password: '123', name: 'Administrador BeCasual', role: 'admin' },
         { id: 'usr_2', username: 'cajero', password: '123', name: 'Carlos Vendedor', role: 'vendedor' },
@@ -86,7 +109,7 @@ class StorageRepository {
       ];
       localStorage.setItem('becasual_users', JSON.stringify(users));
 
-      // Initialize sales, clients, employees, closings (empty)
+      // Inicializar vacíos
       localStorage.setItem('becasual_sales', JSON.stringify([]));
       localStorage.setItem('becasual_clients', JSON.stringify([]));
       localStorage.setItem('becasual_employees', JSON.stringify([
@@ -100,12 +123,38 @@ class StorageRepository {
       localStorage.setItem('becasual_layaways', JSON.stringify([]));
       localStorage.setItem('becasual_openings', JSON.stringify([]));
 
-      // Mark database as initialized
       localStorage.setItem('becasual_db_initialized', 'true');
     }
   }
 
-  // Generic Get and Set methods
+  // Sincronización asíncrona en segundo plano con GCP
+  async syncWithCloud() {
+    try {
+      console.log('Iniciando sincronización con la nube de GCP (background)...');
+      
+      const products = await api.get('/products');
+      if (Array.isArray(products)) this.setData('products', products);
+
+      const purchases = await api.get('/purchases');
+      if (Array.isArray(purchases)) this.setData('purchases', purchases);
+
+      const sales = await api.get('/sales');
+      if (Array.isArray(sales)) this.setData('sales', sales);
+
+      const layaways = await api.get('/layaways');
+      if (Array.isArray(layaways)) this.setData('layaways', layaways);
+
+      const closings = await api.get('/closings');
+      if (Array.isArray(closings)) this.setData('closings', closings);
+
+      console.log('Sincronización con GCP completada de forma exitosa. 🎉');
+      // Desencadenar evento global para que React actualice componentes
+      window.dispatchEvent(new CustomEvent('becasual_db_sync_complete'));
+    } catch (e) {
+      console.error('Falla en la sincronización en segundo plano con GCP:', e);
+    }
+  }
+
   getData(key) {
     try {
       const data = localStorage.getItem(`becasual_${key}`);
@@ -126,7 +175,6 @@ class StorageRepository {
     }
   }
 
-  // Direct operations for each entity
   getProducts() { return this.getData('products'); }
   saveProducts(products) { return this.setData('products', products); }
 
@@ -171,7 +219,6 @@ class StorageRepository {
   getClosings()       { return this.getData('closings'); }
   saveClosings(c)     { return this.setData('closings', c); }
 
-  // Multi-Store and Layaways
   getStores() {
     let stores = this.getData('stores');
     if (!stores || stores.length === 0) {
@@ -263,7 +310,6 @@ class StorageRepository {
     const snapshot = snapshots.find(s => s.id === snapshotId);
     if (!snapshot) throw new Error('Copia de seguridad no encontrada.');
 
-    // Identify all current keys to clean
     const keysToRemove = [];
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
@@ -271,10 +317,8 @@ class StorageRepository {
         keysToRemove.push(key);
       }
     }
-    // Remove them
     keysToRemove.forEach(k => localStorage.removeItem(k));
 
-    // Restore from snapshot data
     Object.entries(snapshot.data).forEach(([key, val]) => {
       localStorage.setItem(key, val);
     });
@@ -291,7 +335,6 @@ class StorageRepository {
   importSnapshots(importedList) {
     if (!Array.isArray(importedList)) throw new Error('El formato importado no es una lista válida.');
     
-    // Simple validation
     importedList.forEach(s => {
       if (!s.id || !s.name || !s.data || typeof s.data !== 'object') {
         throw new Error('El archivo importado contiene una copia con formato inválido.');
@@ -299,15 +342,13 @@ class StorageRepository {
     });
 
     const currentSnapshots = this.getSnapshots();
-    
-    // Merge by id (avoiding duplicates)
     const merged = [...currentSnapshots];
     importedList.forEach(imp => {
       const index = merged.findIndex(s => s.id === imp.id);
       if (index >= 0) {
-        merged[index] = imp; // Overwrite
+        merged[index] = imp;
       } else {
-        merged.push(imp); // Append
+        merged.push(imp);
       }
     });
 

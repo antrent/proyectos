@@ -28,6 +28,7 @@ import InvoiceHistory from './components/InvoiceHistory';
 import Layaways from './components/Layaways';
 import { authService } from './services/AuthService';
 import { storageRepository } from './services/StorageRepository';
+import OpeningBoxForm from './components/OpeningBoxForm';
 
 export default function App() {
   const [user, setUser] = useState(null);
@@ -35,6 +36,7 @@ export default function App() {
   const [triggerUpdate, setTriggerUpdate] = useState(false);
   const [currentStore, setCurrentStore] = useState(null);
   const [stores, setStores] = useState([]);
+  const [openings, setOpenings] = useState([]);
 
   useEffect(() => {
     const list = storageRepository.getStores();
@@ -46,6 +48,7 @@ export default function App() {
       const savedStore = list.find(s => s.id === savedStoreId);
       setCurrentStore(savedStore || list[0] || null);
     }
+    setOpenings(storageRepository.getOpenings());
   }, [triggerUpdate]);
 
   useEffect(() => {
@@ -80,6 +83,25 @@ export default function App() {
     } else {
       localStorage.removeItem('becasual_current_store_id');
     }
+    setOpenings(storageRepository.getOpenings());
+    toggleUpdate();
+  };
+
+  const handleOpenBox = (openingCash, notes) => {
+    const todayStr = new Date().toISOString().split('T')[0];
+    const newOpening = {
+      id: `open_${Date.now()}`,
+      date: todayStr,
+      storeId: storeId,
+      openingCash: Number(openingCash) || 0,
+      notes: notes || '',
+      registeredBy: user?.name || 'Administrador',
+      timestamp: new Date().toISOString()
+    };
+    const currentOpenings = storageRepository.getOpenings();
+    currentOpenings.push(newOpening);
+    storageRepository.saveOpenings(currentOpenings);
+    setOpenings(currentOpenings);
     toggleUpdate();
   };
 
@@ -88,6 +110,9 @@ export default function App() {
   if (!user) return <Login onLoginSuccess={handleLoginSuccess} />;
 
   const storeId = currentStore?.id || 'store_1';
+  const todayStr = new Date().toISOString().split('T')[0];
+  const isSpecificStore = storeId !== 'all';
+  const isOpenToday = !isSpecificStore || openings.some(o => o.date === todayStr && o.storeId === storeId);
 
   return (
     <Layout
@@ -101,7 +126,13 @@ export default function App() {
     >
       {currentTab === 'dashboard'    && <Dashboard triggerUpdate={triggerUpdate} currentStoreId={storeId} />}
       {currentTab === 'inventory'    && <Inventory user={user} onDataChange={toggleUpdate} currentStoreId={storeId} />}
-      {currentTab === 'sales'        && <Sales user={user} onSaleSuccess={toggleUpdate} currentStoreId={storeId} />}
+      {currentTab === 'sales'        && (
+        isOpenToday ? (
+          <Sales user={user} onSaleSuccess={toggleUpdate} currentStoreId={storeId} />
+        ) : (
+          <OpeningBoxForm storeName={currentStore?.name} onOpen={handleOpenBox} />
+        )
+      )}
       {currentTab === 'invoices'     && <InvoiceHistory user={user} currentStoreId={storeId} />}
       {currentTab === 'purchases'    && <Purchases user={user} onPurchaseSuccess={toggleUpdate} currentStoreId={storeId} />}
       {currentTab === 'stockbreak'   && <StockBreak onGoToPurchases={() => setCurrentTab('purchases')} currentStoreId={storeId} />}

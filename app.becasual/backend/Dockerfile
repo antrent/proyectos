@@ -6,12 +6,12 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm install --production
 
+# Copiar el esquema de prisma y generar el cliente
+COPY prisma ./prisma/
+RUN npx prisma generate
+
 # Copiar el resto del código del backend
 COPY . .
-
-# Exponer el puerto del servidor
-EXPOSE 5000
-ENV PORT=5000
 
 # Comando para arrancar el servidor
 CMD ["node", "src/app.js"]

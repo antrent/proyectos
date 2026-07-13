@@ -1,75 +1,166 @@
+import { storageRepository } from './StorageRepository';
 import { api } from './api.js';
-import { storageRepository } from './StorageRepository'; // Se mantiene para compatibilidad con parámetros locales
 
 class InventoryService {
-  async getAll(storeId = 'all') {
-    const products = await api.get(`/products?storeId=${storeId}`);
-    return products;
+  getAll(storeId = 'all') {
+    const products = storageRepository.getProducts();
+    if (storeId === 'all') return products;
+    return products.filter(p => p.storeId === storeId || (!p.storeId && storeId === 'store_1'));
   }
 
-  async getById(id) {
-    const product = await api.get(`/products/${id}`);
-    return product;
+  getById(id) {
+    const products = storageRepository.getProducts();
+    return products.find(p => p.id === id) || null;
   }
 
-  async getByBarcode(barcode, storeId = 'all') {
-    const product = await api.get(`/products/barcode/${barcode.trim()}?storeId=${storeId}`);
-    return product;
+  getByBarcode(barcode, storeId = 'all') {
+    const products = this.getAll(storeId);
+    return products.find(p => p.barcode === barcode.trim() || p.sku === barcode.trim()) || null;
   }
 
-  async search(filters = {}, storeId = 'all') {
-    const query = filters.query ? encodeURIComponent(filters.query) : '';
+  search(filters = {}, storeId = 'all') {
+    const products = this.getAll(storeId);
+    const query = (filters.query || '').toLowerCase().trim();
     const line = filters.line || '';
     const category = filters.category || '';
     const provider = filters.provider || '';
     const stockStatus = filters.stockStatus || 'all';
 
-    const products = await api.get(
-      `/products?storeId=${storeId}&query=${query}&line=${line}&category=${category}&provider=${provider}&stockStatus=${stockStatus}`
-    );
-    return products;
+    return products.filter(p => {
+      const matchesQuery = !query || 
+        p.name.toLowerCase().includes(query) ||
+        p.barcode.toLowerCase().includes(query) ||
+        p.sku.toLowerCase().includes(query);
+
+      const matchesLine = !line || p.line === line;
+      const matchesCategory = !category || p.category === category;
+      const matchesProvider = !provider || p.provider === provider;
+
+      let matchesStock = true;
+      if (stockStatus === 'low') {
+        matchesStock = p.stock > 0 && p.stock <= p.minStock;
+      } else if (stockStatus === 'out') {
+        matchesStock = p.stock === 0;
+      } else if (stockStatus === 'in') {
+        matchesStock = p.stock > p.minStock;
+      }
+
+      return matchesQuery && matchesLine && matchesCategory && matchesProvider && matchesStock;
+    });
   }
 
-  async create(productData, storeId = 'store_1') {
-    const payload = {
-      ...productData,
-      storeId,
-    };
-    const newProduct = await api.post('/products', payload);
+  create(productData, storeId = 'store_1') {
+    const products = storageRepository.getProducts();
 
-    // Guardar parámetros nuevos si se ingresaron
+    const barcodeTrimmed = (productData.barcode || '').trim();
+    if (barcodeTrimmed && products.some(p => p.barcode === barcodeTrimmed && (p.storeId === storeId || (!p.storeId && storeId === 'store_1')))) {
+      throw new Error('El código de barras ya existe en el inventario de esta tienda.');
+    }
+
+    const barcode = barcodeTrimmed ? barcodeTrimmed : `BE-${Math.floor(100000 + Math.random() * 900000)}`;
+    const sku = productData.sku ? productData.sku.trim() : `SKU-${Date.now().toString().slice(-6)}`;
+
+    const newProduct = {
+      id: `prod_${Date.now()}`,
+      storeId,
+      barcode,
+      sku,
+      name: productData.name.trim(),
+      stock: Number(productData.stock) || 0,
+      costPrice: Number(productData.costPrice) || 0,
+      sellPrice: Number(productData.sellPrice) || 0,
+      line: productData.line || '-',
+      category: productData.category || '-',
+      gender: productData.gender || '-',
+      style: productData.style || '-',
+      color: productData.color || '-',
+      size: productData.size || '-',
+      provider: productData.provider || '-',
+      minStock: Number(productData.minStock) || 5
+    };
+
+    products.unshift(newProduct);
+    storageRepository.saveProducts(products);
     this.checkAndAddParams(newProduct);
+
+    // Persistencia asíncrona en la nube de GCP (en segundo plano)
+    api.post('/products', newProduct).catch(err => {
+      console.error('Error al persistir producto en GCP:', err);
+    });
 
     return newProduct;
   }
 
-  async update(id, updatedFields) {
-    const updatedProduct = await api.put(`/products/${id}`, updatedFields);
-    
-    // Guardar parámetros nuevos si se ingresaron
+  update(id, updatedFields) {
+    const products = storageRepository.getProducts();
+    const index = products.findIndex(p => p.id === id);
+
+    if (index === -1) {
+      throw new Error('Producto no encontrado.');
+    }
+
+    const storeId = products[index].storeId || 'store_1';
+
+    if (updatedFields.barcode && products.some(p => p.id !== id && p.barcode === updatedFields.barcode.trim() && (p.storeId === storeId || (!p.storeId && storeId === 'store_1')))) {
+      throw new Error('El código de barras ya está asignado a otro producto en esta tienda.');
+    }
+
+    const updatedProduct = {
+      ...products[index],
+      ...updatedFields,
+      id: products[index].id,
+      stock: Number(updatedFields.stock !== undefined ? updatedFields.stock : products[index].stock),
+      costPrice: Number(updatedFields.costPrice !== undefined ? updatedFields.costPrice : products[index].costPrice),
+      sellPrice: Number(updatedFields.sellPrice !== undefined ? updatedFields.sellPrice : products[index].sellPrice),
+      minStock: Number(updatedFields.minStock !== undefined ? updatedFields.minStock : products[index].minStock)
+    };
+
+    products[index] = updatedProduct;
+    storageRepository.saveProducts(products);
     this.checkAndAddParams(updatedProduct);
+
+    // Persistencia asíncrona en la nube de GCP (en segundo plano)
+    api.put(`/products/${id}`, updatedProduct).catch(err => {
+      console.error('Error al actualizar producto en GCP:', err);
+    });
 
     return updatedProduct;
   }
 
-  async delete(id) {
-    await api.delete(`/products/${id}`);
+  delete(id) {
+    const products = storageRepository.getProducts();
+    const product = products.find(p => p.id === id);
+
+    if (!product) {
+      throw new Error('Producto no encontrado.');
+    }
+
+    const updatedProducts = products.filter(p => p.id !== id);
+    storageRepository.saveProducts(updatedProducts);
+
+    // Persistencia asíncrona en la nube de GCP (en segundo plano)
+    api.delete(`/products/${id}`).catch(err => {
+      console.error('Error al eliminar producto en GCP:', err);
+    });
+
     return true;
   }
 
-  async updateGlobalMinStock(minStock) {
-    // En una iteración posterior, esto se puede resolver con un endpoint en el backend
-    // Por ahora actualizamos uno por uno o lo simulamos
-    console.log('updateGlobalMinStock mock:', minStock);
+  updateGlobalMinStock(minStock) {
+    const products = storageRepository.getProducts();
+    const updated = products.map(p => ({
+      ...p,
+      minStock: Number(minStock) || 0
+    }));
+    storageRepository.saveProducts(updated);
     return true;
   }
 
-  async getLowStockAlerts(storeId = 'all') {
-    const products = await this.getAll(storeId);
+  getLowStockAlerts(storeId = 'all') {
+    const products = this.getAll(storeId);
     return products.filter(p => p.stock <= p.minStock);
   }
 
-  // Helper local para actualizar listas desplegables en localStorage
   checkAndAddParams(product) {
     const params = storageRepository.getParams();
     let updated = false;
@@ -95,8 +186,8 @@ class InventoryService {
     }
   }
 
-  async getStockBreakAnalysis(storeId = 'all') {
-    const products = await this.getAll(storeId);
+  getStockBreakAnalysis(storeId = 'all') {
+    const products = this.getAll(storeId);
     const broken = [];
     const critical = [];
     const projections = [];
@@ -157,19 +248,19 @@ class InventoryService {
     };
   }
 
-  async getAdvancedProjections(storeId = 'all', daysPeriod = 30) {
-    const products = await this.getAll(storeId);
-    // En una iteración posterior, las ventas se recuperan de la API GET /api/sales
-    const sales = []; // Mapeado básico por ahora
+  getAdvancedProjections(storeId = 'all', daysPeriod = 30) {
+    const products = this.getAll(storeId);
+    const sales = storageRepository.getSales().filter(s => !s.cancelled && (storeId === 'all' || s.storeId === storeId || (!s.storeId && storeId === 'store_1')));
     
     const salesVelocityMap = {};
     const now = new Date();
     const thirtyDaysAgo = new Date(now.getTime() - (30 * 24 * 60 * 60 * 1000));
-
+    
     sales.forEach(sale => {
       const saleDate = new Date(sale.date);
       if (saleDate >= thirtyDaysAgo) {
-        sale.items.forEach(item => {
+        const items = Array.isArray(sale.items) ? sale.items : [];
+        items.forEach(item => {
           const key = item.productId;
           salesVelocityMap[key] = (salesVelocityMap[key] || 0) + item.quantity;
         });
@@ -213,10 +304,12 @@ class InventoryService {
     }).sort((a, b) => b.estimatedCost - a.estimatedCost);
   }
 
-  async getWeeklyProjections(storeId = 'all', weeksPeriod = 4) {
-    const products = await this.getAll(storeId);
-    const sales = []; // En el futuro se alimenta de la API GET /api/sales
-
+  getWeeklyProjections(storeId = 'all', weeksPeriod = 4) {
+    const products = this.getAll(storeId);
+    const sales = storageRepository.getSales().filter(s => 
+      !s.cancelled && (storeId === 'all' || s.storeId === storeId || (!s.storeId && storeId === 'store_1'))
+    );
+    
     const now = new Date();
     const periodDays = 60;
     const startDate = new Date(now.getTime() - (periodDays * 24 * 60 * 60 * 1000));
@@ -225,7 +318,8 @@ class InventoryService {
     sales.forEach(sale => {
       const saleDate = new Date(sale.date);
       if (saleDate >= startDate) {
-        sale.items.forEach(item => {
+        const items = Array.isArray(sale.items) ? sale.items : [];
+        items.forEach(item => {
           const key = item.productId;
           salesVelocityMap[key] = (salesVelocityMap[key] || 0) + item.quantity;
         });

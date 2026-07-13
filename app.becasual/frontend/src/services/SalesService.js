@@ -1,8 +1,6 @@
-import { api } from './api.js';
+import { storageRepository } from './StorageRepository';
 import { inventoryService } from './InventoryService';
-import { purchaseService } from './PurchaseService';
-import { layawayService } from './LayawayService';
-import { storageRepository } from './StorageRepository'; // Se mantiene para config e IVA
+import { api } from './api.js';
 
 // Strategy Pattern for pricing calculation
 class BillingStrategy {
@@ -50,24 +48,38 @@ class SalesService {
     this.billingStrategy = strategy;
   }
 
-  async getAll(storeId = 'all') {
-    const sales = await api.get(`/sales?storeId=${storeId}`);
-    return sales;
+  getAll(storeId = 'all') {
+    const sales = storageRepository.getSales();
+    if (storeId === 'all') return sales;
+    return sales.filter(s => s.storeId === storeId || (!s.storeId && storeId === 'store_1'));
   }
 
-  async getActive(storeId = 'all') {
-    const sales = await this.getAll(storeId);
-    return sales.filter(s => !s.cancelled);
+  getActive(storeId = 'all') {
+    return this.getAll(storeId).filter(s => !s.cancelled);
   }
 
-  async cancelSale(saleId, reason) {
-    // En una iteración posterior se puede implementar DELETE /api/sales/:id
-    // Por ahora simulamos la anulación informando en consola
-    console.log('cancelSale mock backend call:', saleId, reason);
-    return { id: saleId, cancelled: true };
+  cancelSale(saleId, reason) {
+    const sales = storageRepository.getSales();
+    const index = sales.findIndex(s => s.id === saleId);
+    if (index === -1) throw new Error('Factura no encontrada.');
+    if (sales[index].cancelled) throw new Error('Esta factura ya fue anulada.');
+
+    // Restablecer stock local
+    sales[index].items.forEach(item => {
+      const product = inventoryService.getById(item.productId);
+      if (product) {
+        inventoryService.update(product.id, { stock: product.stock + item.quantity });
+      }
+    });
+
+    sales[index].cancelled = true;
+    sales[index].cancelReason = reason || 'Anulada por usuario';
+    sales[index].cancelDate = new Date().toISOString();
+    storageRepository.saveSales(sales);
+    return sales[index];
   }
 
-  async registerSale(saleData) {
+  registerSale(saleData) {
     const { items, paymentMethod, clientName, clientDocument, sellerId, storeId } = saleData;
 
     if (!items || items.length === 0) {
@@ -76,18 +88,67 @@ class SalesService {
 
     const config = storageRepository.getConfig();
     const taxRate = Number(config.taxRate) || 19;
+
+    // 1. Restar inventario local
+    const productsToUpdate = [];
+    items.forEach(item => {
+      const product = inventoryService.getById(item.product.id);
+      if (!product) {
+        throw new Error(`El producto "${item.product.name}" ya no existe en el inventario.`);
+      }
+      if (product.stock < item.quantity) {
+        throw new Error(`Stock insuficiente para "${product.name}". Disponible: ${product.stock}, Solicitado: ${item.quantity}`);
+      }
+      productsToUpdate.push({
+        id: product.id,
+        newStock: product.stock - item.quantity
+      });
+    });
+
+    productsToUpdate.forEach(item => {
+      inventoryService.update(item.id, { stock: item.newStock });
+    });
+
+    // 2. Calcular valores
     const billing = this.billingStrategy.calculate(items, taxRate);
 
-    // Mapear el payload esperado por el endpoint POST /api/sales
+    // 3. Crear registro local
+    const sales = storageRepository.getSales();
+    const newSale = {
+      id: `sale_${Date.now()}`,
+      invoiceNumber: `FAC-${1000 + sales.length + 1}`,
+      storeId: storeId || 'store_1',
+      date: new Date().toISOString(),
+      items: items.map(item => ({
+        productId: item.product.id,
+        name: item.product.name,
+        barcode: item.product.barcode,
+        sku: item.product.sku,
+        quantity: item.quantity,
+        costPrice: item.product.costPrice,
+        sellPrice: item.product.sellPrice,
+        discount: item.discount || 0
+      })),
+      ...billing,
+      paymentMethod: (saleData.payments && saleData.payments.length > 0) 
+        ? saleData.payments.map(p => p.method).join(', ') 
+        : (paymentMethod || 'Efectivo'),
+      payments: saleData.payments || [{ method: paymentMethod || 'Efectivo', amount: billing.total }],
+      clientName: (clientName || 'Cliente Final').trim(),
+      sellerId: sellerId || 'admin'
+    };
+
+    sales.unshift(newSale);
+    storageRepository.saveSales(sales);
+
+    // 4. Persistencia asíncrona en GCP (background)
     const payload = {
       storeId: storeId || 'store_1',
-      invoiceNumber: `FAC-${Date.now().toString().slice(-6)}`,
-      clientName: clientName || 'Cliente Final',
+      invoiceNumber: newSale.invoiceNumber,
+      clientName: newSale.clientName,
       clientDocument: clientDocument || null,
       employeeId: sellerId || 'emp_1',
-      paymentMethod: (saleData.payments && saleData.payments.length > 0)
-        ? saleData.payments.map(p => p.method).join(', ')
-        : (paymentMethod || 'Efectivo'),
+      paymentMethod: newSale.paymentMethod,
       total: billing.total,
       items: items.map(item => ({
         productId: item.product.id,
@@ -96,21 +157,23 @@ class SalesService {
         subtotal: (item.product.sellPrice * item.quantity) - ((item.product.sellPrice * item.quantity) * ((item.discount || 0) / 100))
       }))
     };
+    api.post('/sales', payload).catch(err => {
+      console.error('Error al persistir venta en GCP background:', err);
+    });
 
-    const response = await api.post('/sales', payload);
-    return response;
+    return newSale;
   }
 
-  async getFinancialStats(storeId = 'all') {
-    const sales = await this.getActive(storeId);
-    const purchases = await purchaseService.getAll(storeId);
-    const products = await inventoryService.getAll(storeId);
-    const layaways = await layawayService.getAll(storeId);
-
+  getFinancialStats(storeId = 'all') {
+    const sales = this.getAll(storeId).filter(s => !s.cancelled);
+    const purchases = storageRepository.getPurchases().filter(p => storeId === 'all' || p.storeId === storeId || (!p.storeId && storeId === 'store_1'));
+    const products = inventoryService.getAll(storeId);
+    const layaways = storageRepository.getLayaways().filter(l => l.status !== 'cancelled' && (storeId === 'all' || l.storeId === storeId || (!l.storeId && storeId === 'store_1')));
+    
     let layawayRevenue = 0;
     let layawayProfit = 0;
     layaways.forEach(l => {
-      if (l.total > 0 && l.status !== 'cancelled') {
+      if (l.total > 0) {
         const itemsArr = Array.isArray(l.products) ? l.products : [];
         const totalCost = itemsArr.reduce((sum, item) => sum + ((item.costPrice || 0) * item.quantity), 0);
         const totalProfit = l.total - totalCost;
@@ -125,14 +188,7 @@ class SalesService {
     });
 
     const totalSalesRevenue = sales.reduce((sum, s) => sum + s.total, 0) + layawayRevenue;
-    // En las ventas de la API, podemos calcular la ganancia sumando la diferencia de precio y costo de los detalles
-    let salesProfit = 0;
-    sales.forEach(s => {
-      const details = s.details || [];
-      const cost = details.reduce((sum, d) => sum + ((d.product?.costPrice || 0) * d.quantity), 0);
-      salesProfit += s.total - cost;
-    });
-    const totalSalesProfit = salesProfit + layawayProfit;
+    const totalSalesProfit = sales.reduce((sum, s) => sum + s.profit, 0) + layawayProfit;
     const totalPurchasesCost = purchases.reduce((sum, p) => sum + (p.totalPrice || 0), 0);
 
     const totalInventoryValueCost = products.reduce((sum, p) => sum + (p.costPrice * p.stock), 0);
@@ -149,14 +205,14 @@ class SalesService {
     };
   }
 
-  async getDailySalesSummary(dateStr, storeId = 'all') {
-    const sales = await this.getAll(storeId);
+  getDailySalesSummary(dateStr, storeId = 'all') {
+    const sales = this.getAll(storeId);
     const filteredSales = sales.filter(s => {
       const saleDate = s.date.split('T')[0];
       return saleDate === dateStr;
     });
 
-    const layaways = await layawayService.getAll(storeId);
+    const layaways = storageRepository.getLayaways().filter(l => l.status !== 'cancelled' && (storeId === 'all' || l.storeId === storeId || (!l.storeId && storeId === 'store_1')));
 
     let total = 0;
     let cost = 0;
@@ -181,22 +237,30 @@ class SalesService {
 
     filteredSales.forEach(s => {
       total += s.total;
-      const details = s.details || [];
-      const sCost = details.reduce((sum, d) => sum + ((d.product?.costPrice || 0) * d.quantity), 0);
-      cost += sCost;
-      profit += s.total - sCost;
+      cost += s.cost;
+      profit += s.profit;
       
-      const pm = mapPaymentMethod(s.paymentMethod);
-      if (breakdown[pm] !== undefined) {
-        breakdown[pm] += s.total;
+      if (s.payments && s.payments.length > 0) {
+        s.payments.forEach(pay => {
+          const pm = mapPaymentMethod(pay.method);
+          if (breakdown[pm] !== undefined) {
+            breakdown[pm] += pay.amount;
+          } else {
+            breakdown[pm] = pay.amount;
+          }
+        });
       } else {
-        breakdown[pm] = s.total;
+        const pm = mapPaymentMethod(s.paymentMethod);
+        if (breakdown[pm] !== undefined) {
+          breakdown[pm] += s.total;
+        } else {
+          breakdown[pm] = s.total;
+        }
       }
     });
 
-    // Add layaway payments made on this date
     layaways.forEach(l => {
-      if (l.total > 0 && l.status !== 'cancelled') {
+      if (l.total > 0) {
         const itemsArr = Array.isArray(l.products) ? l.products : [];
         const totalCost = itemsArr.reduce((sum, item) => sum + ((item.costPrice || 0) * item.quantity), 0);
         const totalProfit = l.total - totalCost;
@@ -240,23 +304,46 @@ class SalesService {
     };
   }
 
-  async getDailyClosings(storeId = 'all') {
-    const closings = await api.get(`/closings?storeId=${storeId}`);
-    return closings;
+  getDailyClosings(storeId = 'all') {
+    const closings = storageRepository.getClosings();
+    if (storeId === 'all') return closings;
+    return closings.filter(c => c.storeId === storeId || (!c.storeId && storeId === 'store_1'));
   }
 
-  async registerDailyClosing(closingData, storeId = 'store_1') {
+  registerDailyClosing(closingData, storeId = 'store_1') {
+    const closings = storageRepository.getClosings();
+    const existingIndex = closings.findIndex(c => c.date === closingData.date && (c.storeId === storeId || (!c.storeId && storeId === 'store_1')));
+
+    const newClosing = {
+      id: `closing_${Date.now()}`,
+      storeId,
+      timestamp: new Date().toISOString(),
+      ...closingData
+    };
+
+    if (existingIndex > -1) {
+      closings[existingIndex] = newClosing;
+    } else {
+      closings.unshift(newClosing);
+    }
+
+    storageRepository.saveClosings(closings);
+
+    // Persistencia asíncrona en GCP (background)
     const payload = {
       storeId,
       cashCollected: closingData.cashCollected,
       cardCollected: closingData.cardCollected,
       digitalCollect: closingData.digitalCollect
     };
-    const newClosing = await api.post('/closings', payload);
+    api.post('/closings', payload).catch(err => {
+      console.error('Error al registrar cierre de caja en GCP:', err);
+    });
+
     return newClosing;
   }
 
-  async processReturn(saleId, returnedItems, refundPayments, reason) {
+  processReturn(saleId, returnedItems, refundPayments, reason) {
     console.log('processReturn mock call:', saleId, returnedItems, refundPayments, reason);
     return true;
   }
