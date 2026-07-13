@@ -38,7 +38,7 @@ export const getAll = async (req, res) => {
 
 export const create = async (req, res) => {
   try {
-    const { storeId, barcode, sku, name, provider, quantity, costPrice, sellPrice, date } = req.body;
+    const { id, storeId, barcode, sku, name, provider, quantity, costPrice, sellPrice, date } = req.body;
 
     const store_id = storeId || 'store_1';
     const qty = Number(quantity) || 0;
@@ -60,6 +60,7 @@ export const create = async (req, res) => {
       // 1. Guardar la compra
       const newPurchase = await tx.purchase.create({
         data: {
+          id: id || undefined,
           storeId: store_id,
           date: finalDate,
           barcode: barcode ? String(barcode).trim() : '',

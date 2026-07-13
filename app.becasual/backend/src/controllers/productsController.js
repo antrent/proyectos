@@ -98,7 +98,7 @@ export const getByBarcode = async (req, res) => {
 
 export const create = async (req, res) => {
   try {
-    const { storeId, barcode, sku, name, stock, costPrice, sellPrice, line, category, gender, style, color, size, provider, minStock } = req.body;
+    const { id, storeId, barcode, sku, name, stock, costPrice, sellPrice, line, category, gender, style, color, size, provider, minStock } = req.body;
 
     const store_id = storeId || 'store_1';
 
@@ -123,6 +123,7 @@ export const create = async (req, res) => {
 
     const newProduct = await prisma.product.create({
       data: {
+        id: id || undefined,
         storeId: store_id,
         barcode: finalBarcode,
         sku: finalSku,
