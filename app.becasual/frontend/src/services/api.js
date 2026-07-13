@@ -1,4 +1,4 @@
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const API_URL = import.meta.env.VITE_API_URL || 'https://becasual-backend-726050384253.us-central1.run.app/api';
 
 async function request(endpoint, options = {}) {
   const headers = {
