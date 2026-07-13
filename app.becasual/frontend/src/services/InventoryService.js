@@ -153,6 +153,12 @@ class InventoryService {
       minStock: Number(minStock) || 0
     }));
     storageRepository.saveProducts(updated);
+
+    // Sincronización asíncrona masiva en la nube de GCP (en segundo plano)
+    api.put('/products/global-min-stock', { minStock: Number(minStock) }).catch(err => {
+      console.error('Error al actualizar stock mínimo global en GCP:', err);
+    });
+
     return true;
   }
 
