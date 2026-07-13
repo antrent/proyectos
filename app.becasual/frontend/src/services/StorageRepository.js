@@ -127,26 +127,157 @@ class StorageRepository {
     }
   }
 
-  // Sincronización asíncrona en segundo plano con GCP
+  // Sincronización asíncrona en segundo plano con GCP con mezcla (Merge) resiliente
   async syncWithCloud() {
     try {
       console.log('Iniciando sincronización con la nube de GCP (background)...');
       
+      // 1. Productos (el catálogo maestro de la nube manda)
       const products = await api.get('/products');
       if (Array.isArray(products)) this.setData('products', products);
 
-      const purchases = await api.get('/purchases');
-      if (Array.isArray(purchases)) this.setData('purchases', purchases);
+      // 2. Sincronización inteligente de Ventas
+      const localSales = this.getData('sales') || [];
+      const cloudSales = await api.get('/sales');
+      if (Array.isArray(cloudSales)) {
+        const pendingSales = localSales.filter(local => 
+          !cloudSales.some(cloud => cloud.id === local.id || cloud.invoiceNumber === local.invoiceNumber)
+        );
+        for (const sale of pendingSales) {
+          try {
+            await api.post('/sales', {
+              id: sale.id,
+              storeId: sale.storeId,
+              invoiceNumber: sale.invoiceNumber,
+              clientName: sale.clientName,
+              clientDocument: sale.clientDocument || null,
+              employeeId: sale.sellerId || 'emp_1',
+              paymentMethod: sale.paymentMethod,
+              subtotal: sale.subtotal,
+              tax: sale.tax,
+              total: sale.total,
+              discount: sale.discount,
+              cost: sale.cost,
+              profit: sale.profit,
+              items: sale.items.map(item => ({
+                productId: item.productId,
+                quantity: item.quantity,
+                price: item.sellPrice,
+                subtotal: (item.sellPrice * item.quantity) - (item.sellPrice * item.quantity * (item.discount / 100))
+              }))
+            });
+          } catch (err) {
+            console.error(`Fallo al autosincronizar venta pendiente ${sale.invoiceNumber}:`, err);
+          }
+        }
+        const finalSales = pendingSales.length > 0 ? (await api.get('/sales').catch(() => cloudSales)) : cloudSales;
+        if (Array.isArray(finalSales)) this.setData('sales', finalSales);
+      }
 
-      const sales = await api.get('/sales');
-      if (Array.isArray(sales)) this.setData('sales', sales);
+      // 3. Sincronización inteligente de Compras
+      const localPurchases = this.getData('purchases') || [];
+      const cloudPurchases = await api.get('/purchases');
+      if (Array.isArray(cloudPurchases)) {
+        const pendingPurchases = localPurchases.filter(local => 
+          !cloudPurchases.some(cloud => cloud.id === local.id || cloud.invoiceNumber === local.invoiceNumber)
+        );
+        for (const pur of pendingPurchases) {
+          try {
+            await api.post('/purchases', {
+              id: pur.id,
+              storeId: pur.storeId,
+              invoiceNumber: pur.invoiceNumber,
+              provider: pur.provider,
+              date: pur.date,
+              total: pur.total,
+              items: pur.items.map(item => ({
+                productId: item.productId,
+                quantity: item.quantity,
+                costPrice: item.costPrice,
+                sellPrice: item.sellPrice
+              }))
+            });
+          } catch (err) {
+            console.error(`Fallo al autosincronizar compra pendiente ${pur.invoiceNumber}:`, err);
+          }
+        }
+        const finalPurchases = pendingPurchases.length > 0 ? (await api.get('/purchases').catch(() => cloudPurchases)) : cloudPurchases;
+        if (Array.isArray(finalPurchases)) this.setData('purchases', finalPurchases);
+      }
 
-      const layaways = await api.get('/layaways');
-      if (Array.isArray(layaways)) this.setData('layaways', layaways);
+      // 4. Sincronización inteligente de Separados
+      const localLayaways = this.getData('layaways') || [];
+      const cloudLayaways = await api.get('/layaways');
+      if (Array.isArray(cloudLayaways)) {
+        const pendingLayaways = localLayaways.filter(local => 
+          !cloudLayaways.some(cloud => cloud.id === local.id || cloud.layawayNumber === local.layawayNumber)
+        );
+        for (const lay of pendingLayaways) {
+          try {
+            await api.post('/layaways', {
+              id: lay.id,
+              storeId: lay.storeId,
+              layawayNumber: lay.layawayNumber,
+              clientName: lay.clientName,
+              clientPhone: lay.clientPhone,
+              clientEmail: lay.clientEmail,
+              clientDocument: lay.clientDocument,
+              total: lay.total,
+              paid: lay.paid,
+              balance: lay.balance,
+              status: lay.status,
+              items: lay.items.map(item => ({
+                productId: item.productId,
+                quantity: item.quantity,
+                price: item.sellPrice,
+                subtotal: (item.sellPrice * item.quantity) - (item.sellPrice * item.quantity * (item.discount / 100))
+              }))
+            });
+          } catch (err) {
+            console.error(`Fallo al autosincronizar separado pendiente ${lay.layawayNumber}:`, err);
+          }
+        }
+        const finalLayaways = pendingLayaways.length > 0 ? (await api.get('/layaways').catch(() => cloudLayaways)) : cloudLayaways;
+        if (Array.isArray(finalLayaways)) this.setData('layaways', finalLayaways);
+      }
 
-      const closings = await api.get('/closings');
-      if (Array.isArray(closings)) this.setData('closings', closings);
+      // 5. Sincronización inteligente de Cierres de Caja
+      const localClosings = this.getData('closings') || [];
+      const cloudClosings = await api.get('/closings');
+      if (Array.isArray(cloudClosings)) {
+        const pendingClosings = localClosings.filter(local => 
+          !cloudClosings.some(cloud => cloud.id === local.id)
+        );
+        for (const close of pendingClosings) {
+          try {
+            await api.post('/closings', {
+              id: close.id,
+              storeId: close.storeId,
+              closingDate: close.closingDate || close.date,
+              openingCash: close.openingCash,
+              salesCash: close.salesCash,
+              salesNequi: close.salesNequi,
+              salesDaviplata: close.salesDaviplata,
+              salesCard: close.salesCard,
+              salesSistecredito: close.salesSistecredito,
+              salesAddi: close.salesAddi,
+              salesBold: close.salesBold,
+              totalRevenue: close.totalRevenue,
+              expectedCash: close.expectedCash,
+              actualCash: close.actualCash,
+              difference: close.difference,
+              notes: close.notes || '',
+              employeeId: close.employeeId || 'emp_1'
+            });
+          } catch (err) {
+            console.error(`Fallo al autosincronizar cierre pendiente ${close.id}:`, err);
+          }
+        }
+        const finalClosings = pendingClosings.length > 0 ? (await api.get('/closings').catch(() => cloudClosings)) : cloudClosings;
+        if (Array.isArray(finalClosings)) this.setData('closings', finalClosings);
+      }
 
+      // 6. Sincronización de Sucursales
       const stores = await api.get('/stores');
       if (Array.isArray(stores)) {
         this.setData('stores', stores);
