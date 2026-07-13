@@ -14,6 +14,7 @@ const ALL_NAV_ITEMS = [
   { id: 'dailyclosing',    name: 'Cierre Diario',       icon: '🏁', module: 'sales' },
   { id: 'clients',         name: 'Clientes',            icon: '👥', module: 'clients' },
   { id: 'employees',       name: 'Empleados',           icon: '👤', module: 'employees' },
+  { id: 'docs',            name: 'Manual y Soporte',    icon: '📖', module: 'dashboard' },
   { id: 'config',          name: 'Configuración',       icon: '⚙️', module: 'config' }
 ];
 
