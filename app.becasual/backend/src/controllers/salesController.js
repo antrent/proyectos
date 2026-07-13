@@ -142,3 +142,63 @@ export const create = async (req, res) => {
     res.status(500).json({ error: 'Error al registrar venta y actualizar stock.', details: error.message });
   }
 };
+
+export const createBulk = async (req, res) => {
+  try {
+    const { sales } = req.body;
+    if (!Array.isArray(sales) || sales.length === 0) {
+      return res.status(400).json({ error: 'Se requiere un arreglo de ventas válido.' });
+    }
+
+    await prisma.$transaction(async (tx) => {
+      for (const sale of sales) {
+        const existing = await tx.sale.findUnique({
+          where: { id: sale.id }
+        });
+        if (existing) continue;
+
+        const newSale = await tx.sale.create({
+          data: {
+            id: sale.id,
+            storeId: sale.storeId || 'store_1',
+            invoiceNumber: sale.invoiceNumber,
+            date: sale.date ? new Date(sale.date) : new Date(),
+            subtotal: Number(sale.subtotal) || 0,
+            tax: Number(sale.tax) || 0,
+            total: Number(sale.total) || 0,
+            discount: Number(sale.discount) || 0,
+            cost: Number(sale.cost) || 0,
+            profit: Number(sale.profit) || 0,
+            paymentMethod: sale.paymentMethod || 'Efectivo',
+            clientName: sale.clientName || 'Cliente Final',
+            clientDocument: sale.clientDocument || null,
+            employeeId: sale.sellerId || 'emp_1'
+          }
+        });
+
+        if (Array.isArray(sale.items)) {
+          for (const item of sale.items) {
+            const prod = await tx.product.findUnique({
+              where: { id: item.productId }
+            });
+            if (!prod) continue;
+
+            await tx.saleDetail.create({
+              data: {
+                saleId: newSale.id,
+                productId: item.productId,
+                quantity: Number(item.quantity) || 1,
+                price: Number(item.sellPrice || item.price) || prod.sellPrice,
+                subtotal: Number(item.subtotal) || (Number(item.quantity) * prod.sellPrice)
+              }
+            });
+          }
+        }
+      }
+    });
+
+    res.json({ message: 'Ventas masivas importadas correctamente en la base de datos.' });
+  } catch (error) {
+    res.status(500).json({ error: 'Error al importar ventas masivas.', details: error.message });
+  }
+};
