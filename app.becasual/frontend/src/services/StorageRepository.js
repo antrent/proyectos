@@ -143,31 +143,65 @@ class StorageRepository {
         const pendingSales = localSales.filter(local => 
           !cloudSales.some(cloud => cloud.id === local.id || cloud.invoiceNumber === local.invoiceNumber)
         );
-        for (const sale of pendingSales) {
+
+        if (pendingSales.length > 5) {
           try {
-            await api.post('/sales', {
-              id: sale.id,
-              storeId: sale.storeId,
-              invoiceNumber: sale.invoiceNumber,
-              clientName: sale.clientName,
-              clientDocument: sale.clientDocument || null,
-              employeeId: sale.sellerId || 'emp_1',
-              paymentMethod: sale.paymentMethod,
-              subtotal: sale.subtotal,
-              tax: sale.tax,
-              total: sale.total,
-              discount: sale.discount,
-              cost: sale.cost,
-              profit: sale.profit,
-              items: sale.items.map(item => ({
-                productId: item.productId,
-                quantity: item.quantity,
-                price: item.sellPrice,
-                subtotal: (item.sellPrice * item.quantity) - (item.sellPrice * item.quantity * (item.discount / 100))
+            console.log(`Subiendo ${pendingSales.length} ventas pendientes masivamente en un solo bloque (Bulk)...`);
+            await api.post('/sales/bulk', {
+              sales: pendingSales.map(sale => ({
+                id: sale.id,
+                storeId: sale.storeId,
+                invoiceNumber: sale.invoiceNumber,
+                date: sale.date,
+                clientName: sale.clientName,
+                clientDocument: sale.clientDocument || null,
+                sellerId: sale.sellerId || 'emp_1',
+                paymentMethod: sale.paymentMethod,
+                subtotal: sale.subtotal,
+                tax: sale.tax,
+                total: sale.total,
+                discount: sale.discount,
+                cost: sale.cost,
+                profit: sale.profit,
+                items: sale.items.map(item => ({
+                  productId: item.productId,
+                  quantity: item.quantity,
+                  price: item.sellPrice || item.price,
+                  subtotal: item.subtotal || ((item.sellPrice || item.price) * item.quantity)
+                }))
               }))
             });
+            console.log('Carga masiva completada con éxito.');
           } catch (err) {
-            console.error(`Fallo al autosincronizar venta pendiente ${sale.invoiceNumber}:`, err);
+            console.error('Error en la carga masiva en bloque:', err);
+          }
+        } else {
+          for (const sale of pendingSales) {
+            try {
+              await api.post('/sales', {
+                id: sale.id,
+                storeId: sale.storeId,
+                invoiceNumber: sale.invoiceNumber,
+                clientName: sale.clientName,
+                clientDocument: sale.clientDocument || null,
+                employeeId: sale.sellerId || 'emp_1',
+                paymentMethod: sale.paymentMethod,
+                subtotal: sale.subtotal,
+                tax: sale.tax,
+                total: sale.total,
+                discount: sale.discount,
+                cost: sale.cost,
+                profit: sale.profit,
+                items: sale.items.map(item => ({
+                  productId: item.productId,
+                  quantity: item.quantity,
+                  price: item.sellPrice,
+                  subtotal: (item.sellPrice * item.quantity) - (item.sellPrice * item.quantity * (item.discount / 100))
+                }))
+              });
+            } catch (err) {
+              console.error(`Fallo al autosincronizar venta pendiente ${sale.invoiceNumber}:`, err);
+            }
           }
         }
         const finalSales = pendingSales.length > 0 ? (await api.get('/sales').catch(() => cloudSales)) : cloudSales;
