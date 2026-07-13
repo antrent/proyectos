@@ -17,7 +17,14 @@ class StandardBillingStrategy extends BillingStrategy {
 
     items.forEach(item => {
       const itemSubtotal = item.product.sellPrice * item.quantity;
-      const discountAmount = itemSubtotal * ((item.discount || 0) / 100);
+      
+      let discountAmount = 0;
+      if (item.discountType === 'fixed') {
+        discountAmount = Number(item.discountValue || item.discount || 0);
+      } else {
+        const discVal = Number(item.discountValue !== undefined ? item.discountValue : (item.discount || 0));
+        discountAmount = itemSubtotal * (discVal / 100);
+      }
       
       subtotal += itemSubtotal - discountAmount;
       totalDiscount += discountAmount;
@@ -127,7 +134,9 @@ class SalesService {
         quantity: item.quantity,
         costPrice: item.product.costPrice,
         sellPrice: item.product.sellPrice,
-        discount: item.discount || 0
+        discount: item.discount || 0,
+        discountType: item.discountType || 'percent',
+        discountValue: item.discountValue || 0
       })),
       ...billing,
       paymentMethod: (saleData.payments && saleData.payments.length > 0) 

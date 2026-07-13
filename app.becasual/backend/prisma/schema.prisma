@@ -8,19 +8,20 @@ generator client {
 }
 
 model Store {
-  id        String     @id
-  name      String
-  slogan    String?
-  address   String?
-  phone     String?
-  email     String?
-  rent      String?
-  taxRate   Float      @default(19)
-  products  Product[]
-  purchases Purchase[]
-  sales     Sale[]
-  layaways  Layaway[]
-  closings  Closing[]
+  id                 String     @id
+  name               String
+  slogan             String?
+  address            String?
+  phone              String?
+  email              String?
+  rent               String?
+  taxRate            Float      @default(19)
+  defaultOpeningCash Float      @default(150000)
+  products           Product[]
+  purchases          Purchase[]
+  sales              Sale[]
+  layaways           Layaway[]
+  closings           Closing[]
 }
 
 model User {
