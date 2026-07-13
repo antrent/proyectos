@@ -7,7 +7,7 @@ export default function Login({ onLoginSuccess }) {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     
@@ -18,16 +18,14 @@ export default function Login({ onLoginSuccess }) {
 
     setLoading(true);
     // Add brief artificial delay for micro-animation feel
-    setTimeout(() => {
-      try {
-        const user = authService.login(username, password);
-        onLoginSuccess(user);
-      } catch (err) {
-        setError(err.message || 'Error de autenticación.');
-      } finally {
-        setLoading(false);
-      }
-    }, 600);
+    try {
+      const user = await authService.login(username, password);
+      onLoginSuccess(user);
+    } catch (err) {
+      setError(err.message || 'Error de autenticación.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
