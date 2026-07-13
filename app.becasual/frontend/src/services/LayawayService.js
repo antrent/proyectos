@@ -40,10 +40,28 @@ class LayawayService {
     // Reservar stock localmente
     const productsToUpdate = [];
     items.forEach(item => {
-      const product = inventoryService.getById(item.product.id);
+      let product = inventoryService.getById(item.product.id);
+      
+      // Si el producto no existe en el catálogo, lo creamos sobre la marcha
       if (!product) {
-        throw new Error(`El producto "${item.product.name}" ya no existe en el inventario.`);
+        product = inventoryService.create({
+          id: item.product.id || `prod_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+          barcode: item.product.barcode || '',
+          sku: item.product.sku || '',
+          name: item.product.name,
+          stock: Number(item.quantity) || 1, // Stock inicial = cantidad para que al restar quede en 0
+          costPrice: Number(item.product.costPrice) || 0,
+          sellPrice: Number(item.product.sellPrice) || 0,
+          provider: item.product.provider || '-',
+          line: item.product.line || '-',
+          category: item.product.category || '-',
+          minStock: 5
+        }, storeId || 'store_1');
+        
+        // Actualizar la referencia en el carrito
+        item.product.id = product.id;
       }
+
       if (product.stock < item.quantity) {
         throw new Error(`Stock insuficiente para reservar "${product.name}". Disponible: ${product.stock}, Solicitado: ${item.quantity}`);
       }

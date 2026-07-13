@@ -55,6 +55,22 @@ export default function Configuration({ user, onConfigChange, currentStoreId }) 
     e.preventDefault();
     setConfigSuccess('');
     storageRepository.saveConfig(config);
+    
+    // Guardar en la base de datos de GCP en segundo plano
+    const storeId = currentStoreId || 'store_1';
+    import('../services/api.js').then(({ api }) => {
+      api.put(`/stores/${storeId}`, {
+        name: config.name,
+        slogan: config.slogan,
+        address: config.address,
+        phone: config.phone,
+        email: config.email,
+        rent: config.rent,
+        taxRate: config.taxRate,
+        defaultOpeningCash: Number(config.defaultOpeningCash) || 150000
+      }).catch(err => console.error('Error al actualizar sucursal en GCP:', err));
+    });
+
     setConfigSuccess('Configuración de la tienda guardada con éxito.');
     onConfigChange();
   };
@@ -382,8 +398,13 @@ export default function Configuration({ user, onConfigChange, currentStoreId }) 
               <span className="badge success" style={{ padding: '12px', textAlign: 'center' }}>Vigente / OK</span>
             </div>
             <div className="form-group">
-              <label className="form-label">Circuito Cerrado de TV (CCTV)</label>
-              <span className="badge primary" style={{ padding: '12px', textAlign: 'center' }}>Activo / Monitoreado</span>
+              <label className="form-label">Base de Caja Predeterminada (pesos)</label>
+              <input
+                type="number"
+                className="form-control"
+                value={config.defaultOpeningCash || 150000}
+                onChange={(e) => setConfig({ ...config, defaultOpeningCash: Number(e.target.value) || 0 })}
+              />
             </div>
           </div>
 

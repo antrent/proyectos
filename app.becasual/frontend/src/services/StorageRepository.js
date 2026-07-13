@@ -147,6 +147,16 @@ class StorageRepository {
       const closings = await api.get('/closings');
       if (Array.isArray(closings)) this.setData('closings', closings);
 
+      const stores = await api.get('/stores');
+      if (Array.isArray(stores)) {
+        this.setData('stores', stores);
+        const savedStoreId = localStorage.getItem('becasual_current_store_id');
+        const activeStore = stores.find(s => s.id === savedStoreId) || stores[0];
+        if (activeStore) {
+          localStorage.setItem('becasual_config', JSON.stringify(activeStore));
+        }
+      }
+
       console.log('Sincronización con GCP completada de forma exitosa. 🎉');
       // Desencadenar evento global para que React actualice componentes
       window.dispatchEvent(new CustomEvent('becasual_db_sync_complete'));

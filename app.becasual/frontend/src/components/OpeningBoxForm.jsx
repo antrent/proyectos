@@ -1,7 +1,11 @@
 import React, { useState } from 'react';
+import { storageRepository } from '../services/StorageRepository';
 
 export default function OpeningBoxForm({ storeName, onOpen }) {
-  const [openingCash, setOpeningCash] = useState(150000);
+  const [openingCash, setOpeningCash] = useState(() => {
+    const config = storageRepository.getConfig();
+    return Number(config.defaultOpeningCash) || 150000;
+  });
   const [notes, setNotes] = useState('');
   const [error, setError] = useState('');
 

@@ -32,6 +32,10 @@ export default function Sales({ user, onSaleSuccess, currentStoreId }) {
   const [layawayInitialPayment, setLayawayInitialPayment] = useState(0);
   const [layawayPaymentMethod, setLayawayPaymentMethod] = useState('Efectivo');
   const [layawayError, setLayawayError] = useState('');
+
+  // Quick Product Modal state
+  const [isQuickProductModalOpen, setIsQuickProductModalOpen] = useState(false);
+  const [quickProductForm, setQuickProductForm] = useState({ name: '', barcode: '', costPrice: '', sellPrice: '', line: '', category: '', provider: '' });
   
   const barcodeRef = useRef(null);
 
@@ -98,7 +102,7 @@ export default function Sales({ user, onSaleSuccess, currentStoreId }) {
       newCart[existingIndex].quantity = newQty;
       setCart(newCart);
     } else {
-      setCart([...cart, { product, quantity: 1, discount: 0 }]);
+      setCart([...cart, { product, quantity: 1, discount: 0, discountType: 'percent', discountValue: 0 }]);
     }
   };
 
@@ -123,11 +127,49 @@ export default function Sales({ user, onSaleSuccess, currentStoreId }) {
     }
   };
 
-  const updateDiscount = (productId, discountVal) => {
-    const discount = Math.max(0, Math.min(100, Number(discountVal) || 0));
-    setCart(cart.map(item => 
-      item.product.id === productId ? { ...item, discount } : item
-    ));
+  const updateDiscountAdvanced = (productId, val, type) => {
+    const updated = cart.map(item => {
+      if (item.product.id === productId) {
+        const discountType = type || item.discountType || 'percent';
+        const rawVal = Number(val) || 0;
+        const discountValue = discountType === 'percent' ? Math.max(0, Math.min(100, rawVal)) : Math.max(0, rawVal);
+        return {
+          ...item,
+          discountType,
+          discountValue,
+          discount: discountType === 'percent' ? discountValue : 0
+        };
+      }
+      return item;
+    });
+    setCart(updated);
+  };
+
+  const handleCreateQuickProduct = (e) => {
+    e.preventDefault();
+    if (!quickProductForm.name.trim() || !quickProductForm.sellPrice) {
+      alert('Nombre y Precio de Venta son obligatorios.');
+      return;
+    }
+    const barcode = quickProductForm.barcode.trim() || `barcode_${Date.now()}`;
+    const newProduct = {
+      id: `prod_temp_${Date.now()}`,
+      barcode,
+      sku: `SKU-${Date.now().toString().slice(-6)}`,
+      name: quickProductForm.name.trim(),
+      sellPrice: Number(quickProductForm.sellPrice) || 0,
+      costPrice: Number(quickProductForm.costPrice) || 0,
+      stock: 1, // Habilitar stock temporal para checkout
+      provider: quickProductForm.provider.trim() || '-',
+      line: quickProductForm.line.trim() || '-',
+      category: quickProductForm.category.trim() || '-',
+      minStock: 5
+    };
+
+    setCart([...cart, { product: newProduct, quantity: 1, discount: 0, discountType: 'percent', discountValue: 0 }]);
+    setQuickProductForm({ name: '', barcode: '', costPrice: '', sellPrice: '', line: '', category: '', provider: '' });
+    setIsQuickProductModalOpen(false);
+    setSuccessMsg(`Producto rápido "${newProduct.name}" añadido al carrito.`);
   };
 
   const calculateCartSummary = () => {
@@ -273,6 +315,14 @@ export default function Sales({ user, onSaleSuccess, currentStoreId }) {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
+          <button 
+            type="button" 
+            className="btn btn-outline" 
+            style={{ padding: '0 16px', display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}
+            onClick={() => setIsQuickProductModalOpen(true)}
+          >
+            <span>➕</span> <span>Nuevo</span>
+          </button>
         </div>
 
         {error && (
@@ -352,14 +402,22 @@ export default function Sales({ user, onSaleSuccess, currentStoreId }) {
                   
                   {/* Discount input */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '6px' }}>
-                    <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>% Desc:</span>
+                    <select
+                      className="form-control"
+                      style={{ width: '42px', padding: '1px 2px', fontSize: '10px', height: '22px', borderRadius: 'var(--radius-sm)' }}
+                      value={item.discountType || 'percent'}
+                      onChange={(e) => updateDiscountAdvanced(item.product.id, item.discountValue !== undefined ? item.discountValue : (item.discount || 0), e.target.value)}
+                    >
+                      <option value="percent">%</option>
+                      <option value="fixed">$</option>
+                    </select>
                     <input
                       type="number"
                       className="form-control"
-                      style={{ width: '50px', padding: '2px 4px', fontSize: '11px', height: '22px' }}
-                      value={item.discount || ''}
+                      style={{ width: '70px', padding: '2px 4px', fontSize: '11px', height: '22px', borderRadius: 'var(--radius-sm)' }}
+                      value={item.discountValue !== undefined ? item.discountValue : (item.discount || '')}
                       placeholder="0"
-                      onChange={(e) => updateDiscount(item.product.id, e.target.value)}
+                      onChange={(e) => updateDiscountAdvanced(item.product.id, e.target.value, item.discountType || 'percent')}
                     />
                   </div>
                 </div>
@@ -696,6 +754,113 @@ export default function Sales({ user, onSaleSuccess, currentStoreId }) {
                 </button>
                 <button type="submit" className="btn btn-primary" disabled={layawayInitialPayment > summary.total}>
                   Confirmar Separado
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+      {/* Quick Product Modal */}
+      {isQuickProductModalOpen && (
+        <div className="modal-backdrop">
+          <div className="modal-card" style={{ maxWidth: '500px' }}>
+            <div className="modal-header">
+              <h3 className="modal-title">🏷️ Registrar Producto Rápido para el Carrito</h3>
+              <button className="close-btn" onClick={() => setIsQuickProductModalOpen(false)}>×</button>
+            </div>
+            <form onSubmit={handleCreateQuickProduct}>
+              <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div className="form-group">
+                  <label className="form-label">Nombre del Producto *</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    placeholder="Ej: BERMUDA LINO BEIGE"
+                    value={quickProductForm.name}
+                    onChange={(e) => setQuickProductForm({ ...quickProductForm, name: e.target.value })}
+                    required
+                    autoFocus
+                  />
+                </div>
+
+                <div className="grid-2">
+                  <div className="form-group">
+                    <label className="form-label">Precio de Venta *</label>
+                    <input
+                      type="number"
+                      className="form-control"
+                      placeholder="0"
+                      min="0"
+                      value={quickProductForm.sellPrice}
+                      onChange={(e) => setQuickProductForm({ ...quickProductForm, sellPrice: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Precio de Costo</label>
+                    <input
+                      type="number"
+                      className="form-control"
+                      placeholder="0"
+                      min="0"
+                      value={quickProductForm.costPrice}
+                      onChange={(e) => setQuickProductForm({ ...quickProductForm, costPrice: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid-2">
+                  <div className="form-group">
+                    <label className="form-label">Código Barras (Opcional)</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      placeholder="Autogenerado si vacío..."
+                      value={quickProductForm.barcode}
+                      onChange={(e) => setQuickProductForm({ ...quickProductForm, barcode: e.target.value })}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Proveedor</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      placeholder="Ej. Importado"
+                      value={quickProductForm.provider}
+                      onChange={(e) => setQuickProductForm({ ...quickProductForm, provider: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid-2">
+                  <div className="form-group">
+                    <label className="form-label">Línea</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      placeholder="Ej. Masculino"
+                      value={quickProductForm.line}
+                      onChange={(e) => setQuickProductForm({ ...quickProductForm, line: e.target.value })}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Categoría</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      placeholder="Ej. Bermudas"
+                      value={quickProductForm.category}
+                      onChange={(e) => setQuickProductForm({ ...quickProductForm, category: e.target.value })}
+                    />
+                  </div>
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-outline" onClick={() => setIsQuickProductModalOpen(false)}>
+                  Cancelar
+                </button>
+                <button type="submit" className="btn btn-primary">
+                  Agregar al Carrito
                 </button>
               </div>
             </form>
