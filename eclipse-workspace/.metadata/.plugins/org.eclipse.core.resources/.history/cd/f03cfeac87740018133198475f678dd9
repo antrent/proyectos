@@ -1,0 +1,5 @@
+package com.vacacionapp.app.controllers;
+
+public class DepartamentoController {
+
+}

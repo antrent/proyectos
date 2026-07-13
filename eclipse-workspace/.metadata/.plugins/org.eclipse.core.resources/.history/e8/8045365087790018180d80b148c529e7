@@ -1,0 +1,5 @@
+package com.vacacionapp.app.models.service;
+
+public interface IFestivoService {
+
+}

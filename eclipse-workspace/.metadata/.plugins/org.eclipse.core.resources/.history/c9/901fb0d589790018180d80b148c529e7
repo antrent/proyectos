@@ -1,0 +1,20 @@
+package com.vacacionapp.app.controllers;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.access.annotation.Secured;
+import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.SessionAttributes;
+
+import com.vacacionapp.app.models.service.IFestivoService;
+
+@Secured(value= {"ROLE_ADMIN"})
+@Controller
+@RequestMapping("/festivo")
+@SessionAttributes("festivo")
+public class FestivoController {
+	
+	@Autowired
+	private IFestivoService festivoService;
+
+}

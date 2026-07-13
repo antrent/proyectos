@@ -1,0 +1,9 @@
+package com.vacacionapp.app.models.dao;
+
+import org.springframework.data.repository.CrudRepository;
+
+import com.vacacionapp.app.models.entity.Solicitud;
+
+public interface ISolicitudDao extends CrudRepository<Solicitud, Integer> {
+
+}

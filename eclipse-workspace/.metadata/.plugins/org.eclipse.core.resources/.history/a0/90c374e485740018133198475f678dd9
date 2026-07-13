@@ -1,0 +1,18 @@
+package com.vacacionapp.app.models.service;
+
+import java.util.List;
+
+import com.vacacionapp.app.models.entity.Cargo;
+import com.vacacionapp.app.models.entity.Departamento;
+
+public interface IDepartamentoService {
+	
+	public List<Cargo> findAll();
+	
+	public Departamento findById(Integer deptoCod);
+	
+	public void save(Departamento departamento);
+	
+	public void deleteById(int deptoCod);
+
+}

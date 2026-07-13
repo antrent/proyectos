@@ -1,0 +1,5 @@
+package com.spring.boot.app.controllers;
+
+public class IndexController {
+
+}

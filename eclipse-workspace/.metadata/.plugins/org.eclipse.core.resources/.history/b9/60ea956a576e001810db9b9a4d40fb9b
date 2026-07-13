@@ -1,0 +1,5 @@
+package com.vacacionapp.app.models.dao;
+
+public interface IRoleDao {
+
+}

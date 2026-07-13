@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+<meta charset="UTF-8" />
+<title th:text="${titulo}">Insert title here</title>
+<link rel="stylesheet"
+	href="https://maxcdn.bootstrapcdn.com/bootstrap/4.1.0/css/bootstrap.min.css" />
+</head>
+<body>
+	<nav class="navbar navbar-expand-md navbar-dark bg-dark">
+		<a class="navbar-brand" href="#">Spring Boot</a>
+		<button class="navbar-toggler" type="button" data-toggle="collapse"
+			aria-label="Toggle navigation">
+			<span class="navbar-toggler-icon"></span>
+		</button>
+		<div class="collapse navbar-collapse">
+			<ul class="navbar-nav mr-auto">
+				<li class="nav-item active"><a class="nav-link" href="#">Inicio</a></li>
+				<li class="nav-item"><a class="nav-link" href="#about"
+					th:href="@{/listar}">Empleado</a></li>
+			</ul>
+		</div>
+	</nav>
+
+
+	<h1
+		class="text-secondary border border-success border-top-0 border-left-0 border-right-0"
+		th:text=${titulo}></h1>
+
+	<form th:action="{$/form}" th:object="${empleado}">
+		<table>
+			<tr>
+				<td>Tipo Documento</td>
+				<td><imput type="text" th:field="*{tipDocumento}" /></td>
+			</tr>
+			<tr>
+				<td>Numero Documento</td>
+				<td><imput type="text" th:field="*{numDocumento}" /></td>
+			</tr>
+			<tr>
+				<td>Primer Nombre</td>
+				<td><imput type="text" th:field="*{priNombre}" /></td>
+			</tr>
+			<tr>
+				<td>Segundo Nombre</td>
+				<td><imput type="text" th:field="*{segNombre}" /></td>
+			</tr>
+			<tr>
+				<td>Primer Apellido</td>
+				<td><imput type="text" th:field="*{priApellido}" /></td>
+			</tr>
+			<tr>
+				<td>Segundo Apellido</td>
+				<td><imput type="text" th:field="*{segApellido}" /></td>
+			</tr>
+			<tr>
+				<td>Fecha Ingreso</td>
+				<td><imput type="text" th:field="*{fechIngreso}" /></td>
+			</tr>
+			<tr>
+				<td></td>
+			</tr>
+		</table>
+		<imput type="hidden" th:field="*{codigo}" />
+	</form>
+
+</body>
+</html>

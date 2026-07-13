@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+	xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head th:replace="layout/layout :: head"></head>
+<body>
+	<header th:replace="layout/layout :: header"> </header>
+
+	<div class="container py-2">
+		<div class="card bg-light">
+			<div class="card-header" th:text=${titulo}></div>
+			<div class="card-body">
+				<h4 class="card-title">
+					<a sec:authorize="hasRole('ROLE_ADMIN')"
+						class="btn btn-primary btn-xs" th:href="@{/form}"><i class="fa fa-plus"></i> Crear
+						Empleado</a>
+				</h4>
+
+				<table class="table table-sm table-bordered table-striped my-4">
+					<thead class="thead-dark text-center">
+						<tr>
+							<th sec:authorize="hasRole('ROLE_ADMIN') or hasRole('ROLE_USEREMPJEF') or hasRole('ROLE_USEREMP')">Codigo</th>
+							<th>Tipo Doc.</th>
+							<th>Numero Doc.</th>
+							<th>Primer Nombre</th>
+							<th>Segundo Nombre</th>
+							<th>Primer Apellido</th>
+							<th>Segundo Apellido</th>
+							<th>Fecha Ingreso</th>
+							<th sec:authorize="hasRole('ROLE_ADMIN')  or hasRole('ROLE_USEREMPJEF')">Crear Solicitud</th>
+							<th sec:authorize="hasRole('ROLE_ADMIN')  or hasRole('ROLE_USEREMPJEF')">Editar</th>
+							<th sec:authorize="hasRole('ROLE_ADMIN')">Eliminar</th>
+						</tr>
+					</thead>
+					<tbody class="text-center col-sm-4">
+						<tr th:each="empleado: ${empleados} ">
+							<td sec:authorize="hasRole('ROLE_ADMIN')  or hasRole('ROLE_USEREMPJEF') or hasRole('ROLE_USEREMP')"><a
+								class="btn btn-primary btn-xs"
+								th:href="@{/ver/} + ${empleado.codigo}"
+								><i class="fa address-card"></i></a></td>
+							<td th:text="${empleado.tipDocumento}"></td>
+							<td th:text="${empleado.numDocumento}"></td>
+							<td th:text="${empleado.priNombre}"></td>
+							<td th:text="${empleado.segNombre}"></td>
+							<td th:text="${empleado.priApellido}"></td>
+							<td th:text="${empleado.segApellido}"></td>
+							<td th:text="${empleado.fechIngreso}"></td>
+							<td sec:authorize="hasRole('ROLE_ADMIN')  or hasRole('ROLE_USEREMPJEF')"><a
+								class="btn btn-success btn-xs"
+								th:href="@{'/solicitud/form/'+ ${empleado.codigo}}"
+								><i class="fa fa-plus"></i> Crear Solicitud</a></td>
+							<td sec:authorize="hasRole('ROLE_ADMIN')  or hasRole('ROLE_USEREMPJEF')"><a
+								class="btn btn-primary btn-xs"
+								th:href="@{/form/} + ${empleado.codigo}"><i class="fa fa-edit"></i> </a></td>
+							<td sec:authorize="hasRole('ROLE_ADMIN')"><a
+								class="btn btn-danger btn-xs "
+								th:href="@{/eliminar/} + ${empleado.codigo}"
+								onclick="return confirm('Estas Seguro de eliminar el registro?');"><i class="fa fa-trash-o"></i></a></td>
+						</tr>
+					</tbody>
+				</table>
+				<nav th:replace="paginator-nav :: paginator"></nav>
+			</div>
+		</div>
+	</div>
+	<footer th:replace="layout/layout :: footer"> </footer>
+
+</body>
+</html>

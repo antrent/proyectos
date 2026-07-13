@@ -1,0 +1,14 @@
+package com.vacacionapp.app.controllers;
+
+import org.springframework.security.access.annotation.Secured;
+import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.SessionAttributes;
+
+@Secured(value= {"ROLE_ADMIN"})
+@Controller
+@RequestMapping("/departamento")
+@SessionAttributes("departamento")
+public class DepartamentoController {
+
+}

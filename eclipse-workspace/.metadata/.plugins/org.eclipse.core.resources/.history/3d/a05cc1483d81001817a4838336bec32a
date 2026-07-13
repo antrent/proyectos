@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="layout/layout :: head"></head>
+<body>
+	<header th:replace="layout/layout :: header"> </header>
+
+	<div class="container py-2">
+		<div class="card bg-light">
+			<div class="card-header" th:text=${titulo}></div>
+			<div class="card-body">
+
+				<form th:action="@{/solicitud/form}" th:object="${solicitud}" method="post">
+					
+					
+					
+				<table th:if="${not #lists.isEmpty(solicitud)}"
+					class="table table-bordered  table-striped table-sm my-4 text-center">
+
+					<thead class="thead-dark">
+						<tr>
+							<th>Empleado</th>
+							<th>Fecha </br> solicitud</th>
+							<th>Fecha salida</th>
+							<th>Fecha </br> reingreso</th>
+							<th>Dias </br> Solic.</th>
+							<th>Aprobar</th>							
+							<th>Rechazar</th>
+						</tr>
+					</thead>
+					<tbody>
+						<tr th:each="solicitud: ${solicitud}">
+							<td th:text="${solicitud.codigoEmpSolicita}"></td>
+							<td th:text="${solicitud.fechSolicitud}"></td>
+							<td th:text="${solicitud.fechSalida}"></td>
+							<td th:text="${solicitud.fechReingreso}"></td>
+							<td th:text="${solicitud.diasSolicitados}"></td>
+							<!-- td th:text="${solicitud.estSolCodigo}"--> 
+							<td>
+							<button type="submit" class="btn btn-success btn-sm" onclick="actualizaEstado();"> 
+								<i class="fa fa-check"></i> Aprobar
+							</button>
+							<input th:value="${solicitud.estSolCodigo}" id="estSolCodigo" type="hidden" class="form-control form-control-sm" ></input>
+							</td>	
+							<td>	
+							<button type="submit" class="btn btn-danger btn-sm"> 
+								<i class="fa fa-times"></i> Rechazar
+							</button>
+							</td>							
+						</tr>
+					</tbody>
+				</table>
+					
+					<!-- div class="form-group row">
+						<div class="col-sm-4">
+						<button type="submit" class="btn btn-success btn-sm"> 
+								<i class="fa fa-save"></i> Guardar
+							</button>	
+						</div>
+					</div-->
+				</form>
+
+			</div>
+		</div>
+	</div>
+	<script>
+	function actualizaEstado() {
+		
+		console.log("antonio contdias "+contdias);
+		document.getElementById('estSolCodigo').value = 'A';
+		
+		console.log("antonio contdias "+document.getElementById('estSolCodigo').value);
+		
+		/*var v_fechSalida = document.getElementById('fechSalida').value;
+
+		var fechReingreso = document.getElementById('fechReingreso').value;
+		var v_fechReingreso = document.getElementById('fechReingreso').value;
+
+
+		if (v_fechSalida.length > 0 && v_fechReingreso.length > 0){
+
+			var diasdif = ((isNaN(new Date(fechReingreso).getTime())) ? 0 : new Date(fechReingreso).getTime()) - ((isNaN(new Date(fechSalida).getTime())) ? 0 : new Date(fechSalida).getTime());
+
+			if (fechSalida.length > 0 ){
+				fechSalida=fechSalida.split('-');
+				fechSalida = fechSalida[2]+'/'+fechSalida[1]+'/'+fechSalida[0];
+				
+				v_fechSalida = fechSalida.split('/');	
+				v_fechSalida = v_fechSalida[0]+'-'+v_fechSalida[1]+'-'+v_fechSalida[2];
+			}
+			
+			//fechSalida = new Date(fechSalida).getTime(); 
+			
+			if (fechReingreso.length > 0 ){
+				fechReingreso = fechReingreso.split('-');
+				fechReingreso = fechReingreso[2]+'/'+fechReingreso[1]+'/'+fechReingreso[0];
+					
+				v_fechReingreso = fechReingreso.split('/');	
+				v_fechReingreso = v_fechReingreso[0]+'-'+v_fechReingreso[1]+'-'+v_fechReingreso[2];			
+			}
+		
+			var contdias = Math.round(diasdif/(1000*60*60*24));
+					//consultamos los dias festivos configurados			
+					$(document).ready(function(){
+						
+						$.ajax({
+							url: "/solicitud/contarfestivo/"+v_fechSalida+"/"+v_fechReingreso,//21-06-2018/25-06-2018", 
+							dataType: "json"
+						})
+						.done(function(data){
+							//console.log( "antonio festivos en data "+data );
+							//console.log( "antonio dias en contdias "+contdias );
+							$("#diasSolicitados").val(contdias - data );
+						})	
+					}
+					);	
+			}*/	
+	}
+	</script>
+	
+	<footer th:replace="layout/layout :: footer"> </footer>
+
+</body>
+</html>

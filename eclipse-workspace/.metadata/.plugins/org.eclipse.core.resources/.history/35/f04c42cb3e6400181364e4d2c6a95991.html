@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="layout/layout :: head"></head>
+<body>
+	<header th:replace="layout/layout :: header"> </header>
+
+	<div class="container-fluid  py-2">
+		<div class="card bg-light">
+			<div class="card-header" th:text=${titulo}></div>
+			<div class="card-body">
+				<h4 class="card-title"><a class="btn btn-primary btn-xs"  th:href="@{'/solicitud/form/'+ ${empleado.codigo}}" th:text="'Crear Solicitud'"></a></h4>	
+				<!-- img
+					th:if="${empleado.foto != null && #strings.length(empleado.foto) > 0}"
+					class="img-thumbnail rounded float-left" style="max-width: 25%;"
+					th:src="@{'/uploads/' + ${empleado.foto}}"
+					th:alt="${empleado.foto}" />
+				<ul class="list-group">
+					<li class="list-group-item" th:text="${empleado.tipDocumento}+' '+${empleado.numDocumento}"></li>
+					<li class="list-group-item" th:text="${empleado.priNombre}+' '+${empleado.segNombre}+' '+${empleado.priApellido}+' '+${empleado.segApellido}"></li>
+					<li class="list-group-item" th:text="${empleado.fechIngreso}"></li>
+				</ul-->
+				<div th:if="${#lists.isEmpty(empleado.solicitudes)}"
+					class="alert alert-info my-4"
+					th:text="'No tienes solicitudes realizadas'"></div>
+				<table th:if="${not #lists.isEmpty(empleado.solicitudes)}"
+					class="table table-bordered  table-striped table-sm my-4 text-center">
+					
+					<thead class="thead-dark">
+					<tr>
+						<th>Fecha </br> solicitud</th>
+						<!-- th>Tipo sol.</th-->
+						<th>Estado sol.</th>
+						<th>Periodo inicio</th>
+						<th>Periodo fin</th>
+						<!-- th>Dias Periodo </br> a fecha sol.</th-->						
+						<th>Fecha salida</th>
+						<th>Fecha </br> reingreso</th>
+						<th>Dias </br> Solic.</th>						
+						<th>Dias </br> Ptes</th>
+						<th>Dias </br> disfru.</th>
+						<th>Dias </br> acomu. ptes.</th>
+						<th>Dias por </br> disfrutar</th>
+						<th>Dias total </br> General</th>
+					</tr>
+					</thead>
+					<tbody >
+						<tr th:each="solicitud: ${empleado.solicitudes}">
+							<td th:text="${solicitud.fechSolicitud}"></td>
+							<!-- td th:text="${solicitud.tipSolCodigo}"></td-->
+							<td th:text="${solicitud.estSolCodigo}"></td>
+							<td th:text="${solicitud.fechIni}"></td>
+							<td th:text="${solicitud.fechFin}"></td>
+							<!-- td th:text="${solicitud.diasTotalPeriodo}"></td-->
+							<td th:text="${solicitud.fechSalida}"></td>
+							<td th:text="${solicitud.fechReingreso}"></td>
+							<td th:text="${solicitud.diasSolicitados}"></td>
+							<td th:text="${solicitud.diasPendientes}"></td>
+							<td th:text="${solicitud.diasDisfrutados}"></td>
+							<td th:text="${solicitud.diasAcomuPendientes}"></td>
+							<td th:text="${solicitud.diasPorDisfrutar}"></td>
+							<td th:text="${solicitud.diasTotalGeneral}"></td>
+							
+						</tr>
+					</tbody>
+				</table>
+				<!-- nav th:replace="paginator-nav :: paginator"></nav-->
+			</div>
+		</div>
+	</div>
+	<footer th:replace="layout/layout :: footer"> </footer>
+
+</body>
+</html>

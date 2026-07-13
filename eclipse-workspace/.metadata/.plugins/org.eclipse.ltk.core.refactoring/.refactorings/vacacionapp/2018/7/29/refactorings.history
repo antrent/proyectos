@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<session version="1.0">
+<refactoring comment="Rename resource &apos;vacacionapp/src/main/resources/static/ayuda/Ayuda_funcional.pdf&apos; to &apos;ayuda_funcional.pdf&apos;" description="Rename resource &apos;Ayuda_funcional.pdf&apos;" flags="7" id="org.eclipse.ltk.core.refactoring.rename.resource" input="src/main/resources/static/ayuda/Ayuda_funcional.pdf" name="ayuda_funcional.pdf" stamp="1531858803071" updateReferences="true"/>
+</session>

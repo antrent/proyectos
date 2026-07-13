@@ -1,0 +1,54 @@
+package com.vacacionapp.app.models.service;
+
+import java.util.List;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.vacacionapp.app.models.dao.IDetEmpleadoCargoDao;
+import com.vacacionapp.app.models.entity.DetEmpleadoCargo;
+import com.vacacionapp.app.models.entity.Empleado;
+
+@Service
+public class DetEmpleadoCargoServiceImpl implements IDetEmpleadoCargoService {
+
+	@Autowired
+	private IDetEmpleadoCargoDao detEmpleadoCargoDao; 
+	
+	@Override
+	@Transactional(readOnly=true)
+	public List<DetEmpleadoCargo> findAll() {
+		// TODO Auto-generated method stub
+		return (List<DetEmpleadoCargo>) detEmpleadoCargoDao.findAll();
+	}
+
+	@Override
+	@Transactional(readOnly=true)
+	public DetEmpleadoCargo findById(Integer detEmpCarCod) {
+		// TODO Auto-generated method stub
+		return detEmpleadoCargoDao.findById(detEmpCarCod).orElse(null);
+	}
+	@SuppressWarnings("unchecked")
+	@Override
+	@Transactional(readOnly=true)
+	public List<DetEmpleadoCargo> findByEmpCodigo(int EmpCarCod) {
+		return (List<DetEmpleadoCargo>) detEmpleadoCargoDao.findByEmpCodigo(EmpCarCod);
+	}
+	
+	@Override
+	@Transactional
+	public void save(DetEmpleadoCargo detEmpleadoCargo) {
+		detEmpleadoCargoDao.save(detEmpleadoCargo);
+
+	}
+
+	@Override
+	@Transactional
+	public void deleteById(int detEmpCarCod) {
+		detEmpleadoCargoDao.deleteById(detEmpCarCod);
+
+	}
+
+
+}

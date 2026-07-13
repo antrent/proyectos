@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+	xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head th:replace="layout/layout :: head"></head>
+<body>
+	<header th:replace="layout/layout :: header"> </header>
+
+	<div class="container py-2">
+		<!-- div class="card bg-light">
+			<div class="card-header" th:text=${titulo}></div>
+			<div class="card-body">
+				<h4 class="card-title">
+					<a sec:authorize="hasRole('ROLE_ADMIN')"
+						class="btn btn-primary btn-xs" th:href="@{/formcargo}"> Crear Cargo</a>
+				</h4>
+
+				<nav th:replace="paginator-nav :: paginator"></nav>
+			</div>
+		</div-->
+	</div>
+	<footer th:replace="layout/layout :: footer"> </footer>
+
+</body>
+</html>

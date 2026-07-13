@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+	xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head th:fragment="head">
+<meta charset="UTF-8" />
+<title th:text="'Spring Boot ' + ${titulo}"></title>
+<link rel="stylesheet" th:href="@{/css/font-awesome.min.css}" />
+<link rel="stylesheet" th:href="@{/css/bootstrap.min.css}" />
+
+
+
+</head>
+<body>
+	<header th:fragment="header">
+		<nav class="navbar navbar-expand-md navbar-dark bg-dark">
+			<button class="navbar-toggler" type="button" data-toggle="collapse"
+				aria-label="Toggle navigation">
+				<span class="navbar-toggler-icon"></span>
+			</button>
+
+				<ul class="navbar-nav mr-auto">
+					<div sec:authorize="isAuthenticated()" class="dropdown open">
+					  <a class="btn btn-outline-primary  dropdown-toggle" data-toggle="collapse" href="#menu"
+							data-parent="#accordion"> Menu
+					  </a>
+					  <div class="dropdown-menu col" id="menu">
+					  	<div class="card-link dropright" >
+					    	<button class="dropdown-item dropdown-toggle" 
+					    			type="button" id="empleadoMenu"
+					    			data-toggle="dropdown" aria-haspopup="true" 
+					    			aria-expanded="false">Empleado
+					    	</button>
+					    	<div class="dropdown-menu">
+						    	<a sec:authorize="hasRole('ROLE_ADMIN')" class="dropdown-item" th:href="@{/form}">Crear</a>
+					    		<div sec:authorize="hasRole('ROLE_ADMIN')" class="dropdown-divider"></div>
+						    	<a  class="dropdown-item" th:href="@{/listar}">Consultar</a>
+					    	</div>
+					    </div>
+					    <div class="dropdown-divider"></div>
+					  	<div class="card-link dropright">
+					    	<button class="dropdown-item dropdown-toggle" 
+					    			type="button" id="empleadoMenu"
+					    			data-toggle="dropdown" aria-haspopup="true" 
+					    			aria-expanded="false">Solicitud
+					    	</button>
+					    	<div class="dropdown-menu">
+						 
+						    	<a  class="dropdown-item" th:href="@{|/solicitud/form/${#authentication.principal}|}">Crear</a> <!-- se debe ajustar los parametros de envio importante tener en cuenta-->
+						    	
+						    	<!--sec:authentication="principal"  -->
+					    		<div class="dropdown-divider"></div>
+						    	<a  class="dropdown-item" th:href="@{/ver/13}">Consultar</a><!-- se debe ajustar los parametros de envio importante tener en cuenta-->
+					    	</div>
+					    </div>					    
+					    <div sec:authorize="hasRole('ROLE_ADMIN')" class="dropdown-divider"></div>
+					  	<div sec:authorize="hasRole('ROLE_ADMIN')" class="card-link dropright">
+					    	<button class="dropdown-item dropdown-toggle" 
+					    			type="button" id="empleadoMenu"
+					    			data-toggle="dropdown" aria-haspopup="true" 
+					    			aria-expanded="false">Catalogo
+					    	</button>
+					    	<div class="dropdown-menu">
+						    	<a class="dropdown-item" href="#!">Cargo</a>
+						    	<div class="dropdown-divider"></div>
+						    	<a class="dropdown-item" href="#!">Departamento</a>
+						    	<div class="dropdown-divider"></div>
+						    	<a class="dropdown-item" href="#!">Tipo Documento</a>
+						    	<div class="dropdown-divider"></div>
+						    	<a class="dropdown-item" href="#!">Estado</a>
+						    	<div class="dropdown-divider"></div>
+						    	<a class="dropdown-item" href="#!">Rol</a>
+					    	</div>
+					    </div>
+					  </div>
+					</div>
+					
+					<!-- li class="nav-item"><a class="nav-link" th:href="@{/listar}">Empleado</a></li-->
+				</ul>
+				<ul class="navbar-nav navbar-right">
+					<li sec:authorize="!isAuthenticated()"><a
+						class="btn btn-outline-primary" th:href="@{/login}">Iniciar Sesion</a></li>
+					<li sec:authorize="isAuthenticated()" class="dropdown"><a
+						class="btn btn-outline-primary dropdown-toggle" href="#"
+						role="button" id="dropdownMenuLink" data-toggle="dropdown"
+						aria-haspopup="true" aria-expanded="false"> <span
+							sec:authentication="name"></span>
+					</a>
+						<div class="dropdown-menu" aria-labelledby="dropdownMenuLink">
+							<form id="logoutForm" th:action="@{/logout}" method="post">
+								<button class="dropdown-item"
+									onclick="document.getElementById('logoutForm').submit();"
+									type="submit">Cerrar Sesion</button>
+							</form>
+						</div></li>
+				</ul>
+			</div>
+		</nav>
+		<div class="alert alert-success" th:if="${success != null}"
+			th:text="${success}"></div>
+		<div class="alert alert-danger" th:if="${error != null}"
+			th:text="${error}"></div>
+		<div class="alert alert-warning" th:if="${warning != null}"
+			th:text="${warning}"></div>
+		<div class="alert alert-info" th:if="${info != null}"
+			th:text="${info}"></div>
+	</header>
+
+	<div class="container"></div>
+	<footer th:fragment="footer" class="container">
+		<hr />
+
+		<p align="center">
+		   <img th:src="@{/images/spring-logo.png}" alt="Spring logo" th:align="bottom" />		
+			Desarrollado con <a href="https://projects.spring.la/spring-boot">	Spring Boot </a> y <a href="http://thymeleaf.org">	Thymeleaf </a>
+			Proyecto realizado por Antonio Renteria.
+			<p align="center" sec:authorize="isAuthenticated()">
+				Usuario logeado: <span sec:authentication="name"></span> 
+				| Roles: <span sec:authentication="principal.authorities"></span>
+				| Datos: <span sec:authentication="principal"></span>
+				
+			</p>		 
+			
+		</p>
+
+		<!-- Opcional JavaScript-->
+		<!-- Jquery first JavaScript-->
+		<script th:src="@{/js/jquery-3.2.1.min.js}"></script>
+		<script th:src="@{/js/popper.min.js}"></script>
+		<script th:src="@{/js/bootstrap.min.js}"></script>
+
+	</footer>
+</body>
+</html>

@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="layout/layout :: head"></head>
+<body>
+	<header th:replace="layout/layout :: header"> </header>
+
+	<div class="container py-2">
+		<div class="card bg-light">
+			<div class="card-header" th:text=${titulo}></div>
+			<div class="card-body">
+
+				<div th:object="${empleado}" th:remove="tag">
+					<ul th:if="${#fields.hasErrors('*')}" class="alert alert-danger"
+						role="alert">
+						<li th:each="err : ${#fields.errors('*')}" th:text="${err}"></li>
+					</ul>
+
+				</div>
+
+				<form th:action="@{/form}" th:object="${empleado}" method="post"
+					enctype="multipart/form-data">
+					<div class="form-row">
+						<div class="form-group col-md-2">
+							<!-- label for="tipDocumento" class="col-form-label">Tipo
+								Documento</label> <input type="text" th:field="*{tipDocumento}"
+								class="form-control form-control-sm"
+								th:errorclass="'form-control alert-danger'" /> <small
+								class="form-text text-danger"
+								th:if="${#fields.hasErrors('tipDocumento')}"
+								th:errors="*{tipDocumento}"></small-->
+								<label for="rol" class="col-form-label">Tipo Documento</label>
+								<select th:field="*{tipDocumento}"
+									class="form-control form-control-sm">
+									<option value="" text="">Seleccione</option>									
+									<option th:each="tipdocu : ${T(com.vacacionapp.app.util.lisval.TipoDocumentoEnum).values()}" th:value="${tipdocu.name()}"
+										th:text="${tipdocu.getTipoDocumento()}"></option>
+								</select>								
+						</div>
+						<div class="form-group col-md-2">
+							<label for="numDocumento" class="col-form-label">Numero
+								Documento</label> <input type="text" th:field="*{numDocumento}"
+								class="form-control form-control-sm"
+								th:errorclass="'form-control alert-danger'" /> <small
+								class="form-text text-danger"
+								th:if="${#fields.hasErrors('numDocumento')}"
+								th:errors="*{numDocumento}"></small>
+						</div>
+						<div class="form-group col-md-1">
+							<label for="iniciales" class="col-form-label">Iniciales</label> <input
+								type="text" th:field="*{iniciales}"
+								class="form-control form-control-sm" readonly="readonly"
+								th:errorclass="'form-control alert-danger'" /> <small
+								class="form-text text-danger"
+								th:if="${#fields.hasErrors('iniciales')}"
+								th:errors="*{iniciales}"></small>
+						</div>						
+					</div>
+					<div class="form-row">
+						<div class="form-group col-md-2">
+							<label for="priNombre" class="col-form-label">Primer
+								Nombre</label> <input type="text" th:field="*{priNombre}"
+								class="form-control form-control-sm"
+								onchange="obtenerInicales();"
+								th:errorclass="'form-control alert-danger'" /> <small
+								class="form-text text-danger"
+								th:if="${#fields.hasErrors('priNombre')}"
+								th:errors="*{priNombre}"></small>
+						</div>
+						<div class="form-group col-md-2">
+							<label for="segNombre" class="col-form-label">Segundo
+								Nombre</label> <input type="text" th:field="*{segNombre}"
+								class="form-control form-control-sm"
+								onchange="obtenerInicales();"
+								th:errorclass="'form-control alert-danger'" /> <small
+								class="form-text text-danger"
+								th:if="${#fields.hasErrors('segNombre')}"
+								th:errors="*{segNombre}"></small>
+						</div>
+						<div class="form-group col-md-2">
+							<label for="priApellido" class="col-form-label">Primer
+								Apellido</label> <input type="text" th:field="*{priApellido}"
+								class="form-control form-control-sm"
+								onchange="obtenerInicales();"
+								th:errorclass="'form-control alert-danger'" /> <small
+								class="form-text text-danger"
+								th:if="${#fields.hasErrors('priApellido')}"
+								th:errors="*{priApellido}"></small>
+						</div>
+						<div class="form-group col-md-2">
+							<label for="segApellido" class="col-form-label">Segundo
+								Apellido</label> <input type="text" th:field="*{segApellido}"
+								class="form-control form-control-sm"
+								onchange="obtenerInicales();"
+								th:errorclass="'form-control alert-danger'" /> <small
+								class="form-text text-danger"
+								th:if="${#fields.hasErrors('segApellido')}"
+								th:errors="*{segApellido}"></small>
+						</div>
+						<div class="form-group col-md-2">
+								<label for="rol" class="col-form-label">Genero</label>
+								<select th:field="*{genero}"
+									class="form-control form-control-sm">
+									<option value="" text="">Seleccione</option>									
+									<option th:each="tipgenero : ${T(com.vacacionapp.app.util.lisval.TipoGeneroEnum).values()}" th:value="${tipgenero.name()}"
+										th:text="${tipgenero.getTipoGenero()}"></option>
+								</select>
+								<small
+									class="form-text text-danger"
+									th:if="${#fields.hasErrors('genero')}" th:errors="*{genero}"></small>																
+								
+						</div>
+						<div class="form-group col-md-2">
+							<label for="fechNacimiento" class="col-form-label">Fecha
+								Nacimiento</label> <input type="date"
+								class="form-control form-control-sm" id="fechNac" exclude="true" />
+							<input type="text" th:field="*{fechNacimiento}"
+								class="form-control form-control-sm" id="fechNacimiento"
+								hidden="true" th:errorclass="'form-control alert-danger'"
+								placeholder="DD/MM/YYYY" /> <small
+								class="form-text text-danger"
+								th:if="${#fields.hasErrors('fechNacimiento')}"
+								th:errors="*{fechNacimiento}"></small>
+						</div>
+					</div>
+					<div class="form-row">
+						<div class="form-group col-md-2">
+							<label for="fechIngreso" class="col-form-label">Fecha
+								Ingreso</label> <input type="date" class="form-control form-control-sm"
+								id="fechIng" exclude="true" /> <input type="text"
+								th:field="*{fechIngreso}" class="form-control form-control-sm"
+								id="fechIngreso" hidden="true"
+								th:errorclass="'form-control alert-danger'"
+								placeholder="DD/MM/YYYY" /> <small
+								class="form-text text-danger"
+								th:if="${#fields.hasErrors('fechIngreso')}"
+								th:errors="*{fechIngreso}"></small>
+						</div>
+						<div class="form-group col-md-3">
+							<label for="email" class="col-form-label">Email</label> <input
+								type="email" th:field="*{email}"
+								class="form-control form-control-sm"
+								placeholder="Ingresa el email"
+								onchange="obtenerUsuarioPassword();"
+								th:errorclass="'form-control alert-danger'" /> <small
+								class="form-text text-danger"
+								th:if="${#fields.hasErrors('email')}" th:errors="*{email}"></small>
+						</div>
+						<div class="form-group col-md-3">
+							<label for="rol" class="col-form-label">Rol</label>
+								<select th:field="*{rol}"
+									class="form-control form-control-sm">
+									<option value="" text="">Seleccione</option>									
+									<option th:each="role : ${roles}" th:value="${role.rolCodigo}"
+										th:text="${role.descripcion}"></option>
+								</select>
+						</div>	
+					<div class="form-group row">
+						
+						<div class="col-sm-4">
+							<a	class="btn btn-primary btn-sm" 
+								th:href="@{/detempleadocargo/formempleadocargo/} + *{codigo}" th:text='Cargos'></a>
+						</div>
+					</div>						
+
+					</div>	
+					<div class="form-row">						
+						<div class="form-group col-md-2">
+							<label for="usuario" class="col-form-label">Usuario</label> <input
+								type="text" th:field="*{usuario}"
+								class="form-control form-control-sm" readonly="readonly"
+								th:errorclass="'form-control alert-danger'" /> <small
+								class="form-text text-danger"
+								th:if="${#fields.hasErrors('usuario')}" th:errors="*{usuario}"></small>
+						</div>
+						<div class="form-group col-md-2">
+							<label for="password" class="col-form-label">Password</label> <input
+								type="password" th:field="*{password}"
+								class="form-control form-control-sm" readonly="readonly"
+								th:errorclass="'form-control alert-danger'" /> <small
+								class="form-text text-danger"
+								th:if="${#fields.hasErrors('password')}" th:errors="*{password}"></small>
+						</div>
+						<div class="form-group col-md-2" hidden="true">
+							<label for="file" class="col-form-label">Foto</label> <input
+								type="file" name="file" class="form-control"></input>
+						</div>
+					</div>
+					<div class="form-group row">
+						<div class="form-row col-md-1">
+							<div class="custom-control custom-checkbox">
+								<input type="checkbox" th:field="*{activo}"
+									class="custom-control-input" id="activo" value="S" /> <label
+									class="custom-control-label" for="activo">Activo</label>
+							</div>
+						</div>
+					</div>
+
+					<div class="form-group row">
+						<div class="col-sm-4">
+							<input type="submit" value="Crear Empleado"
+								onclick="formatearFecha(); obtenerUsuarioPassword(); " class="btn btn-primary" />
+						</div>
+					</div>
+				</form>
+			</div>
+		</div>
+	</div>
+	<script>
+		function obtenerInicales() {
+			// Obteniendo las inidicales
+			var priNombre = document.getElementById('priNombre').value;
+			var segNombre = document.getElementById('segNombre').value;
+			var priApellido = document.getElementById('priApellido').value;
+			var segApellido = document.getElementById('segApellido').value;
+			document.getElementById('iniciales').value = (priNombre
+					.substr(0, 1)
+					+ segNombre.substr(0, 1) + priApellido.substr(0, 1) + segApellido
+					.substr(0, 1)).toUpperCase();
+			//).toUpperCase()
+		}
+		function obtenerUsuarioPassword() {
+			// Obteniendo usuario
+			var email = document.getElementById('email').value;
+			if (email.length > 0) {
+				email = email.split('@');
+				document.getElementById('usuario').value = email[0];
+				document.getElementById('password').value = document.getElementById('numDocumento').value;
+				if ((document.getElementById('password').value).length == 0) {
+					document.getElementById('password').value = document
+							.getElementById('numDocumento').value;
+				}
+			}
+
+		}
+		function formatearFecha() {
+
+			//dando formato a la fechNacimiento
+			var fechNacimiento = document.getElementById('fechNac').value;
+			var dia = fechNacimiento.substr(0, 4);
+			var mes = fechNacimiento.substr(5, 2);
+			var anio = fechNacimiento.substr(8, 2);
+			document.getElementById('fechNacimiento').value = fechNacimiento
+					.replace(/^(\d{4})-(\d{2})-(\d{2})$/g, '$3/$2/$1');
+
+			//dando formato a la fechIngreso
+			var fechIngreso = document.getElementById('fechIng').value;
+			var dia = fechIngreso.substr(0, 4);
+			var mes = fechIngreso.substr(5, 2);
+			var anio = fechIngreso.substr(8, 2);
+			document.getElementById('fechIngreso').value = fechIngreso.replace(
+					/^(\d{4})-(\d{2})-(\d{2})$/g, '$3/$2/$1');
+
+		}
+	</script>
+	<footer th:replace="layout/layout :: footer"> </footer>
+
+</body>
+</html>

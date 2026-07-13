@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="layout/layout :: head"></head>
+<body>
+	<header th:replace="layout/layout :: header"> </header>
+
+	<div class="container py-2">
+		<div class="card bg-light">
+			<div class="card-header" th:text=${titulo}></div>
+			<div class="card-body">
+
+				<form th:action="@{/solicitud/formaprobar}" th:object="${solicitud}" method="post">
+					
+					
+					
+					<div class="form-group row">
+						<div class="col-sm-4">
+						<button type="submit" class="btn btn-success btn-sm"> 
+								<i class="fa fa-save"></i> Guardar
+							</button>	
+						</div>
+					</div>
+				</form>
+
+			</div>
+		</div>
+	</div>
+	<footer th:replace="layout/layout :: footer"> </footer>
+
+</body>
+</html>

@@ -1,0 +1,44 @@
+package com.vacacionapp.app.models.entity;
+
+import java.util.List;
+
+import com.vacacionapp.app.util.lisval.TipoDocumentoEnum;
+
+public class TipoDocumento {
+
+	private String codigo;
+	private String descripcion;
+	private TipoDocumentoEnum tipoDocumento;
+	private TipoDocumento TipoDocumentoList;
+	
+	public TipoDocumentoEnum getTipoDocumento() {
+		return tipoDocumento;
+	}
+	public void setTipoDocumento(TipoDocumentoEnum tipoDocumento) {
+		this.tipoDocumento = tipoDocumento;
+		this.codigo = tipoDocumento.name();
+		this.descripcion = tipoDocumento.getTipoDocumento();
+	}
+	public String getCodigo() {
+		return codigo;
+	}
+	public void setCodigo(String codigo) {
+		this.codigo = codigo;
+	}
+	public String getDescripcion() {
+		return descripcion;
+	}
+	public void setDescripcion(String descripcion) {
+		this.descripcion = descripcion;
+	}
+	public TipoDocumento setTipoDocumentoList(List<TipoDocumentoEnum> tiposDoc) {
+		TipoDocumento datoTipDoc = new TipoDocumento();
+		for (int i = 0; i <= tiposDoc.size(); i++) {
+			datoTipDoc.codigo = tiposDoc.get(i).name();
+			datoTipDoc.descripcion = tiposDoc.get(i).getTipoDocumento();
+		}
+		return datoTipDoc;
+	}	
+	
+	
+}

@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="layout/layout :: head"></head>
+<body>
+	<header th:replace="layout/layout :: header"> </header>
+
+	<div class="container py-2">
+		<div class="card bg-light">
+			<div class="card-header" th:text=${titulo}></div>
+			<div class="card-body">
+
+				<form th:action="@{/solicitud/formaprobar}" th:object="${solicitud}" method="post">
+					<div class="form-row">
+						<input th:value="${solicitud.codigoEmpSolicita}" type="hidden"
+							class="form-control form-control-sm" disabled="disabled"></input>
+						<div class="form-group col-md-8">
+							<label class="col-form-label">Empleado</label> <input
+								th:value="${solicitud.empleado.priNombre}+' '+${solicitud.empleado.segNombre}+' '+${solicitud.empleado.priApellido}+' '+${solicitud.empleado.segApellido}"
+								class="form-control form-control-sm" disabled="disabled"></input>
+
+						</div>
+						<div class="form-group col-md-2">
+							<label class="col-form-label">Inicio contrato</label> <input
+								th:value="${solicitud.empleado.fechIngreso}"
+								class="form-control form-control-sm" disabled="disabled"></input>
+						</div>
+					</div>
+					<div class="form-row">
+						<div class="form-group col-md-2">
+							<label class="col-form-label">Dias vacaciones a hoy</label> <input
+								type="text" th:field="*{diasTotalGeneral}" class="form-control form-control-sm"
+								disabled="disabled"></input>
+						</div>
+						<div class="form-group col-md-2">
+							<label class="col-form-label">Dias disfrutados a hoy</label> <input
+								type="text" th:field="*{diasDisfrutados}" class="form-control form-control-sm"
+								disabled="disabled"></input>
+						</div>
+						<div class="form-group col-md-2">
+							<label class="col-form-label">Total dias por disfrutar</label> <input
+								type="text" th:field="*{diasPorDisfrutar}" class="form-control form-control-sm"
+								disabled="disabled"></input>
+						</div>
+						<!--div class="form-group col-md-3">
+							<label class="col-form-label">Tipo solicitud</label>
+							<input type="text" th:field="*{tipSolCodigo}" class="form-control form-control-sm"></input>
+						</div-->
+						<div class="form-group col-md-2">
+							<label class="col-form-label">Estado solicitud</label> 
+							<!-- input type="text" th:field="*{estSolCodigo}" 
+								   class="form-control form-control-sm"
+								   disabled="disabled"></input-->
+							<select th:field="*{estSolCodigo}"
+								class="form-control form-control-sm"
+								disabled="disabled">
+								<option value="">Seleccione</option>									
+								<option th:each="tipestadosolicitud : ${T(com.vacacionapp.app.util.lisval.TipoEstadoSolicitudEnum).values()}" th:value="${tipestadosolicitud.name()}"
+									th:text="${tipestadosolicitud.getTipoEstadoSolicitud()}"></option>
+							</select>
+							<small class="form-text text-danger"
+								th:if="${#fields.hasErrors('estSolCodigo')}" th:errors="*{estSolCodigo}"></small>								
+						</div>
+					</div>
+					<div class="form-row">
+						<div class="form-group col-md-2">
+							<label class="col-form-label">Periodo inicio</label> <input
+								type="text" th:field="*{fechIni}" class="form-control form-control-sm"
+								readonly="readonly"></input>
+						</div>
+						<div class="form-group col-md-2">
+							<label class="col-form-label">Periodo fin</label> <input
+								type="text" th:field="*{fechFin}" class="form-control form-control-sm"
+								readonly="readonly"></input>
+						</div>
+						<!-- div class="form-group col-md-2">
+							<label class="col-form-label">Dias Periodo a hoy</label-->
+						<input type="hidden" th:field="*{diasTotalPeriodo}"
+							class="form-control form-control-sm" id="diasTotalPeriodo" readonly="readonly"></input>
+						<!-- /div>
+						<div class="form-group col-md-2" >
+							<label class="col-form-label">Dias ptes.</label-->
+						<input type="hidden" th:field="*{diasPendientes}"
+							class="form-control form-control-sm" id="diasPendientes" readonly="readonly"></input>
+						<!-- /div>						
+						<div class="form-group col-md-2">
+							<label class="col-form-label">Dias por disfrutar</label>
+							<input type="text" th:field="*{diasPorDisfrutar}" class="form-control" id="diasPorDisfrutar" readonly="readonly"></input>
+						</div>						
+						<div class="form-group col-md-2">
+							<label class="col-form-label">Dias acomulados pte.</label-->
+						<input type="hidden" th:field="*{diasAcomuPendientes}"
+							class="form-control form-control-sm" id="diasAcomuPendientes" readonly="readonly"></input>
+						<!-- /div-->
+					</div>
+					<div class="form-row">
+						<div class="form-group col-md-2">
+							<label class="col-form-label">Fecha salida</label> <input
+								type="date" th:field="*{fechSalida}" class="form-control form-control-sm"
+								id="fechSalida" onchange="calcularDiasSolicitados();"></input>
+						</div>
+						<div class="form-group col-md-2">
+							<label class="col-form-label">Fecha reingreso</label> <input
+								type="date" th:field="*{fechReingreso}" class="form-control form-control-sm"
+								id="fechReingreso" onchange="calcularDiasSolicitados();"></input>
+						</div>
+						<div class="form-group col-md-2">
+							<label class="col-form-label">Dias solicitados</label> <input
+								type="text" th:field="*{diasSolicitados}" class="form-control form-control-sm"
+								id="diasSolicitados" readonly="readonly"></input>
+						</div>
+					</div>
+
+					<div class="form-group row">
+						<label class="col-sm-2 col-form-label">Observacion</label>
+						<div class="col-sm-6">
+							<textarea th:field="*{observacion}" class="form-control form-control-sm"></textarea>
+						</div>
+					</div>
+
+					<div class="form-group row">
+						<div class="col-sm-4">
+						<button type="submit" class="btn btn-success btn-sm"> 
+								<i class="fa fa-save"></i> Guardar
+							</button>	
+						</div>
+					</div>
+				</form>
+
+			</div>
+		</div>
+	</div>
+	<footer th:replace="layout/layout :: footer"> </footer>
+
+</body>
+</html>

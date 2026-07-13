@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+	xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head th:fragment="head">
+<meta charset="UTF-8" />
+<title th:text="'Spring Boot ' + ${titulo}"></title>
+</head>
+<body>
+	<header th:replace="layout/layout :: header"> </header>
+	<div th:fragment="menu">
+		<!-- div class="card bg-light card-menu"-->
+		<div class="card bg-light card-menu">
+			<div class="card-header"><i class="fa fa-bars"></i></div>
+			  	<div sec:authorize="isAuthenticated()" class="sidebar" style="display: block;">
+	                <ul class="nav">
+	                    <!-- Main menu -->
+	                    <li class="submenu">
+	                         <a href="#">
+	                            <i class="fa fa-slideshare"></i> Empleado
+	                            <span class="caret pull-right"></span>
+	                         </a>
+	                         <!-- Sub menu -->
+	                         <ul>
+	                            <li><a sec:authorize="hasRole('ROLE_ADMIN')" class="dropdown-item" th:href="@{/form}"><i class="fa fa-plus"></i> Crear</a></li>
+	                            <li><a  class="dropdown-item" th:href="@{/listar}"><i class="fa fa-search"></i> Consultar</a></li>
+	                        </ul>
+	                    </li>
+	                    <li class="submenu">
+	                         <a href="#">
+	                            <i class="fa fa-wpforms"></i> Solicitud
+	                            <span class="caret pull-right"></span>
+	                         </a>
+	                         <!-- Sub menu -->
+	                         <ul>
+	                            <li><a class="dropdown-item" th:href="@{|/solicitud/form/${#authentication.principal}|}"><i class="fa fa-plus"></i> Crear</a></li>
+	                            <li><a class="dropdown-item" th:href="@{|/ver/${#authentication.principal}|}"><i class="fa fa-search"></i> Consultar</a></li>
+								<li><a sec:authorize="hasRole('ROLE_ADMIN') || hasRole('ROLE_USEREMPJEF')" class="dropdown-item" th:href="@{|/solicitud/formaprobar/${#authentication.principal}/${0}/${0}/${'*'}|}"><i class="fa fa-check"></i> Aprobar</a></li>	                            
+	                        </ul>
+	                    </li>
+	                    <li class="submenu">
+	                         <a href="#">
+	                            <i class="fa fa-wpforms"></i> Certificado
+	                            <span class="caret pull-right"></span>
+	                         </a>
+	                         <!-- Sub menu -->
+	                         <ul>
+	                            <li><a class="dropdown-item" th:href="@{|/solicitud/form/${#authentication.principal}|}"><i class="fa fa-plus"></i> Laboral sin Funciones</a></li>
+	                            <li><a class="dropdown-item" th:href="@{|/ver/${#authentication.principal}|}"><i class="fa fa-search"></i> Laboral con Funciones</a></li>
+								<li><a sec:authorize="hasRole('ROLE_ADMIN') || hasRole('ROLE_USEREMPJEF')" class="dropdown-item" th:href="@{|/solicitud/formaprobar/${#authentication.principal}/${0}/${0}/${'*'}|}"><i class="fa fa-check"></i> Ingreso y retencion</a></li>	                            
+	                        </ul>
+	                    </li>	                    
+	                    <li sec:authorize="hasRole('ROLE_ADMIN')" class="submenu">
+	                         <a href="#">
+	                            <i class="fa fa-object-group"></i> Catalogo
+	                            <span class="caret pull-right"></span>
+	                         </a>
+	                         <!-- Sub menu -->
+	                         <ul>
+	                            <li><a class="dropdown-item" th:href="@{/cargo/listarcargo}"><i class="fa fa-users"></i> Cargo</a></li>
+	                            <li><a class="dropdown-item" th:href="@{/departamento/listardepto}"><i class="fa fa-suitcase"></i> Departamento</a></li>
+								<li><a class="dropdown-item" th:href="@{/festivo/formfestivo}"><i class="fa fa-calendar"></i> Dias Festivos</a></li>
+								<li><a class="dropdown-item" th:href="@{/rol/formrol}"><i class="fa fa-podcast"></i> Roles</a></li>
+								
+	                        </ul>
+	                    </li>
+	                    <li sec:authorize="hasRole('ROLE_ADMIN')" class="submenu">
+	                         <a href="#">
+	                            <i class="fa fa-line-chart"></i> Informes
+	                            <span class="caret pull-right"></span>
+	                         </a>
+	                         <!-- Sub menu -->
+	                         <ul>
+	                            <li><a class="dropdown-item" th:href="@{/solicitud/listarsolicitud}"><i class="fa fa-stack-overflow"></i> Solicitudes</a></li>
+	                        </ul>
+	                    </li>	                    	                    
+	                    <li sec:authorize="hasRole('ROLE_ADMIN')" class="submenu">
+	                         <a href="#">
+	                            <i class="fa fa-file-text"></i> Cargue Archivos
+	                            <span class="caret pull-right"></span>
+	                         </a>
+	                         <!-- Sub menu -->
+	                         <ul>
+	                            <li><a class="dropdown-item" th:href="@{/cargue}"><i class="fa fa-file-excel-o"></i> Excel</a></li>
+	                         </ul>	                         
+	                    </li>
+
+	                </ul>
+			</div>
+	</div>
+	</div>
+	
+</body>
+</html>

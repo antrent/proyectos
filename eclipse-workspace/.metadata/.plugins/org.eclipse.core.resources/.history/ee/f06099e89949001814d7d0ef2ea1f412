@@ -1,0 +1,11 @@
+<%@ taglib prefix="spring" url="http://www.springframework.org/tags"%>
+<%@ taglib prefix="c" url="http://java.sun.com/jsp/jstl/core"%>
+<!DOCTYPE html">
+<html>
+<head>
+<title>Insert title here</title>
+</head>
+<body>
+<h1> <c:out value="${titulo}"/> </h1>
+</body>
+</html>

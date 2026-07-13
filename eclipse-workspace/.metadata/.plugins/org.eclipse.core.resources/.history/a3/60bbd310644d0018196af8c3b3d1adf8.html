@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+<meta charset="UTF-8" />
+<title th:text="${titulo}" >Insert title here</title>
+<link rel="stylesheet"
+	href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.0/css/bootstrap.min.css" />
+</head>
+<body>
+	<nav class="navbar navbar-expand-md navbar-dark fixed-top bg-dark">
+		<a class="navbar-brand" href="#">Spring Boot</a>
+		<button class="navbar-toggler" type="button" data-toggle="collapse"
+			data-target="#navbarsExampleDefault"
+			aria-controls="navbarsExampleDefault" aria-expanded="false"
+			aria-label="Toggle navigation">
+			<span class="navbar-toggler-icon"></span>
+		</button>
+		<div class="collapse navbar-collapse">
+			<ul class="navbar-nav mr-auto">
+				<li class="nav-item active"><a class="nav-link" href="#">Inicio</a></li>
+				<li class="nav-item"><a class="nav-link" href="#">Empleado</a></li>
+			</ul>
+		</div>
+	</nav>
+
+<div class="container">
+	<h1 class="text-secundary border border-success border-top-0 border-left-0 border-right-0" th:text=${titulo}></h1>
+	
+	<table class="table table-striped">
+		<thead>
+			<tr>
+				<th>codigo</th>
+				<th>tipo documento</th>
+				<th>numero documento</th>
+				<th>primer nombre</th>
+				<th>segundo nombre</th>
+				<th>primer apellido</th>
+				<th>segundo apellido</th>
+				<th>Fecha ingreso</th>
+			</tr>
+		</thead>
+		<tbody>
+			<tr th:each="empleado: ${empleados} " >
+				<td th:text="${empleado.codigo}"></td>
+				<td th:text="${empleado.tipDocumento}"></td>
+				<td th:text="${empleado.numDocumento}"></td>
+				<td th:text="${empleado.priNombre}"></td>
+				<td th:text="${empleado.segNombre}"></td>
+				<td th:text="${empleado.priApellido}"></td>
+				<td th:text="${empleado.segApellido}"></td>
+				<td th:text="${empleado.fechIngreso}"></td>
+			</tr>		
+		</tbody>
+	</table>
+	</div>
+</body>
+</html>
