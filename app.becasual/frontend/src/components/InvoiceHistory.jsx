@@ -186,7 +186,7 @@ export default function InvoiceHistory({ user, currentStoreId }) {
         }
 
         const inventoryProducts = storageRepository.getProducts();
-        const getProductCostPrice = (barcode, name) => {
+        const getInventoryProduct = (barcode, name) => {
           let prod = null;
           if (barcode) {
             prod = inventoryProducts.find(p => p.barcode === barcode);
@@ -195,7 +195,7 @@ export default function InvoiceHistory({ user, currentStoreId }) {
             const normalizedSearch = name.toLowerCase().trim();
             prod = inventoryProducts.find(p => p.name.toLowerCase().trim() === normalizedSearch);
           }
-          return prod ? (prod.costPrice || 0) : 0;
+          return prod;
         };
 
         let emptyInvoiceNumCount = 0;
@@ -245,14 +245,15 @@ export default function InvoiceHistory({ user, currentStoreId }) {
           grouped[invNum].accumulatedTotal += currentItemTotal;
           grouped[invNum].accumulatedDiscount += currentItemDiscount;
 
-          const itemCostPrice = getProductCostPrice(row.barcode, row.name);
+          const invProd = getInventoryProduct(row.barcode, row.name);
           grouped[invNum].items.push({
-            name: row.name || 'Producto Desconocido',
-            barcode: row.barcode || '',
+            productId: invProd ? invProd.id : `prod_generico_${row.barcode || 'unknown'}`,
+            name: row.name || (invProd ? invProd.name : 'Producto Genérico'),
+            barcode: row.barcode || (invProd ? invProd.barcode : ''),
             quantity: parseCSVNumber(row.quantity) || 1,
             sellPrice: parseCSVNumber(row.sellPrice) || 0,
             discount: parseCSVNumber(row.discount) || 0,
-            costPrice: itemCostPrice
+            costPrice: invProd ? (invProd.costPrice || 0) : 0
           });
         });
 
