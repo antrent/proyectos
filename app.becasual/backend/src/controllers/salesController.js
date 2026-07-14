@@ -178,16 +178,10 @@ export const createBulk = async (req, res) => {
             storeId: targetStoreId,
             invoiceNumber: sale.invoiceNumber,
             date: sale.date ? new Date(sale.date) : new Date(),
-            subtotal: Number(sale.subtotal) || 0,
-            tax: Number(sale.tax) || 0,
-            total: Number(sale.total) || 0,
-            discount: Number(sale.discount) || 0,
-            cost: Number(sale.cost) || 0,
-            profit: Number(sale.profit) || 0,
-            paymentMethod: sale.paymentMethod || 'Efectivo',
             clientName: sale.clientName || 'Cliente Final',
-            clientDocument: sale.clientDocument ? String(sale.clientDocument) : null,
-            employeeId: targetEmployeeId
+            employeeId: targetEmployeeId,
+            paymentMethod: sale.paymentMethod || 'Efectivo',
+            total: Number(sale.total) || 0
           }
         });
 
