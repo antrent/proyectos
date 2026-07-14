@@ -183,7 +183,13 @@ class StorageRepository {
           }
         }
         const finalSales = pendingSales.length > 0 ? (await api.get('/sales').catch(() => cloudSales)) : cloudSales;
-        if (Array.isArray(finalSales)) this.setData('sales', finalSales);
+        if (Array.isArray(finalSales)) {
+          const normalized = finalSales.map(s => ({
+            ...s,
+            items: s.items || s.details || []
+          }));
+          this.setData('sales', normalized);
+        }
       }
 
       // 3. Sincronización inteligente de Compras
@@ -214,7 +220,13 @@ class StorageRepository {
           }
         }
         const finalPurchases = pendingPurchases.length > 0 ? (await api.get('/purchases').catch(() => cloudPurchases)) : cloudPurchases;
-        if (Array.isArray(finalPurchases)) this.setData('purchases', finalPurchases);
+        if (Array.isArray(finalPurchases)) {
+          const normalized = finalPurchases.map(p => ({
+            ...p,
+            items: p.items || p.details || []
+          }));
+          this.setData('purchases', normalized);
+        }
       }
 
       // 4. Sincronización inteligente de Separados
@@ -250,7 +262,13 @@ class StorageRepository {
           }
         }
         const finalLayaways = pendingLayaways.length > 0 ? (await api.get('/layaways').catch(() => cloudLayaways)) : cloudLayaways;
-        if (Array.isArray(finalLayaways)) this.setData('layaways', finalLayaways);
+        if (Array.isArray(finalLayaways)) {
+          const normalized = finalLayaways.map(l => ({
+            ...l,
+            items: l.items || l.details || []
+          }));
+          this.setData('layaways', normalized);
+        }
       }
 
       // 5. Sincronización inteligente de Cierres de Caja
