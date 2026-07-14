@@ -358,7 +358,14 @@ export default function InvoiceHistory({ user, currentStoreId }) {
     setCurrentPage(1);
   }, [search, dateFrom, dateTo, statusFilter, currentStoreId]);
 
-  const load = () => setSales(salesService.getAll(currentStoreId));
+  const load = () => {
+    const rawSales = salesService.getAll(currentStoreId);
+    const normalized = rawSales.map(s => ({
+      ...s,
+      items: s.items || s.details || []
+    }));
+    setSales(normalized);
+  };
 
   const filtered = sales.filter(s => {
     const q = search.toLowerCase();
