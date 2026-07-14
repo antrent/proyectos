@@ -150,6 +150,15 @@ export const createBulk = async (req, res) => {
       return res.status(400).json({ error: 'Se requiere un arreglo de ventas válido.' });
     }
 
+    // 1. Obtener listado de IDs válidos de tiendas y empleados
+    const validStores = await prisma.store.findMany({ select: { id: true } });
+    const storeIds = validStores.map(s => s.id);
+    const defaultStoreId = storeIds[0] || 'store_1';
+
+    const validEmployees = await prisma.employee.findMany({ select: { id: true } });
+    const employeeIds = validEmployees.map(e => e.id);
+    const defaultEmployeeId = employeeIds[0] || 'emp_1';
+
     await prisma.$transaction(async (tx) => {
       for (const sale of sales) {
         const existing = await tx.sale.findUnique({
@@ -157,10 +166,16 @@ export const createBulk = async (req, res) => {
         });
         if (existing) continue;
 
+        // Validar llaves foráneas
+        const targetStoreId = storeIds.includes(sale.storeId) ? sale.storeId : defaultStoreId;
+        const targetEmployeeId = employeeIds.includes(sale.sellerId || sale.employeeId)
+          ? (sale.sellerId || sale.employeeId)
+          : defaultEmployeeId;
+
         const newSale = await tx.sale.create({
           data: {
             id: sale.id,
-            storeId: sale.storeId || 'store_1',
+            storeId: targetStoreId,
             invoiceNumber: sale.invoiceNumber,
             date: sale.date ? new Date(sale.date) : new Date(),
             subtotal: Number(sale.subtotal) || 0,
@@ -171,13 +186,15 @@ export const createBulk = async (req, res) => {
             profit: Number(sale.profit) || 0,
             paymentMethod: sale.paymentMethod || 'Efectivo',
             clientName: sale.clientName || 'Cliente Final',
-            clientDocument: sale.clientDocument || null,
-            employeeId: sale.sellerId || 'emp_1'
+            clientDocument: sale.clientDocument ? String(sale.clientDocument) : null,
+            employeeId: targetEmployeeId
           }
         });
 
         if (Array.isArray(sale.items)) {
           for (const item of sale.items) {
+            if (!item.productId) continue;
+
             const prod = await tx.product.findUnique({
               where: { id: item.productId }
             });
