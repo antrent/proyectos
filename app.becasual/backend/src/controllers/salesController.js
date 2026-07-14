@@ -162,28 +162,37 @@ export const createBulk = async (req, res) => {
     await prisma.$transaction(async (tx) => {
       for (const sale of sales) {
         const existing = await tx.sale.findUnique({
-          where: { id: sale.id }
+          where: { id: sale.id },
+          include: { details: true }
         });
-        if (existing) continue;
 
-        // Validar llaves foráneas
-        const targetStoreId = storeIds.includes(sale.storeId) ? sale.storeId : defaultStoreId;
-        const targetEmployeeId = employeeIds.includes(sale.sellerId || sale.employeeId)
-          ? (sale.sellerId || sale.employeeId)
-          : defaultEmployeeId;
+        let targetSaleId = sale.id;
 
-        const newSale = await tx.sale.create({
-          data: {
-            id: sale.id,
-            storeId: targetStoreId,
-            invoiceNumber: sale.invoiceNumber,
-            date: sale.date ? new Date(sale.date) : new Date(),
-            clientName: sale.clientName || 'Cliente Final',
-            employeeId: targetEmployeeId,
-            paymentMethod: sale.paymentMethod || 'Efectivo',
-            total: Number(sale.total) || 0
+        if (existing) {
+          if (existing.details && existing.details.length > 0) {
+            continue;
           }
-        });
+          targetSaleId = existing.id;
+        } else {
+          const targetStoreId = storeIds.includes(sale.storeId) ? sale.storeId : defaultStoreId;
+          const targetEmployeeId = employeeIds.includes(sale.sellerId || sale.employeeId)
+            ? (sale.sellerId || sale.employeeId)
+            : defaultEmployeeId;
+
+          const newSale = await tx.sale.create({
+            data: {
+              id: sale.id,
+              storeId: targetStoreId,
+              invoiceNumber: sale.invoiceNumber,
+              date: sale.date ? new Date(sale.date) : new Date(),
+              clientName: sale.clientName || 'Cliente Final',
+              employeeId: targetEmployeeId,
+              paymentMethod: sale.paymentMethod || 'Efectivo',
+              total: Number(sale.total) || 0
+            }
+          });
+          targetSaleId = newSale.id;
+        }
 
         if (Array.isArray(sale.items)) {
           for (const item of sale.items) {
@@ -226,7 +235,7 @@ export const createBulk = async (req, res) => {
 
             await tx.saleDetail.create({
               data: {
-                saleId: newSale.id,
+                saleId: targetSaleId,
                 productId: item.productId,
                 quantity: Number(item.quantity) || 1,
                 price: Number(item.sellPrice || item.price) || prod.sellPrice,
