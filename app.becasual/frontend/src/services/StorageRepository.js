@@ -145,36 +145,40 @@ class StorageRepository {
         );
 
         if (pendingSales.length > 5) {
-          try {
-            console.log(`Subiendo ${pendingSales.length} ventas pendientes masivamente en un solo bloque (Bulk)...`);
-            await api.post('/sales/bulk', {
-              sales: pendingSales.map(sale => ({
-                id: sale.id,
-                storeId: sale.storeId,
-                invoiceNumber: sale.invoiceNumber,
-                date: sale.date,
-                clientName: sale.clientName,
-                clientDocument: sale.clientDocument || null,
-                sellerId: sale.sellerId || 'emp_1',
-                paymentMethod: sale.paymentMethod,
-                subtotal: sale.subtotal,
-                tax: sale.tax,
-                total: sale.total,
-                discount: sale.discount,
-                cost: sale.cost,
-                profit: sale.profit,
-                items: sale.items.map(item => ({
-                  productId: item.productId,
-                  quantity: item.quantity,
-                  price: item.sellPrice || item.price,
-                  subtotal: item.subtotal || ((item.sellPrice || item.price) * item.quantity)
+          const CHUNK_SIZE = 100;
+          for (let i = 0; i < pendingSales.length; i += CHUNK_SIZE) {
+            const chunk = pendingSales.slice(i, i + CHUNK_SIZE);
+            try {
+              console.log(`Subiendo bloque de ${chunk.length} ventas pendientes masivamente (Bulk)...`);
+              await api.post('/sales/bulk', {
+                sales: chunk.map(sale => ({
+                  id: sale.id,
+                  storeId: sale.storeId,
+                  invoiceNumber: sale.invoiceNumber,
+                  date: sale.date,
+                  clientName: sale.clientName,
+                  clientDocument: sale.clientDocument || null,
+                  sellerId: sale.sellerId || 'emp_1',
+                  paymentMethod: sale.paymentMethod,
+                  subtotal: sale.subtotal,
+                  tax: sale.tax,
+                  total: sale.total,
+                  discount: sale.discount,
+                  cost: sale.cost,
+                  profit: sale.profit,
+                  items: sale.items.map(item => ({
+                    productId: item.productId,
+                    quantity: item.quantity,
+                    price: item.sellPrice || item.price,
+                    subtotal: item.subtotal || ((item.sellPrice || item.price) * item.quantity)
+                  }))
                 }))
-              }))
-            });
-            console.log('Carga masiva completada con éxito.');
-          } catch (err) {
-            console.error('Error en la carga masiva en bloque:', err);
+              });
+            } catch (err) {
+              console.error('Error al subir bloque masivo de ventas:', err);
+            }
           }
+          console.log('Carga masiva por bloques completada con éxito.');
         } else {
           for (const sale of pendingSales) {
             try {
