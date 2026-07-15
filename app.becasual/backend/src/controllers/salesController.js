@@ -198,49 +198,52 @@ export const createBulk = async (req, res) => {
           for (const item of sale.items) {
             if (!item.productId) continue;
 
+            // Limpiar asteriscos del código de barras en el backend
+            const cleanBarcode = String(item.barcode || '').replace(/\*/g, '').trim();
+
             let prod = await tx.product.findUnique({
               where: { id: item.productId }
             });
 
             if (!prod) {
-              const existingBySku = item.barcode
-                ? await tx.product.findFirst({ where: { sku: item.barcode } })
+              const existingBySku = cleanBarcode
+                ? await tx.product.findFirst({ where: { sku: cleanBarcode } })
                 : null;
 
               if (existingBySku) {
                 prod = existingBySku;
                 item.productId = prod.id;
               } else {
-                const existingByBarcode = item.barcode
-                  ? await tx.product.findFirst({ where: { barcode: item.barcode } })
+                const existingByBarcode = cleanBarcode
+                  ? await tx.product.findFirst({ where: { barcode: cleanBarcode } })
                   : null;
 
                 if (existingByBarcode) {
                   prod = existingByBarcode;
                   item.productId = prod.id;
                 } else {
-                prod = await tx.product.create({
-                  data: {
-                    id: item.productId,
-                    storeId: targetStoreId,
-                    barcode: item.barcode || `GEN_${Math.random().toString(36).slice(2, 8)}`,
-                    sku: item.barcode || `GEN_${Math.random().toString(36).slice(2, 8)}`,
-                    name: item.name || 'Producto Genérico',
-                    stock: 0,
-                    costPrice: Number(item.costPrice) || 0,
-                    sellPrice: Number(item.sellPrice || item.price) || 0,
-                    line: 'Genérico',
-                    category: 'Importación',
-                    gender: 'Unisex',
-                    style: 'Genérico',
-                    color: 'N/A',
-                    size: 'U',
-                    provider: 'Genérico'
-                  }
-                });
+                  prod = await tx.product.create({
+                    data: {
+                      id: item.productId,
+                      storeId: targetStoreId,
+                      barcode: cleanBarcode || `GEN_${Math.random().toString(36).slice(2, 8)}`,
+                      sku: cleanBarcode || `GEN_${Math.random().toString(36).slice(2, 8)}`,
+                      name: item.name || 'Producto Genérico',
+                      stock: 0,
+                      costPrice: Number(item.costPrice) || 0,
+                      sellPrice: Number(item.sellPrice || item.price) || 0,
+                      line: 'Genérico',
+                      category: 'Importación',
+                      gender: 'Unisex',
+                      style: 'Genérico',
+                      color: 'N/A',
+                      size: 'U',
+                      provider: 'Genérico'
+                    }
+                  });
+                }
               }
             }
-          }
 
             await tx.saleDetail.create({
               data: {
