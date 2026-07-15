@@ -150,117 +150,124 @@ export const createBulk = async (req, res) => {
       return res.status(400).json({ error: 'Se requiere un arreglo de ventas válido.' });
     }
 
-    // 1. Obtener listado de IDs válidos de tiendas y empleados
+    // 1. Precargar catálogo de productos y crear mapas en memoria para evitar latencia de queries recurrentes
+    const allProducts = await prisma.product.findMany();
+    const productMapById = new Map(allProducts.map(p => [p.id, p]));
+    const productMapBySku = new Map(allProducts.map(p => [p.sku.toLowerCase(), p]));
+    const productMapByBarcode = new Map(allProducts.map(p => [p.barcode.toLowerCase(), p]));
+
+    // 2. Obtener listado de IDs válidos de tiendas y empleados
     const validStores = await prisma.store.findMany({ select: { id: true } });
     const storeIds = validStores.map(s => s.id);
     const defaultStoreId = storeIds[0] || 'store_1';
 
     const validEmployees = await prisma.employee.findMany({ select: { id: true } });
     const employeeIds = validEmployees.map(e => e.id);
-    const defaultEmployeeId = employeeIds[0] || 'emp_1';
 
-    await prisma.$transaction(async (tx) => {
-      for (const sale of sales) {
-        const existing = await tx.sale.findUnique({
-          where: { id: sale.id },
-          include: { details: true }
-        });
+    // 3. Consultar cuáles de las ventas que se van a subir ya existen en la base de datos de GCP
+    const existingSales = await prisma.sale.findMany({
+      where: { id: { in: sales.map(s => s.id) } },
+      select: { id: true }
+    });
+    const existingIds = new Set(existingSales.map(s => s.id));
 
-        let targetSaleId = sale.id;
+    const salesToInsert = [];
+    const detailsToInsert = [];
 
-        if (existing) {
-          if (existing.details && existing.details.length > 0) {
-            continue;
+    for (const sale of sales) {
+      if (existingIds.has(sale.id)) {
+        continue; // Omitir facturas que ya existen para evitar duplicados
+      }
+
+      const targetStoreId = storeIds.includes(sale.storeId) ? sale.storeId : defaultStoreId;
+      const targetEmployeeId = employeeIds.includes(sale.sellerId || sale.employeeId)
+        ? (sale.sellerId || sale.employeeId)
+        : null;
+
+      salesToInsert.push({
+        id: sale.id,
+        storeId: targetStoreId,
+        invoiceNumber: sale.invoiceNumber,
+        date: sale.date ? new Date(sale.date) : new Date(),
+        clientName: sale.clientName || 'Cliente Final',
+        employeeId: targetEmployeeId,
+        paymentMethod: sale.paymentMethod || 'Efectivo',
+        total: Number(sale.total) || 0
+      });
+
+      if (Array.isArray(sale.items)) {
+        for (const item of sale.items) {
+          if (!item.productId) continue;
+
+          // Limpiar asteriscos y resolver código de barras en el backend
+          let cleanBarcode = String(item.barcode || '').replace(/\*/g, '').trim();
+          if (!cleanBarcode && String(item.productId).startsWith('prod_generico_')) {
+            cleanBarcode = String(item.productId).replace('prod_generico_', '').replace(/\*/g, '').trim();
           }
-          targetSaleId = existing.id;
-        } else {
-          const targetStoreId = storeIds.includes(sale.storeId) ? sale.storeId : defaultStoreId;
-          const targetEmployeeId = employeeIds.includes(sale.sellerId || sale.employeeId)
-            ? (sale.sellerId || sale.employeeId)
-            : null;
 
-          const newSale = await tx.sale.create({
-            data: {
-              id: sale.id,
-              storeId: targetStoreId,
-              invoiceNumber: sale.invoiceNumber,
-              date: sale.date ? new Date(sale.date) : new Date(),
-              clientName: sale.clientName || 'Cliente Final',
-              employeeId: targetEmployeeId,
-              paymentMethod: sale.paymentMethod || 'Efectivo',
-              total: Number(sale.total) || 0
-            }
-          });
-          targetSaleId = newSale.id;
-        }
+          // Buscar en mapas de memoria
+          let prod = productMapById.get(item.productId);
+          if (!prod && cleanBarcode) {
+            prod = productMapBySku.get(cleanBarcode.toLowerCase()) || productMapByBarcode.get(cleanBarcode.toLowerCase());
+          }
 
-        if (Array.isArray(sale.items)) {
-          for (const item of sale.items) {
-            if (!item.productId) continue;
-
-            // Limpiar asteriscos y resolver código de barras en el backend
-            let cleanBarcode = String(item.barcode || '').replace(/\*/g, '').trim();
-            if (!cleanBarcode && String(item.productId).startsWith('prod_generico_')) {
-              cleanBarcode = String(item.productId).replace('prod_generico_', '').replace(/\*/g, '').trim();
-            }
-
-            let prod = await tx.product.findUnique({
-              where: { id: item.productId }
-            });
-
-            if (!prod) {
-              const existingBySku = cleanBarcode
-                ? await tx.product.findFirst({ where: { sku: cleanBarcode } })
-                : null;
-
-              if (existingBySku) {
-                prod = existingBySku;
-                item.productId = prod.id;
-              } else {
-                const existingByBarcode = cleanBarcode
-                  ? await tx.product.findFirst({ where: { barcode: cleanBarcode } })
-                  : null;
-
-                if (existingByBarcode) {
-                  prod = existingByBarcode;
-                  item.productId = prod.id;
-                } else {
-                  prod = await tx.product.create({
-                    data: {
-                      id: item.productId,
-                      storeId: targetStoreId,
-                      barcode: cleanBarcode || `GEN_${Math.random().toString(36).slice(2, 8)}`,
-                      sku: cleanBarcode || `GEN_${Math.random().toString(36).slice(2, 8)}`,
-                      name: item.name || 'Producto Genérico',
-                      stock: 0,
-                      costPrice: Number(item.costPrice) || 0,
-                      sellPrice: Number(item.sellPrice || item.price) || 0,
-                      line: 'Genérico',
-                      category: 'Importación',
-                      gender: 'Unisex',
-                      style: 'Genérico',
-                      color: 'N/A',
-                      size: 'U',
-                      provider: 'Genérico'
-                    }
-                  });
-                }
-              }
-            }
-
-            await tx.saleDetail.create({
+          if (!prod) {
+            // Si el producto no existe en GCP, lo creamos de forma síncrona en base de datos
+            prod = await prisma.product.create({
               data: {
-                saleId: targetSaleId,
-                productId: item.productId,
-                quantity: Number(item.quantity) || 1,
-                price: Number(item.sellPrice || item.price) || (prod ? prod.sellPrice : 0),
-                subtotal: Number(item.subtotal) || (Number(item.quantity) * (prod ? prod.sellPrice : 0))
+                id: item.productId,
+                storeId: targetStoreId,
+                barcode: cleanBarcode || `GEN_${Math.random().toString(36).slice(2, 8)}`,
+                sku: cleanBarcode || `GEN_${Math.random().toString(36).slice(2, 8)}`,
+                name: item.name || 'Producto Genérico',
+                stock: 0,
+                costPrice: Number(item.costPrice) || 0,
+                sellPrice: Number(item.sellPrice || item.price) || 0,
+                line: 'Genérico',
+                category: 'Importación',
+                gender: 'Unisex',
+                style: 'Genérico',
+                color: 'N/A',
+                size: 'U',
+                provider: 'Genérico'
               }
             });
+
+            // Registrar en memoria para búsquedas siguientes del bloque
+            productMapById.set(prod.id, prod);
+            productMapBySku.set(prod.sku.toLowerCase(), prod);
+            productMapByBarcode.set(prod.barcode.toLowerCase(), prod);
           }
+
+          // Actualizar el productId
+          item.productId = prod.id;
+
+          detailsToInsert.push({
+            id: `det_${Math.random().toString(36).slice(2, 10)}`,
+            saleId: sale.id,
+            productId: item.productId,
+            quantity: Number(item.quantity) || 1,
+            price: Number(item.sellPrice || item.price) || (prod ? prod.sellPrice : 0),
+            subtotal: Number(item.subtotal) || (Number(item.quantity) * (prod ? prod.sellPrice : 0))
+          });
         }
       }
-    });
+    }
+
+    // 4. Inserción masiva optimizada
+    if (salesToInsert.length > 0) {
+      await prisma.sale.createMany({
+        data: salesToInsert,
+        skipDuplicates: true
+      });
+    }
+
+    if (detailsToInsert.length > 0) {
+      await prisma.saleDetail.createMany({
+        data: detailsToInsert,
+        skipDuplicates: true
+      });
+    }
 
     res.json({ message: 'Ventas masivas importadas correctamente en la base de datos.' });
   } catch (error) {
