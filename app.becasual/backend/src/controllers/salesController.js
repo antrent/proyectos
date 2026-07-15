@@ -267,9 +267,38 @@ export const createBulk = async (req, res) => {
         data: detailsToInsert,
         skipDuplicates: true
       });
+
+      // 5. Recalcular y actualizar stock de productos afectados
+      const affectedProductIds = [...new Set(detailsToInsert.map(d => d.productId))];
+      
+      for (const pid of affectedProductIds) {
+        const prod = productMapById.get(pid);
+        if (!prod) continue;
+
+        // Sumar compras de este SKU en base de datos
+        const boughtAgg = await prisma.purchase.aggregate({
+          where: { sku: prod.sku },
+          _sum: { quantity: true }
+        });
+        const totalBought = boughtAgg._sum.quantity || 0;
+
+        // Sumar ventas de este productId en base de datos
+        const soldAgg = await prisma.saleDetail.aggregate({
+          where: { productId: pid },
+          _sum: { quantity: true }
+        });
+        const totalSold = soldAgg._sum.quantity || 0;
+
+        const netStock = Math.max(0, totalBought - totalSold);
+
+        await prisma.product.update({
+          where: { id: pid },
+          data: { stock: netStock }
+        });
+      }
     }
 
-    res.json({ message: 'Ventas masivas importadas correctamente en la base de datos.' });
+    res.json({ message: 'Ventas masivas importadas correctamente en la base de datos y stocks recalculados.' });
   } catch (error) {
     res.status(500).json({ error: 'Error al importar ventas masivas.', details: error.message });
   }

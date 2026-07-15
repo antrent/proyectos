@@ -57,6 +57,23 @@ class SalesService {
 
   getAll(storeId = 'all') {
     const sales = storageRepository.getSales();
+
+    // Normalizar costo y ganancia (profit) para cualquier consulta de ventas
+    sales.forEach(s => {
+      if (s.profit === undefined || s.profit === null || s.cost === undefined || s.cost === null) {
+        const details = s.items || s.details || [];
+        const cost = details.reduce((sum, d) => {
+          const costPrice = d.costPrice !== undefined 
+            ? d.costPrice 
+            : (d.product ? (d.product.costPrice || 0) : 0);
+          const qty = d.quantity || 1;
+          return sum + (costPrice * qty);
+        }, 0);
+        s.cost = cost;
+        s.profit = s.total - cost;
+      }
+    });
+
     if (storeId === 'all') return sales;
     return sales.filter(s => s.storeId === storeId || (!s.storeId && storeId === 'store_1'));
   }
@@ -175,6 +192,7 @@ class SalesService {
 
   getFinancialStats(storeId = 'all') {
     const sales = this.getAll(storeId).filter(s => !s.cancelled);
+
     const purchases = storageRepository.getPurchases().filter(p => storeId === 'all' || p.storeId === storeId || (!p.storeId && storeId === 'store_1'));
     const products = inventoryService.getAll(storeId);
     const layaways = storageRepository.getLayaways().filter(l => l.status !== 'cancelled' && (storeId === 'all' || l.storeId === storeId || (!l.storeId && storeId === 'store_1')));
