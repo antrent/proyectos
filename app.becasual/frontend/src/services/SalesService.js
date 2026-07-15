@@ -232,6 +232,51 @@ class SalesService {
     };
   }
 
+  getTopSellingProducts(startDateStr, endDateStr, storeId = 'all', limit = 10) {
+    const sales = this.getAll(storeId).filter(s => {
+      if (s.cancelled) return false;
+      if (!s.date) return true;
+      const saleDateStr = s.date.split('T')[0];
+      if (startDateStr && saleDateStr < startDateStr) return false;
+      if (endDateStr && saleDateStr > endDateStr) return false;
+      return true;
+    });
+
+    const productSalesMap = new Map();
+
+    sales.forEach(sale => {
+      const items = sale.items || sale.details || [];
+      items.forEach(item => {
+        const productId = item.productId;
+        const name = item.product ? item.product.name : (item.name || 'Producto Genérico');
+        const barcode = item.product ? item.product.barcode : (item.barcode || '');
+        const sku = item.product ? item.product.sku : (item.sku || barcode);
+        const qty = Number(item.quantity) || 0;
+        const price = Number(item.price || item.sellPrice) || 0;
+        const subtotal = Number(item.subtotal) || (qty * price);
+
+        if (!productSalesMap.has(productId)) {
+          productSalesMap.set(productId, {
+            productId,
+            name,
+            sku,
+            barcode,
+            quantity: 0,
+            totalRevenue: 0
+          });
+        }
+
+        const stats = productSalesMap.get(productId);
+        stats.quantity += qty;
+        stats.totalRevenue += subtotal;
+      });
+    });
+
+    return [...productSalesMap.values()]
+      .sort((a, b) => b.quantity - a.quantity)
+      .slice(0, limit);
+  }
+
   getDailySalesSummary(dateStr, storeId = 'all') {
     const sales = this.getAll(storeId);
     const filteredSales = sales.filter(s => {

@@ -15,6 +15,17 @@ export default function Dashboard({ triggerUpdate, currentStoreId }) {
 
   const [lowStock, setLowStock] = useState([]);
   const [recentSales, setRecentSales] = useState([]);
+  const [topProducts, setTopProducts] = useState([]);
+
+  // Inicializar rango de fechas (desde hace 30 días hasta hoy)
+  const [startDate, setStartDate] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 30);
+    return d.toISOString().split('T')[0];
+  });
+  const [endDate, setEndDate] = useState(() => {
+    return new Date().toISOString().split('T')[0];
+  });
 
   useEffect(() => {
     // Load financial stats for the active store
@@ -29,6 +40,12 @@ export default function Dashboard({ triggerUpdate, currentStoreId }) {
     const sales = salesService.getAll(currentStoreId);
     setRecentSales(sales.slice(0, 5)); // show top 5
   }, [triggerUpdate, currentStoreId]);
+
+  // Recalcular productos más vendidos cuando cambien las fechas
+  useEffect(() => {
+    const list = salesService.getTopSellingProducts(startDate, endDate, currentStoreId, 5);
+    setTopProducts(list);
+  }, [startDate, endDate, currentStoreId, triggerUpdate]);
 
   const formatCOP = (amount) => {
     return new Intl.NumberFormat('es-CO', {
@@ -190,6 +207,79 @@ export default function Dashboard({ triggerUpdate, currentStoreId }) {
               </tbody>
             </table>
           </div>
+        </div>
+      </div>
+
+      {/* Top Selling Products Block */}
+      <div className="card-table-wrapper" style={{ width: '100%' }}>
+        <div className="card-header" style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <h3 className="card-title">🔥 Top 5 Productos Más Vendidos</h3>
+            <span className="card-subtitle">Prendas con mayor rotación e ingresos generados</span>
+          </div>
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <label style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>DESDE</label>
+              <input 
+                type="date" 
+                value={startDate} 
+                onChange={(e) => setStartDate(e.target.value)} 
+                className="input-premium" 
+                style={{ padding: '6px 12px', fontSize: '13px' }}
+              />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <label style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>HASTA</label>
+              <input 
+                type="date" 
+                value={endDate} 
+                onChange={(e) => setEndDate(e.target.value)} 
+                className="input-premium" 
+                style={{ padding: '6px 12px', fontSize: '13px' }}
+              />
+            </div>
+          </div>
+        </div>
+        <div className="table-responsive">
+          <table className="table-premium">
+            <thead>
+              <tr>
+                <th style={{ width: '45%' }}>Prenda / Producto</th>
+                <th>SKU</th>
+                <th>Código de Barras</th>
+                <th style={{ textAlign: 'center' }}>Cantidad Vendida</th>
+                <th style={{ textAlign: 'right' }}>Total de Ventas</th>
+              </tr>
+            </thead>
+            <tbody>
+              {topProducts.length === 0 ? (
+                <tr>
+                  <td colSpan="5" style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '24px' }}>
+                    No se registran ventas para el periodo seleccionado.
+                  </td>
+                </tr>
+              ) : (
+                topProducts.map((p, idx) => (
+                  <tr key={p.productId}>
+                    <td style={{ fontWeight: '600', color: 'var(--text-primary)' }}>
+                      <span style={{ marginRight: '8px', color: 'var(--primary)', fontWeight: 'bold' }}>#{idx + 1}</span>
+                      {p.name}
+                    </td>
+                    <td><code>{p.sku}</code></td>
+                    <td><code>{p.barcode}</code></td>
+                    <td style={{ textAlign: 'center', fontWeight: 'bold' }}>
+                      <span className="badge success" style={{ fontSize: '13px', padding: '4px 10px' }}>
+                        {p.quantity} uds
+                      </span>
+                    </td>
+                    <td style={{ textAlign: 'right', color: 'var(--primary)', fontWeight: '700', fontSize: '14px' }}>
+                      {formatCOP(p.totalRevenue)}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
