@@ -177,7 +177,7 @@ export const createBulk = async (req, res) => {
           const targetStoreId = storeIds.includes(sale.storeId) ? sale.storeId : defaultStoreId;
           const targetEmployeeId = employeeIds.includes(sale.sellerId || sale.employeeId)
             ? (sale.sellerId || sale.employeeId)
-            : defaultEmployeeId;
+            : null;
 
           const newSale = await tx.sale.create({
             data: {
@@ -198,8 +198,11 @@ export const createBulk = async (req, res) => {
           for (const item of sale.items) {
             if (!item.productId) continue;
 
-            // Limpiar asteriscos del código de barras en el backend
-            const cleanBarcode = String(item.barcode || '').replace(/\*/g, '').trim();
+            // Limpiar asteriscos y resolver código de barras en el backend
+            let cleanBarcode = String(item.barcode || '').replace(/\*/g, '').trim();
+            if (!cleanBarcode && String(item.productId).startsWith('prod_generico_')) {
+              cleanBarcode = String(item.productId).replace('prod_generico_', '').replace(/\*/g, '').trim();
+            }
 
             let prod = await tx.product.findUnique({
               where: { id: item.productId }
@@ -250,8 +253,8 @@ export const createBulk = async (req, res) => {
                 saleId: targetSaleId,
                 productId: item.productId,
                 quantity: Number(item.quantity) || 1,
-                price: Number(item.sellPrice || item.price) || prod.sellPrice,
-                subtotal: Number(item.subtotal) || (Number(item.quantity) * prod.sellPrice)
+                price: Number(item.sellPrice || item.price) || (prod ? prod.sellPrice : 0),
+                subtotal: Number(item.subtotal) || (Number(item.quantity) * (prod ? prod.sellPrice : 0))
               }
             });
           }

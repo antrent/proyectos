@@ -168,6 +168,7 @@ class StorageRepository {
                   profit: sale.profit,
                   items: sale.items.map(item => ({
                     productId: item.productId,
+                    barcode: item.barcode || '',
                     quantity: item.quantity,
                     price: item.sellPrice || item.price,
                     subtotal: item.subtotal || ((item.sellPrice || item.price) * item.quantity)
@@ -175,7 +176,7 @@ class StorageRepository {
                 }))
               });
             } catch (err) {
-              console.error('Error al subir bloque masivo de ventas:', err);
+              console.error('Error al subir bloque masivo de ventas:', err.response?.data || err);
             }
           }
           console.log('Carga masiva por bloques completada con éxito.');
@@ -198,13 +199,14 @@ class StorageRepository {
                 profit: sale.profit,
                 items: sale.items.map(item => ({
                   productId: item.productId,
+                  barcode: item.barcode || '',
                   quantity: item.quantity,
                   price: item.sellPrice,
                   subtotal: (item.sellPrice * item.quantity) - (item.sellPrice * item.quantity * (item.discount / 100))
                 }))
               });
             } catch (err) {
-              console.error(`Fallo al autosincronizar venta pendiente ${sale.invoiceNumber}:`, err);
+              console.error(`Fallo al autosincronizar venta pendiente ${sale.invoiceNumber}:`, err.response?.data || err);
             }
           }
         }
