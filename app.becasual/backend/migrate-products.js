@@ -18,7 +18,7 @@ async function main() {
   }
 
   const comprasRows = XLSX.utils.sheet_to_json(comprasSheet, { header: 1 });
-  const headersCompras = comprasRows[0].map(h => String(h || '').toUpperCase().trim());
+  const headersCompras = comprasRows[2].map(h => String(h || '').toUpperCase().trim());
   const barcodeIdxCompras = headersCompras.indexOf('CODIGO DE BARRAS');
   const costIdxCompras = headersCompras.indexOf('VALOR UNT');
   const sellIdxCompras = headersCompras.indexOf('PRECIO DE VENTA');
@@ -28,7 +28,7 @@ async function main() {
   }
 
   const priceMap = new Map();
-  for (let r = 1; r < comprasRows.length; r++) {
+  for (let r = 3; r < comprasRows.length; r++) {
     const row = comprasRows[r];
     let barcode = String(row[barcodeIdxCompras] || '').replace(/\*/g, '').trim();
     if (!barcode) continue;
@@ -49,7 +49,7 @@ async function main() {
   }
 
   const maestraRows = XLSX.utils.sheet_to_json(maestraSheet, { header: 1 });
-  const headersMaestra = maestraRows[0].map(h => String(h || '').toUpperCase().trim());
+  const headersMaestra = maestraRows[2].map(h => String(h || '').toUpperCase().trim());
   const barcodeIdxMaestra = headersMaestra.indexOf('CODIGO DE BARRAS');
   const nameIdxMaestra = headersMaestra.indexOf('NOMBRE COMPLETO');
   const lineIdxMaestra = headersMaestra.indexOf('LINEA');
@@ -67,7 +67,7 @@ async function main() {
   const processedBarcodes = new Set();
   const productsToCreate = [];
 
-  for (let r = 1; r < maestraRows.length; r++) {
+  for (let r = 3; r < maestraRows.length; r++) {
     const row = maestraRows[r];
     let barcode = String(row[barcodeIdxMaestra] || '').replace(/\*/g, '').trim();
     if (!barcode) continue;
@@ -137,7 +137,6 @@ async function main() {
   await prisma.saleDetail.deleteMany({});
   await prisma.sale.deleteMany({});
   await prisma.purchase.deleteMany({});
-  await prisma.layawayDetail.deleteMany({});
   await prisma.layaway.deleteMany({});
   await prisma.product.deleteMany({});
   
