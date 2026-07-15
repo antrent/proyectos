@@ -186,10 +186,15 @@ export default function InvoiceHistory({ user, currentStoreId }) {
         }
 
         const inventoryProducts = storageRepository.getProducts();
-        const getInventoryProduct = (barcode, name) => {
+        const getInventoryProduct = (code, name) => {
           let prod = null;
-          if (barcode) {
-            prod = inventoryProducts.find(p => p.barcode === barcode);
+          if (code) {
+            // Buscar primero por SKU (cruce principal)
+            prod = inventoryProducts.find(p => p.sku === code);
+            // Fallback a código de barras si no coincide por SKU
+            if (!prod) {
+              prod = inventoryProducts.find(p => p.barcode === code);
+            }
           }
           if (!prod && name) {
             const normalizedSearch = name.toLowerCase().trim();

@@ -203,14 +203,22 @@ export const createBulk = async (req, res) => {
             });
 
             if (!prod) {
-              const existingByBarcode = item.barcode
-                ? await tx.product.findFirst({ where: { barcode: item.barcode } })
+              const existingBySku = item.barcode
+                ? await tx.product.findFirst({ where: { sku: item.barcode } })
                 : null;
 
-              if (existingByBarcode) {
-                prod = existingByBarcode;
+              if (existingBySku) {
+                prod = existingBySku;
                 item.productId = prod.id;
               } else {
+                const existingByBarcode = item.barcode
+                  ? await tx.product.findFirst({ where: { barcode: item.barcode } })
+                  : null;
+
+                if (existingByBarcode) {
+                  prod = existingByBarcode;
+                  item.productId = prod.id;
+                } else {
                 prod = await tx.product.create({
                   data: {
                     id: item.productId,
@@ -232,6 +240,7 @@ export const createBulk = async (req, res) => {
                 });
               }
             }
+          }
 
             await tx.saleDetail.create({
               data: {
