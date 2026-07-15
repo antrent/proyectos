@@ -56,18 +56,20 @@ async function main() {
     const row = comprasRows[r];
     if (!row || row.length === 0) continue;
 
+    const rawDateVal = row[dateIdx];
     let sku = String(row[skuIdx] || '').trim();
-    let barcode = String(row[barcodeIdx] || '').replace(/\*/g, '').trim();
-    if (!sku && barcode) sku = barcode; // Fallback si falta el SKU
-    if (!sku) continue;
+    if (!rawDateVal || !sku) {
+      continue; // Descartar si no tiene fecha de ingreso o SKU
+    }
 
+    let barcode = String(row[barcodeIdx] || '').replace(/\*/g, '').trim();
     const qty = Number(row[qtyIdx]) || 0;
     const costPrice = Number(row[costIdx]) || 0;
     const sellPrice = Number(row[sellIdx]) || 0;
     const totalPrice = Number(row[totalIdx]) || (qty * costPrice);
     const name = String(row[nameIdx] || 'Producto Comprado').trim();
     const provider = String(row[providerIdx] || 'Genérico').trim();
-    const date = parseExcelDate(row[dateIdx]);
+    const date = parseExcelDate(rawDateVal);
 
     // Verificar si el SKU existe en el catálogo
     if (!productSkus.has(sku)) {
