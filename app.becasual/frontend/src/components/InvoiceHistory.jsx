@@ -245,11 +245,12 @@ export default function InvoiceHistory({ user, currentStoreId }) {
           grouped[invNum].accumulatedTotal += currentItemTotal;
           grouped[invNum].accumulatedDiscount += currentItemDiscount;
 
-          const invProd = getInventoryProduct(row.barcode, row.name);
+          const cleanBarcode = String(row.barcode || '').replace(/\*/g, '').trim();
+          const invProd = getInventoryProduct(cleanBarcode, row.name);
           grouped[invNum].items.push({
-            productId: invProd ? invProd.id : `prod_generico_${row.barcode || 'unknown'}`,
+            productId: invProd ? invProd.id : `prod_generico_${cleanBarcode || 'unknown'}`,
             name: row.name || (invProd ? invProd.name : 'Producto Genérico'),
-            barcode: row.barcode || (invProd ? invProd.barcode : ''),
+            barcode: cleanBarcode || (invProd ? invProd.barcode : ''),
             quantity: parseCSVNumber(row.quantity) || 1,
             sellPrice: parseCSVNumber(row.sellPrice) || 0,
             discount: parseCSVNumber(row.discount) || 0,
