@@ -87,6 +87,11 @@ export default function Dashboard({ triggerUpdate, currentStoreId }) {
 
   const handlePrintTopReport = () => {
     const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      alert("Por favor, habilita las ventanas emergentes (popups) en tu navegador para poder ver e imprimir el reporte.");
+      return;
+    }
+
     const storeName = currentStoreId === 'all' 
       ? 'Todas las Sedes (Consolidado)' 
       : (stores.find(s => s.id === currentStoreId)?.name || 'Sede Principal');
@@ -103,8 +108,10 @@ export default function Dashboard({ triggerUpdate, currentStoreId }) {
     `).join('');
 
     const htmlContent = `
+      <!DOCTYPE html>
       <html>
         <head>
+          <meta charset="utf-8">
           <title>Reporte de Productos Más Vendidos - BeCasual</title>
           <style>
             body { font-family: 'Inter', -apple-system, sans-serif; color: #1e293b; margin: 40px; line-height: 1.5; }
@@ -158,18 +165,19 @@ export default function Dashboard({ triggerUpdate, currentStoreId }) {
           <div class="footer">
             BeCasual Store Manager v1.9.0 — Reporte Generado de forma Automática
           </div>
-
-          <script>
-            window.onload = function() {
-              window.print();
-            }
-          </script>
         </body>
       </html>
     `;
 
+    printWindow.document.open();
     printWindow.document.write(htmlContent);
     printWindow.document.close();
+    printWindow.focus();
+
+    // Trigger printing from the parent context after content loads
+    setTimeout(() => {
+      printWindow.print();
+    }, 500);
   };
 
   return (

@@ -37,6 +37,10 @@ export default function Purchases({ user, onPurchaseSuccess, currentStoreId }) {
   const [purchaseBatch, setPurchaseBatch] = useState([]);
   const [batchProvider, setBatchProvider] = useState('');
   const [batchDate, setBatchDate] = useState(() => new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [sortField, setSortField] = useState('date');
+  const [sortDirection, setSortDirection] = useState('desc');
+  const ITEMS_PER_PAGE = 10;
   const [selectedProductForBatch, setSelectedProductForBatch] = useState(null);
   const [batchSearchQuery, setBatchSearchQuery] = useState('');
   const [batchFormData, setBatchFormData] = useState({
@@ -165,6 +169,7 @@ export default function Purchases({ user, onPurchaseSuccess, currentStoreId }) {
     setPurchaseHistory(purchaseService.getAll(currentStoreId));
     setProductsList(inventoryService.getAll(currentStoreId));
     setParams(storageRepository.getParams());
+    setCurrentPage(1);
   };
 
   const handleProductSearchSelect = (product) => {
@@ -430,6 +435,47 @@ export default function Purchases({ user, onPurchaseSuccess, currentStoreId }) {
     }
     return dateStr;
   };
+
+  const handleSort = (field) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('desc');
+    }
+    setCurrentPage(1);
+  };
+
+  const getSortIndicator = (field) => {
+    if (sortField !== field) return '';
+    return sortDirection === 'asc' ? ' 🔼' : ' 🔽';
+  };
+
+  const getSortedPurchases = () => {
+    return [...purchaseHistory].sort((a, b) => {
+      let valA, valB;
+      if (sortField === 'date') {
+        valA = a.date || '';
+        valB = b.date || '';
+      } else if (sortField === 'name') {
+        valA = a.name ? a.name.toLowerCase() : '';
+        valB = b.name ? b.name.toLowerCase() : '';
+      } else if (sortField === 'quantity') {
+        valA = Number(a.quantity) || 0;
+        valB = Number(b.quantity) || 0;
+      } else {
+        return 0;
+      }
+
+      if (valA < valB) return sortDirection === 'asc' ? -1 : 1;
+      if (valA > valB) return sortDirection === 'asc' ? 1 : -1;
+      return 0;
+    });
+  };
+
+  const sortedHistory = getSortedPurchases();
+  const totalPages = Math.ceil(sortedHistory.length / ITEMS_PER_PAGE);
+  const paginatedHistory = sortedHistory.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
@@ -1090,12 +1136,18 @@ export default function Purchases({ user, onPurchaseSuccess, currentStoreId }) {
           <table className="table-premium">
             <thead>
               <tr>
-                <th>Fecha</th>
+                <th style={{ cursor: 'pointer', userSelect: 'none' }} onClick={() => handleSort('date')}>
+                  Fecha{getSortIndicator('date')}
+                </th>
                 {currentStoreId === 'all' && <th>Tienda</th>}
                 <th>Código/SKU</th>
-                <th>Producto</th>
+                <th style={{ cursor: 'pointer', userSelect: 'none' }} onClick={() => handleSort('name')}>
+                  Producto{getSortIndicator('name')}
+                </th>
                 <th>Proveedor</th>
-                <th>Cantidad</th>
+                <th style={{ cursor: 'pointer', userSelect: 'none' }} onClick={() => handleSort('quantity')}>
+                  Cantidad{getSortIndicator('quantity')}
+                </th>
                 <th>Costo Unit.</th>
                 <th>Total Compra</th>
               </tr>
@@ -1108,7 +1160,7 @@ export default function Purchases({ user, onPurchaseSuccess, currentStoreId }) {
                   </td>
                 </tr>
               ) : (
-                purchaseHistory.map(p => (
+                paginatedHistory.map(p => (
                   <tr key={p.id}>
                     <td><code>{formatPurchaseDate(p.date)}</code></td>
                     {currentStoreId === 'all' && (
@@ -1132,6 +1184,31 @@ export default function Purchases({ user, onPurchaseSuccess, currentStoreId }) {
             </tbody>
           </table>
         </div>
+        {totalPages > 1 && (
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px', borderTop: '1px solid var(--border-color)', background: 'var(--bg-body)' }}>
+            <span style={{ fontSize: '12.5px', color: 'var(--text-muted)' }}>
+              Mostrando página <strong>{currentPage}</strong> de <strong>{totalPages}</strong> ({purchaseHistory.length} registros en total)
+            </span>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button 
+                type="button"
+                className="btn btn-outline btn-sm" 
+                onClick={() => setCurrentPage(p => Math.max(p - 1, 1))}
+                disabled={currentPage === 1}
+              >
+                ◀ Anterior
+              </button>
+              <button 
+                type="button"
+                className="btn btn-outline btn-sm" 
+                onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))}
+                disabled={currentPage === totalPages}
+              >
+                Siguiente ▶
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
     </div>
