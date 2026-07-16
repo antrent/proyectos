@@ -2,6 +2,23 @@ import React from 'react';
 
 const CHANGELOG = [
   {
+    version: 'v1.9.0',
+    date: 'Julio 2026',
+    title: 'Módulo de Gastos Operativos y Selección de Fechas en Compras',
+    badge: 'Nueva Funcionalidad',
+    badgeColor: '#3b82f6',
+    changes: [
+      'Implementado el nuevo módulo de Control de Gastos Operativos para control de egresos de tienda.',
+      'Soporte completo para registrar egresos indicando categoría, concepto, monto y método de pago.',
+      'Planificación del presupuesto mensual asignado a cada tipología de gasto con barra de progreso visual.',
+      'Soporte completo para la sincronización offline bidireccional automática de gastos y presupuestos.',
+      'Precargadas 9 categorías de gastos por defecto en la base de datos (Arriendo, Nómina, Servicios, Mantenimiento, etc.).',
+      'Widget ejecutivo del presupuesto de gastos operativos visible para administradores en el Dashboard.',
+      'Corregido bug de zona horaria (UTC/Local) al registrar fechas en el módulo de Compras.',
+      'Añadido selector manual de fecha para compras individuales e ingresos por lotes (masivos).'
+    ]
+  },
+  {
     version: 'v1.8.0',
     date: 'Julio 2026',
     title: 'Cambio de Productos (Canjes) y Desglose Financiero',

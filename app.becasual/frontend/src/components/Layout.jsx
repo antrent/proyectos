@@ -103,6 +103,7 @@ const HELP_DOCUMENTATION = {
     useCases: [
       "Registrar compras individuales buscando el producto por SKU o código de barras, ingresando cantidad comprada, costo y precio sugerido.",
       "Crear productos nuevos directamente en el inventario si no existían previamente al momento de la compra.",
+      "Seleccionar de forma manual la fecha de compra en el formulario (individual o por lote) para registros extemporáneos o históricos.",
       "Importar en lote registros de compras desde archivos CSV."
     ],
     dependencies: [
@@ -309,7 +310,7 @@ export default function Layout({ user, currentTab, setCurrentTab, onLogout, curr
             borderTop: '1px solid var(--border-color)',
             paddingTop: '8px'
           }}>
-            <span>Versión: <strong>v1.8.0</strong></span>
+            <span>Versión: <strong>v1.9.0</strong></span>
             <span
               style={{
                 cursor: 'pointer',
