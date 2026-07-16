@@ -17,6 +17,8 @@ export default function Dashboard({ triggerUpdate, currentStoreId }) {
   const [lowStock, setLowStock] = useState([]);
   const [recentSales, setRecentSales] = useState([]);
   const [topProducts, setTopProducts] = useState([]);
+  const [topLimit, setTopLimit] = useState(5);
+  const [topPage, setTopPage] = useState(1);
   const [isAdmin, setIsAdmin] = useState(false);
   const [budgetInfo, setBudgetInfo] = useState({ totalBudget: 0, totalActual: 0, totalRemaining: 0, totalProgress: 0 });
 
@@ -57,11 +59,12 @@ export default function Dashboard({ triggerUpdate, currentStoreId }) {
     }
   }, [triggerUpdate, currentStoreId]);
 
-  // Recalcular productos más vendidos cuando cambien las fechas
+  // Recalcular productos más vendidos cuando cambien las fechas o el límite
   useEffect(() => {
-    const list = salesService.getTopSellingProducts(startDate, endDate, currentStoreId, 5);
+    const list = salesService.getTopSellingProducts(startDate, endDate, currentStoreId, topLimit);
     setTopProducts(list);
-  }, [startDate, endDate, currentStoreId, triggerUpdate]);
+    setTopPage(1);
+  }, [startDate, endDate, currentStoreId, topLimit, triggerUpdate]);
 
   const formatCOP = (amount) => {
     return new Intl.NumberFormat('es-CO', {
@@ -76,6 +79,97 @@ export default function Dashboard({ triggerUpdate, currentStoreId }) {
     if (stats.totalSalesRevenue === 0) return '0%';
     const pct = (stats.totalSalesProfit / stats.totalSalesRevenue) * 100;
     return `${pct.toFixed(1)}%`;
+  };
+
+  const TOP_ITEMS_PER_PAGE = 5;
+  const totalTopPages = Math.ceil(topProducts.length / TOP_ITEMS_PER_PAGE);
+  const paginatedTopProducts = topProducts.slice((topPage - 1) * TOP_ITEMS_PER_PAGE, topPage * TOP_ITEMS_PER_PAGE);
+
+  const handlePrintTopReport = () => {
+    const printWindow = window.open('', '_blank');
+    const storeName = currentStoreId === 'all' 
+      ? 'Todas las Sedes (Consolidado)' 
+      : (stores.find(s => s.id === currentStoreId)?.name || 'Sede Principal');
+    
+    const rowsHtml = topProducts.map((p, idx) => `
+      <tr>
+        <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-weight: bold; text-align: center; color: #64748b;">#${idx + 1}</td>
+        <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-weight: 600; color: #1e293b;">${p.name}</td>
+        <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-family: monospace; color: #475569;">${p.sku}</td>
+        <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-family: monospace; color: #475569;">${p.barcode}</td>
+        <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: center; font-weight: 700; color: #059669;">${p.quantity} uds</td>
+        <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: right; font-weight: 700; color: #2563eb; font-size: 14px;">${formatCOP(p.totalRevenue)}</td>
+      </tr>
+    `).join('');
+
+    const htmlContent = `
+      <html>
+        <head>
+          <title>Reporte de Productos Más Vendidos - BeCasual</title>
+          <style>
+            body { font-family: 'Inter', -apple-system, sans-serif; color: #1e293b; margin: 40px; line-height: 1.5; }
+            h1 { font-size: 26px; color: #0f172a; margin: 0 0 5px; font-weight: 800; letter-spacing: -0.5px; }
+            .subtitle { font-size: 14px; color: #64748b; margin-bottom: 30px; }
+            .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 35px; padding: 20px; background: #f8fafc; border-radius: 12px; border: 1px solid #e2e8f0; }
+            .info-item { font-size: 13.5px; color: #334155; }
+            .info-item strong { color: #0f172a; font-weight: 600; }
+            table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+            th { background: #0f172a; color: white; padding: 12px 10px; text-align: left; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+            td { font-size: 13.5px; }
+            .footer { margin-top: 60px; text-align: center; font-size: 11px; color: #94a3b8; border-top: 1px solid #e2e8f0; padding-top: 20px; }
+            @media print {
+              button { display: none; }
+              body { margin: 20px; }
+            }
+          </style>
+        </head>
+        <body>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <div>
+              <h1>🔥 Reporte de Productos Más Vendidos</h1>
+              <div class="subtitle">Análisis de rotación e ingresos generados para el almacén</div>
+            </div>
+            <button onclick="window.print()" style="padding: 10px 22px; background: #0f172a; color: white; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; font-size: 13px; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);">🖨️ Imprimir Reporte</button>
+          </div>
+          
+          <div class="info-grid">
+            <div class="info-item"><strong>Sucursal/Sede:</strong> ${storeName}</div>
+            <div class="info-item"><strong>Rango de Fechas:</strong> ${startDate} hasta ${endDate}</div>
+            <div class="info-item"><strong>Productos en Reporte:</strong> Top ${topLimit === 99999 ? 'Completo' : topLimit} (${topProducts.length} listados)</div>
+            <div class="info-item"><strong>Fecha de Emisión:</strong> ${new Date().toLocaleString('es-CO', { dateStyle: 'long', timeStyle: 'short' })}</div>
+          </div>
+
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 60px; text-align: center;">Pos</th>
+                <th>Prenda / Producto</th>
+                <th>SKU</th>
+                <th>Código de Barras</th>
+                <th style="text-align: center; width: 140px;">Cantidad Vendida</th>
+                <th style="text-align: right; width: 160px;">Total Ingresos</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rowsHtml || `<tr><td colspan="6" style="padding: 30px; text-align: center; color: #94a3b8; font-weight: 500;">No hay registros de ventas en este período.</td></tr>`}
+            </tbody>
+          </table>
+
+          <div class="footer">
+            BeCasual Store Manager v1.9.0 — Reporte Generado de forma Automática
+          </div>
+
+          <script>
+            window.onload = function() {
+              window.print();
+            }
+          </script>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
   };
 
   return (
@@ -288,10 +382,10 @@ export default function Dashboard({ triggerUpdate, currentStoreId }) {
       <div className="card-table-wrapper" style={{ width: '100%' }}>
         <div className="card-header" style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
-            <h3 className="card-title">🔥 Top 5 Productos Más Vendidos</h3>
+            <h3 className="card-title">🔥 Top {topLimit === 99999 ? 'Todos los' : topLimit} Productos Más Vendidos</h3>
             <span className="card-subtitle">Prendas con mayor rotación e ingresos generados</span>
           </div>
-          <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
               <label style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>DESDE</label>
               <input 
@@ -312,6 +406,29 @@ export default function Dashboard({ triggerUpdate, currentStoreId }) {
                 style={{ padding: '6px 12px', fontSize: '13px' }}
               />
             </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <label style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>CANTIDAD TOP</label>
+              <select 
+                value={topLimit} 
+                onChange={(e) => setTopLimit(Number(e.target.value))} 
+                className="input-premium" 
+                style={{ padding: '6px 12px', fontSize: '13px', height: '31px', minWidth: '95px' }}
+              >
+                <option value={5}>Top 5</option>
+                <option value={10}>Top 10</option>
+                <option value={20}>Top 20</option>
+                <option value={50}>Top 50</option>
+                <option value={99999}>Todos</option>
+              </select>
+            </div>
+            <button
+              onClick={handlePrintTopReport}
+              className="btn btn-primary"
+              style={{ height: '31px', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', padding: '0 12px' }}
+              title="Generar Impresión del Reporte de Tops"
+            >
+              🖨️ Imprimir
+            </button>
           </div>
         </div>
         <div className="table-responsive">
@@ -333,28 +450,54 @@ export default function Dashboard({ triggerUpdate, currentStoreId }) {
                   </td>
                 </tr>
               ) : (
-                topProducts.map((p, idx) => (
-                  <tr key={p.productId}>
-                    <td style={{ fontWeight: '600', color: 'var(--text-primary)' }}>
-                      <span style={{ marginRight: '8px', color: 'var(--primary)', fontWeight: 'bold' }}>#{idx + 1}</span>
-                      {p.name}
-                    </td>
-                    <td><code>{p.sku}</code></td>
-                    <td><code>{p.barcode}</code></td>
-                    <td style={{ textAlign: 'center', fontWeight: 'bold' }}>
-                      <span className="badge success" style={{ fontSize: '13px', padding: '4px 10px' }}>
-                        {p.quantity} uds
-                      </span>
-                    </td>
-                    <td style={{ textAlign: 'right', color: 'var(--primary)', fontWeight: '700', fontSize: '14px' }}>
-                      {formatCOP(p.totalRevenue)}
-                    </td>
-                  </tr>
-                ))
+                paginatedTopProducts.map((p, idx) => {
+                  const absoluteIndex = (topPage - 1) * TOP_ITEMS_PER_PAGE + idx + 1;
+                  return (
+                    <tr key={p.productId}>
+                      <td style={{ fontWeight: '600', color: 'var(--text-primary)' }}>
+                        <span style={{ marginRight: '8px', color: 'var(--primary)', fontWeight: 'bold' }}>#{absoluteIndex}</span>
+                        {p.name}
+                      </td>
+                      <td><code>{p.sku}</code></td>
+                      <td><code>{p.barcode}</code></td>
+                      <td style={{ textAlign: 'center', fontWeight: 'bold' }}>
+                        <span className="badge success" style={{ fontSize: '13px', padding: '4px 10px' }}>
+                          {p.quantity} uds
+                        </span>
+                      </td>
+                      <td style={{ textAlign: 'right', color: 'var(--primary)', fontWeight: '700', fontSize: '14px' }}>
+                        {formatCOP(p.totalRevenue)}
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
         </div>
+        {totalTopPages > 1 && (
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px', borderTop: '1px solid var(--border-color)', background: 'var(--bg-body)' }}>
+            <span style={{ fontSize: '12.5px', color: 'var(--text-muted)' }}>
+              Mostrando página <strong>{topPage}</strong> de <strong>{totalTopPages}</strong> ({topProducts.length} productos filtrados)
+            </span>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button 
+                className="btn btn-outline btn-sm" 
+                onClick={() => setTopPage(p => Math.max(p - 1, 1))}
+                disabled={topPage === 1}
+              >
+                ◀ Anterior
+              </button>
+              <button 
+                className="btn btn-outline btn-sm" 
+                onClick={() => setTopPage(p => Math.min(p + 1, totalTopPages))}
+                disabled={topPage === totalTopPages}
+              >
+                Siguiente ▶
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
