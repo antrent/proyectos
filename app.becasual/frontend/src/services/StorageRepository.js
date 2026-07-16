@@ -34,6 +34,28 @@ class StorageRepository {
   }
 
   initDatabase() {
+    // Garantizar que existan las colecciones de gastos en localStorage
+    if (!localStorage.getItem('becasual_expenses')) {
+      localStorage.setItem('becasual_expenses', JSON.stringify([]));
+    }
+    if (!localStorage.getItem('becasual_expense_budgets')) {
+      localStorage.setItem('becasual_expense_budgets', JSON.stringify([]));
+    }
+    if (!localStorage.getItem('becasual_expense_categories')) {
+      const defaultCategories = [
+        { id: 'cat_1', name: 'Arriendo', description: 'Gasto de alquiler del local comercial' },
+        { id: 'cat_2', name: 'Servicios Públicos', description: 'Luz, agua, internet, telefonía' },
+        { id: 'cat_3', name: 'Nómina y Salarios', description: 'Pago de salarios, comisiones y prestaciones a empleados' },
+        { id: 'cat_4', name: 'Impuestos y Tasas', description: 'Declaraciones, retenciones e impuestos locales' },
+        { id: 'cat_5', name: 'Mantenimiento y Aseo', description: 'Reparaciones, aseo y desinfección del local' },
+        { id: 'cat_6', name: 'Papelería y Suministros', description: 'Bolsas, etiquetas, ganchos y útiles de oficina' },
+        { id: 'cat_7', name: 'Publicidad y Marketing', description: 'Redes sociales, folletos, pautas publicitarias' },
+        { id: 'cat_8', name: 'Comisión Bancaria', description: 'Comisiones de pasarelas de pago, Bold, datáfono, transferencias' },
+        { id: 'cat_9', name: 'Otros Gastos Operativos', description: 'Imprevistos y gastos menores' }
+      ];
+      localStorage.setItem('becasual_expense_categories', JSON.stringify(defaultCategories));
+    }
+
     // Si no está inicializado en localStorage, sembrar por defecto
     if (!localStorage.getItem('becasual_db_initialized')) {
       console.log('Initializing localStorage with seed data from Excel...');
@@ -346,6 +368,57 @@ class StorageRepository {
         }
       }
 
+      // 7. Sincronización de Categorías de Gastos
+      try {
+        const localCategories = this.getData('expense_categories') || [];
+        const cloudCategories = await api.get('/expenses/categories').catch(() => null);
+        if (Array.isArray(cloudCategories)) {
+          const pendingCategories = localCategories.filter(local => 
+            !cloudCategories.some(cloud => cloud.id === local.id || cloud.name.toLowerCase() === local.name.toLowerCase())
+          );
+          if (pendingCategories.length > 0) {
+            await api.post('/expenses/categories/bulk', { categories: pendingCategories }).catch(e => console.error(e));
+          }
+          const finalCategories = await api.get('/expenses/categories').catch(() => cloudCategories);
+          if (Array.isArray(finalCategories)) this.setData('expense_categories', finalCategories);
+        }
+      } catch (err) {
+        console.error('Error syncing expense categories:', err);
+      }
+
+      // 8. Sincronización de Gastos
+      try {
+        const localExpenses = this.getData('expenses') || [];
+        const cloudExpenses = await api.get('/expenses').catch(() => null);
+        if (Array.isArray(cloudExpenses)) {
+          const pendingExpenses = localExpenses.filter(local =>
+            !cloudExpenses.some(cloud => cloud.id === local.id)
+          );
+          if (pendingExpenses.length > 0) {
+            await api.post('/expenses/bulk', { expenses: pendingExpenses }).catch(e => console.error(e));
+          }
+          const finalExpenses = await api.get('/expenses').catch(() => cloudExpenses);
+          if (Array.isArray(finalExpenses)) this.setData('expenses', finalExpenses);
+        }
+      } catch (err) {
+        console.error('Error syncing expenses:', err);
+      }
+
+      // 9. Sincronización de Presupuestos
+      try {
+        const localBudgets = this.getData('expense_budgets') || [];
+        const cloudBudgets = await api.get('/expenses/budgets').catch(() => null);
+        if (Array.isArray(cloudBudgets)) {
+          if (localBudgets.length > 0) {
+            await api.post('/expenses/budgets/bulk', { budgets: localBudgets }).catch(e => console.error(e));
+          }
+          const finalBudgets = await api.get('/expenses/budgets').catch(() => cloudBudgets);
+          if (Array.isArray(finalBudgets)) this.setData('expense_budgets', finalBudgets);
+        }
+      } catch (err) {
+        console.error('Error syncing budgets:', err);
+      }
+
       console.log('Sincronización con GCP completada de forma exitosa. 🎉');
       // Desencadenar evento global para que React actualice componentes
       window.dispatchEvent(new CustomEvent('becasual_db_sync_complete'));
@@ -554,6 +627,15 @@ class StorageRepository {
     this.saveSnapshots(merged);
     return true;
   }
+
+  getExpenses() { return this.getData('expenses') || []; }
+  saveExpenses(expenses) { return this.setData('expenses', expenses); }
+
+  getExpenseCategories() { return this.getData('expense_categories') || []; }
+  saveExpenseCategories(categories) { return this.setData('expense_categories', categories); }
+
+  getExpenseBudgets() { return this.getData('expense_budgets') || []; }
+  saveExpenseBudgets(budgets) { return this.setData('expense_budgets', budgets); }
 }
 
 export const storageRepository = new StorageRepository();

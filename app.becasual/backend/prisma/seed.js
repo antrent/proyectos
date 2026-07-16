@@ -21,6 +21,9 @@ async function main() {
 
   // 2. Limpieza de datos existentes (orden inverso de dependencias de FKs)
   console.log('Limpiando base de datos...');
+  await prisma.expense.deleteMany({});
+  await prisma.expenseBudget.deleteMany({});
+  await prisma.expenseCategory.deleteMany({});
   await prisma.closing.deleteMany({});
   await prisma.layaway.deleteMany({});
   await prisma.saleDetail.deleteMany({});
@@ -85,6 +88,24 @@ async function main() {
       startDate: new Date(),
       status: 'activo',
     },
+  });
+
+  // 5b. Crear Categorías de Gastos por Defecto
+  console.log('Creando categorías de gastos por defecto...');
+  const defaultCategories = [
+    { name: 'Arriendo', description: 'Gasto de alquiler del local comercial' },
+    { name: 'Servicios Públicos', description: 'Luz, agua, internet, telefonía' },
+    { name: 'Nómina y Salarios', description: 'Pago de salarios, comisiones y prestaciones a empleados' },
+    { name: 'Impuestos y Tasas', description: 'Declaraciones, retenciones e impuestos locales' },
+    { name: 'Mantenimiento y Aseo', description: 'Reparaciones, aseo y desinfección del local' },
+    { name: 'Papelería y Suministros', description: 'Bolsas, etiquetas, ganchos y útiles de oficina' },
+    { name: 'Publicidad y Marketing', description: 'Redes sociales, folletos, pautas publicitarias' },
+    { name: 'Comisión Bancaria', description: 'Comisiones de pasarelas de pago, Bold, datáfono, transferencias' },
+    { name: 'Otros Gastos Operativos', description: 'Imprevistos y gastos menores' }
+  ];
+  await prisma.expenseCategory.createMany({
+    data: defaultCategories,
+    skipDuplicates: true
   });
 
   // 6. Crear Productos (Inventario)

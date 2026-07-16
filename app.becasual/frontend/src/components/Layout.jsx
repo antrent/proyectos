@@ -12,6 +12,7 @@ const ALL_NAV_ITEMS = [
   { id: 'purchases',       name: 'Registrar Compra',    icon: '➕', module: 'purchases' },
   { id: 'stockbreak',      name: 'Proyección y Quiebres', icon: '⚡', module: 'inventory_view' },
   { id: 'dailyclosing',    name: 'Cierre Diario',       icon: '🏁', module: 'sales' },
+  { id: 'expenses',        name: 'Control de Gastos',   icon: '💸', module: 'expenses' },
   { id: 'clients',         name: 'Clientes',            icon: '👥', module: 'clients' },
   { id: 'employees',       name: 'Empleados',           icon: '👤', module: 'employees' },
   { id: 'docs',            name: 'Manual y Soporte',    icon: '📖', module: 'dashboard' },
@@ -172,6 +173,21 @@ const HELP_DOCUMENTATION = {
     ],
     dependencies: [
       "Todas las Pantallas: Altera directamente las opciones disponibles al crear productos, compras o realizar cierres."
+    ]
+  },
+  expenses: {
+    title: "💸 Control de Gastos y Presupuestos",
+    description: "Módulo administrativo para registrar todos los gastos operativos del almacén (arriendos, nómina, servicios) y realizar la planeación del presupuesto mensual asignado.",
+    useCases: [
+      "Registrar nuevos egresos detallando categoría, monto, método de pago y número de factura/recibo.",
+      "Visualizar el historial de gastos operativos filtrando por fecha, categoría y palabra clave.",
+      "Planificar el presupuesto mensual de cada una de las tipologías de gasto y monitorear el porcentaje consumido.",
+      "Analizar las alertas visuales del consumo de presupuestos (indicadores verde, amarillo y rojo)."
+    ],
+    dependencies: [
+      "Sedes (Stores): Asocia los gastos y planeación de presupuestos a la sucursal correspondiente.",
+      "Configuración de Categorías: Permite crear tipologías de gastos personalizadas.",
+      "Tablero Principal (Dashboard): Alimenta el widget consolidado del mes."
     ]
   }
 };

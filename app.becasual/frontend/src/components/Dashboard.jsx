@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { salesService } from '../services/SalesService';
 import { inventoryService } from '../services/InventoryService';
+import { expensesService } from '../services/ExpensesService';
 
 export default function Dashboard({ triggerUpdate, currentStoreId }) {
   const [stats, setStats] = useState({
@@ -16,6 +17,8 @@ export default function Dashboard({ triggerUpdate, currentStoreId }) {
   const [lowStock, setLowStock] = useState([]);
   const [recentSales, setRecentSales] = useState([]);
   const [topProducts, setTopProducts] = useState([]);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [budgetInfo, setBudgetInfo] = useState({ totalBudget: 0, totalActual: 0, totalRemaining: 0, totalProgress: 0 });
 
   // Inicializar rango de fechas (desde hace 30 días hasta hoy)
   const [startDate, setStartDate] = useState(() => {
@@ -39,6 +42,19 @@ export default function Dashboard({ triggerUpdate, currentStoreId }) {
     // Load recent sales for the active store
     const sales = salesService.getAll(currentStoreId);
     setRecentSales(sales.slice(0, 5)); // show top 5
+
+    // Check if user is admin to show expenses budget comparison
+    const currentUser = JSON.parse(sessionStorage.getItem('becasual_current_user') || '{}');
+    const isAdminUser = currentUser.role === 'admin';
+    setIsAdmin(isAdminUser);
+
+    if (isAdminUser) {
+      const now = new Date();
+      const currentMonth = now.getMonth() + 1;
+      const currentYear = now.getFullYear();
+      const comp = expensesService.getBudgetComparison(currentStoreId, currentMonth, currentYear);
+      setBudgetInfo(comp);
+    }
   }, [triggerUpdate, currentStoreId]);
 
   // Recalcular productos más vendidos cuando cambien las fechas
@@ -102,6 +118,64 @@ export default function Dashboard({ triggerUpdate, currentStoreId }) {
           <div className="stat-icon">📦</div>
         </div>
       </div>
+
+      {/* Administrador: Resumen de Presupuestos y Gastos */}
+      {isAdmin && (
+        <div className="card-table-wrapper" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+            <div>
+              <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 800, color: 'var(--text-primary)' }}>
+                💸 Presupuesto de Gastos Operativos (Este Mes)
+              </h3>
+              <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                Comparativa del presupuesto total planeado contra los egresos registrados
+              </span>
+            </div>
+            <div style={{ textAlign: 'right' }}>
+              <span className="badge secondary" style={{ fontSize: '12.5px', padding: '4px 10px' }}>
+                Período: {new Date().toLocaleDateString('es-CO', { month: 'long', year: 'numeric' })}
+              </span>
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', alignItems: 'center' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>Presupuestado</span>
+              <span style={{ fontSize: '20px', fontWeight: '800', color: 'var(--text-primary)' }}>{formatCOP(budgetInfo.totalBudget)}</span>
+            </div>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>Gastado Real</span>
+              <span style={{ fontSize: '20px', fontWeight: '800', color: 'var(--danger)' }}>{formatCOP(budgetInfo.totalActual)}</span>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>Disponible</span>
+              <span style={{ fontSize: '20px', fontWeight: '800', color: budgetInfo.totalRemaining >= 0 ? 'var(--success)' : 'var(--danger)' }}>
+                {formatCOP(budgetInfo.totalRemaining)}
+              </span>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', fontWeight: '700' }}>
+                <span>Progreso de Ejecución</span>
+                <span style={{ color: budgetInfo.totalProgress > 100 ? 'var(--danger)' : budgetInfo.totalProgress > 85 ? 'var(--secondary)' : 'var(--success)' }}>
+                  {budgetInfo.totalProgress.toFixed(1)}%
+                </span>
+              </div>
+              <div style={{ width: '100%', height: '10px', backgroundColor: 'var(--border-color)', borderRadius: '5px', overflow: 'hidden' }}>
+                <div style={{
+                  width: `${Math.min(100, budgetInfo.totalProgress)}%`,
+                  height: '100%',
+                  backgroundColor: budgetInfo.totalProgress > 100 ? 'var(--danger)' : budgetInfo.totalProgress > 85 ? 'var(--secondary)' : 'var(--success)',
+                  borderRadius: '5px',
+                  transition: 'width 0.4s ease'
+                }} />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Main grids */}
       <div className="grid-2">
