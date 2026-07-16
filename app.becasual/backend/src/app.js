@@ -10,6 +10,7 @@ import salesRouter from './routes/salesRoutes.js';
 import layawaysRouter from './routes/layawaysRoutes.js';
 import closingsRouter from './routes/closingsRoutes.js';
 import storesRouter from './routes/storesRoutes.js';
+import expensesRouter from './routes/expensesRoutes.js';
 
 dotenv.config();
 
@@ -30,6 +31,7 @@ app.use('/api/sales', salesRouter);
 app.use('/api/layaways', layawaysRouter);
 app.use('/api/closings', closingsRouter);
 app.use('/api/stores', storesRouter);
+app.use('/api/expenses', expensesRouter);
 
 // Ruta de estado
 app.get('/api/health', (req, res) => {

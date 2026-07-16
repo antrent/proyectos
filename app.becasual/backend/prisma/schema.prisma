@@ -22,6 +22,8 @@ model Store {
   sales              Sale[]
   layaways           Layaway[]
   closings           Closing[]
+  expenses           Expense[]
+  budgets            ExpenseBudget[]
 }
 
 model User {
@@ -144,4 +146,38 @@ model Closing {
   digitalCollect Float    @default(0) // Bold, Addi, Nequi, etc.
   difference     Float    @default(0)
   status         String   @default("abierta") // 'abierta', 'cerrada'
+}
+
+model ExpenseCategory {
+  id          String          @id @default(cuid())
+  name        String          @unique
+  description String?
+  expenses    Expense[]
+  budgets     ExpenseBudget[]
+}
+
+model Expense {
+  id              String          @id @default(cuid())
+  storeId         String
+  store           Store           @relation(fields: [storeId], references: [id])
+  categoryId      String
+  category        ExpenseCategory @relation(fields: [categoryId], references: [id])
+  description     String
+  amount          Float           @default(0)
+  date            DateTime        @default(now())
+  referenceNumber String?
+  paymentMethod   String          @default("Efectivo")
+}
+
+model ExpenseBudget {
+  id         String          @id @default(cuid())
+  storeId    String
+  store      Store           @relation(fields: [storeId], references: [id])
+  categoryId String
+  category   ExpenseCategory @relation(fields: [categoryId], references: [id])
+  amount     Float           @default(0)
+  month      Int             // 1-12
+  year       Int             // e.g., 2026
+
+  @@unique([storeId, categoryId, month, year])
 }

@@ -30,6 +30,7 @@ import { authService } from './services/AuthService';
 import { storageRepository } from './services/StorageRepository';
 import OpeningBoxForm from './components/OpeningBoxForm';
 import Documentation from './components/Documentation';
+import Expenses from './components/Expenses';
 
 export default function App() {
   const [user, setUser] = useState(null);
@@ -111,6 +112,7 @@ export default function App() {
       {currentTab === 'clients'      && <Clients user={user} />}
       {currentTab === 'employees'    && <Employees user={user} />}
       {currentTab === 'layaways'     && <Layaways user={user} currentStoreId={storeId} onDataChange={toggleUpdate} />}
+      {currentTab === 'expenses'     && <Expenses user={user} currentStoreId={storeId} triggerUpdate={triggerUpdate} onDataChange={toggleUpdate} />}
       {currentTab === 'docs'         && <Documentation />}
       {currentTab === 'config'       && <Configuration user={user} onConfigChange={toggleUpdate} currentStoreId={storeId} />}
     </Layout>
