@@ -30,12 +30,13 @@ export default function Purchases({ user, onPurchaseSuccess, currentStoreId }) {
     gender: '',
     style: '',
     color: '',
-    size: ''
+    size: '',
+    date: new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0]
   });
 
-  // Batch purchases state (Mass entry)
   const [purchaseBatch, setPurchaseBatch] = useState([]);
   const [batchProvider, setBatchProvider] = useState('');
+  const [batchDate, setBatchDate] = useState(() => new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0]);
   const [selectedProductForBatch, setSelectedProductForBatch] = useState(null);
   const [batchSearchQuery, setBatchSearchQuery] = useState('');
   const [batchFormData, setBatchFormData] = useState({
@@ -203,7 +204,8 @@ export default function Purchases({ user, onPurchaseSuccess, currentStoreId }) {
       gender: params.genders[0]?.name || '',
       style: params.styles[0]?.name || '',
       color: params.colors[0]?.name || '',
-      size: params.sizes[0]?.name || ''
+      size: params.sizes[0]?.name || '',
+      date: new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0]
     });
     setError('');
   };
@@ -378,8 +380,14 @@ export default function Purchases({ user, onPurchaseSuccess, currentStoreId }) {
     try {
       const targetStoreId = currentStoreId === 'all' ? 'store_1' : currentStoreId;
       
+      // Asignar la fecha seleccionada del lote a cada item antes de registrar
+      const batchItemsWithDate = purchaseBatch.map(item => ({
+        ...item,
+        date: batchDate
+      }));
+
       purchaseService.registerPurchase({
-        items: purchaseBatch,
+        items: batchItemsWithDate,
         provider: batchProvider || 'Ingreso Masivo Manual'
       }, targetStoreId);
 
@@ -399,6 +407,28 @@ export default function Purchases({ user, onPurchaseSuccess, currentStoreId }) {
       currency: 'COP',
       minimumFractionDigits: 0
     }).format(amount);
+  };
+
+  const formatPurchaseDate = (dateStr) => {
+    if (!dateStr) return '—';
+    if (dateStr.length === 10) return dateStr;
+    if (dateStr.includes('T')) {
+      const [datePart, timePart] = dateStr.split('T');
+      if (timePart.startsWith('00:00:00')) {
+        return datePart;
+      }
+      try {
+        const d = new Date(dateStr);
+        if (isNaN(d.getTime())) return datePart;
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+      } catch (e) {
+        return datePart;
+      }
+    }
+    return dateStr;
   };
 
   return (
@@ -667,19 +697,32 @@ export default function Purchases({ user, onPurchaseSuccess, currentStoreId }) {
               </div>
             )}
 
-            <div className="form-group" style={{ marginTop: '10px' }}>
-              <label className="form-label">Proveedor / Marca</label>
-              <input
-                type="text"
-                className="form-control"
-                list="providersList"
-                placeholder="Ej. R TREIK"
-                value={formData.provider}
-                onChange={(e) => setFormData({ ...formData, provider: e.target.value })}
-              />
-              <datalist id="providersList">
-                {params.providers.map(p => <option key={p.id} value={p.name} />)}
-              </datalist>
+            <div className="grid-2" style={{ marginTop: '10px' }}>
+              <div className="form-group">
+                <label className="form-label">Proveedor / Marca</label>
+                <input
+                  type="text"
+                  className="form-control"
+                  list="providersList"
+                  placeholder="Ej. R TREIK"
+                  value={formData.provider}
+                  onChange={(e) => setFormData({ ...formData, provider: e.target.value })}
+                />
+                <datalist id="providersList">
+                  {params.providers.map(p => <option key={p.id} value={p.name} />)}
+                </datalist>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Fecha de Compra</label>
+                <input
+                  type="date"
+                  className="form-control"
+                  value={formData.date}
+                  onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                  required
+                />
+              </div>
             </div>
 
             <button type="submit" className="btn btn-primary" style={{ alignSelf: 'flex-end', padding: '12px 24px' }}>
@@ -691,18 +734,32 @@ export default function Purchases({ user, onPurchaseSuccess, currentStoreId }) {
             
             {/* Proveedor General del Lote */}
             <div className="form-group" style={{ background: 'var(--bg-body)', padding: '16px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
-              <label className="form-label" style={{ fontWeight: '700' }}>Proveedor de este Lote / Factura</label>
-              <input
-                type="text"
-                className="form-control"
-                list="batchProvidersList"
-                placeholder="Escribe el proveedor (ej. R TREIK) que se aplicará al lote"
-                value={batchProvider}
-                onChange={(e) => setBatchProvider(e.target.value)}
-              />
-              <datalist id="batchProvidersList">
-                {params.providers.map(p => <option key={p.id} value={p.name} />)}
-              </datalist>
+              <div className="grid-2">
+                <div>
+                  <label className="form-label" style={{ fontWeight: '700' }}>Proveedor de este Lote / Factura</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    list="batchProvidersList"
+                    placeholder="Escribe el proveedor (ej. R TREIK) que se aplicará al lote"
+                    value={batchProvider}
+                    onChange={(e) => setBatchProvider(e.target.value)}
+                  />
+                  <datalist id="batchProvidersList">
+                    {params.providers.map(p => <option key={p.id} value={p.name} />)}
+                  </datalist>
+                </div>
+                <div>
+                  <label className="form-label" style={{ fontWeight: '700' }}>Fecha de este Lote / Factura</label>
+                  <input
+                    type="date"
+                    className="form-control"
+                    value={batchDate}
+                    onChange={(e) => setBatchDate(e.target.value)}
+                    required
+                  />
+                </div>
+              </div>
             </div>
 
             {/* Formulario para agregar producto al lote */}
@@ -1053,7 +1110,7 @@ export default function Purchases({ user, onPurchaseSuccess, currentStoreId }) {
               ) : (
                 purchaseHistory.map(p => (
                   <tr key={p.id}>
-                    <td><code>{p.date}</code></td>
+                    <td><code>{formatPurchaseDate(p.date)}</code></td>
                     {currentStoreId === 'all' && (
                       <td style={{ fontSize: '12px', fontWeight: '600' }}>
                         🏬 {p.storeId === 'store_2' ? 'Sede Centro' : 'Sede Principal'}

@@ -59,7 +59,7 @@ class PurchaseService {
       const newPurchaseItem = {
         id: `pur_${Date.now()}_${Math.random().toString().slice(-4)}`,
         storeId,
-        date: new Date().toISOString().split('T')[0],
+        date: item.date || new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0],
         barcode: product.barcode,
         sku: product.sku,
         name: product.name,
@@ -84,7 +84,7 @@ class PurchaseService {
         costPrice,
         totalPrice,
         sellPrice,
-        date: new Date().toISOString()
+        date: item.date ? new Date(item.date).toISOString() : new Date().toISOString()
       };
       api.post('/purchases', payload).catch(err => {
         console.error('Error al registrar compra en GCP background:', err);
