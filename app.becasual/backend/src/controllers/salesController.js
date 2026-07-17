@@ -182,8 +182,9 @@ export const createBulk = async (req, res) => {
         continue; // Omitir facturas que ya existen y ya tienen detalles para evitar duplicación
       }
 
+      const targetStoreId = storeIds.includes(sale.storeId) ? sale.storeId : defaultStoreId;
+
       if (!hasExistingSale) {
-        const targetStoreId = storeIds.includes(sale.storeId) ? sale.storeId : defaultStoreId;
         const targetEmployeeId = employeeIds.includes(sale.sellerId || sale.employeeId)
           ? (sale.sellerId || sale.employeeId)
           : null;
