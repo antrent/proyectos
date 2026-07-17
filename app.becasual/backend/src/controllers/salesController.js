@@ -164,38 +164,43 @@ export const createBulk = async (req, res) => {
     const validEmployees = await prisma.employee.findMany({ select: { id: true } });
     const employeeIds = validEmployees.map(e => e.id);
 
-    // 3. Consultar cuáles de las ventas que se van a subir ya existen en la base de datos de GCP
+    // 3. Consultar cuáles de las ventas que se van a subir ya existen en la base de datos de GCP y traer sus detalles
     const existingSales = await prisma.sale.findMany({
       where: { id: { in: sales.map(s => s.id) } },
-      select: { id: true }
+      include: { details: true }
     });
-    const existingIds = new Set(existingSales.map(s => s.id));
+    const existingSalesMap = new Map(existingSales.map(s => [s.id, s.details || []]));
 
     const salesToInsert = [];
     const detailsToInsert = [];
 
     for (const sale of sales) {
-      if (existingIds.has(sale.id)) {
-        continue; // Omitir facturas que ya existen para evitar duplicados
+      const hasExistingSale = existingSalesMap.has(sale.id);
+      const existingDetails = existingSalesMap.get(sale.id) || [];
+
+      if (hasExistingSale && existingDetails.length > 0) {
+        continue; // Omitir facturas que ya existen y ya tienen detalles para evitar duplicación
       }
 
-      const targetStoreId = storeIds.includes(sale.storeId) ? sale.storeId : defaultStoreId;
-      const targetEmployeeId = employeeIds.includes(sale.sellerId || sale.employeeId)
-        ? (sale.sellerId || sale.employeeId)
-        : null;
+      if (!hasExistingSale) {
+        const targetStoreId = storeIds.includes(sale.storeId) ? sale.storeId : defaultStoreId;
+        const targetEmployeeId = employeeIds.includes(sale.sellerId || sale.employeeId)
+          ? (sale.sellerId || sale.employeeId)
+          : null;
 
-      salesToInsert.push({
-        id: sale.id,
-        storeId: targetStoreId,
-        invoiceNumber: sale.invoiceNumber,
-        date: sale.date ? new Date(sale.date) : new Date(),
-        clientName: sale.clientName || 'Cliente Final',
-        employeeId: targetEmployeeId,
-        paymentMethod: sale.paymentMethod || 'Efectivo',
-        total: Number(sale.total) || 0
-      });
+        salesToInsert.push({
+          id: sale.id,
+          storeId: targetStoreId,
+          invoiceNumber: sale.invoiceNumber,
+          date: sale.date ? new Date(sale.date) : new Date(),
+          clientName: sale.clientName || 'Cliente Final',
+          employeeId: targetEmployeeId,
+          paymentMethod: sale.paymentMethod || 'Efectivo',
+          total: Number(sale.total) || 0
+        });
+      }
 
-      if (Array.isArray(sale.items)) {
+      if (existingDetails.length === 0 && Array.isArray(sale.items)) {
         for (const item of sale.items) {
           if (!item.productId) continue;
 
