@@ -201,7 +201,7 @@ export const createBulk = async (req, res) => {
 
           // Limpiar asteriscos y resolver código de barras en el backend
           let cleanBarcode = String(item.barcode || '').replace(/\*/g, '').trim();
-          if (!cleanBarcode && String(item.productId).startsWith('prod_generico_')) {
+          if (!cleanBarcode && item.productId) {
             cleanBarcode = String(item.productId).replace('prod_generico_', '').replace(/\*/g, '').trim();
           }
 

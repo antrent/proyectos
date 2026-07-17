@@ -248,9 +248,27 @@ class SalesService {
       const items = sale.items || sale.details || [];
       items.forEach(item => {
         const productId = item.productId;
-        const name = item.product ? item.product.name : (item.name || 'Producto Genérico');
-        const barcode = item.product ? item.product.barcode : (item.barcode || '');
-        const sku = item.product ? item.product.sku : (item.sku || barcode);
+        if (!productId) return;
+
+        // Intentar resolver desde el catálogo local
+        let prod = item.product;
+        if (!prod) {
+          prod = inventoryService.getById(productId) || inventoryService.getByBarcode(productId);
+        }
+
+        const cleanProductId = productId.replace('prod_generico_', '').replace(/\*/g, '').trim();
+        const name = prod ? prod.name : (item.name || 'Producto Genérico');
+        let barcode = prod ? prod.barcode : (item.barcode || '');
+        let sku = prod ? prod.sku : (item.sku || barcode);
+
+        // Fallbacks defensivos si quedan vacíos, nulos o "unknown"
+        if (!sku || sku === 'unknown') {
+          sku = cleanProductId || 'unknown';
+        }
+        if (!barcode || barcode === 'unknown') {
+          barcode = cleanProductId || 'unknown';
+        }
+
         const qty = Number(item.quantity) || 0;
         const price = Number(item.price || item.sellPrice) || 0;
         const subtotal = Number(item.subtotal) || (qty * price);
