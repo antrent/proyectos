@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { salesService } from '../services/SalesService';
 import { inventoryService } from '../services/InventoryService';
 import { expensesService } from '../services/ExpensesService';
+import { storageRepository } from '../services/StorageRepository';
 
 export default function Dashboard({ triggerUpdate, currentStoreId }) {
   const [stats, setStats] = useState({
@@ -86,6 +87,7 @@ export default function Dashboard({ triggerUpdate, currentStoreId }) {
   const paginatedTopProducts = topProducts.slice((topPage - 1) * TOP_ITEMS_PER_PAGE, topPage * TOP_ITEMS_PER_PAGE);
 
   const handlePrintTopReport = () => {
+    const stores = storageRepository.getStores();
     const storeName = currentStoreId === 'all' 
       ? 'Todas las Sedes (Consolidado)' 
       : (stores.find(s => s.id === currentStoreId)?.name || 'Sede Principal');
