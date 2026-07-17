@@ -86,12 +86,6 @@ export default function Dashboard({ triggerUpdate, currentStoreId }) {
   const paginatedTopProducts = topProducts.slice((topPage - 1) * TOP_ITEMS_PER_PAGE, topPage * TOP_ITEMS_PER_PAGE);
 
   const handlePrintTopReport = () => {
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) {
-      alert("Por favor, habilita las ventanas emergentes (popups) en tu navegador para poder ver e imprimir el reporte.");
-      return;
-    }
-
     const storeName = currentStoreId === 'all' 
       ? 'Todas las Sedes (Consolidado)' 
       : (stores.find(s => s.id === currentStoreId)?.name || 'Sede Principal');
@@ -124,10 +118,6 @@ export default function Dashboard({ triggerUpdate, currentStoreId }) {
             th { background: #0f172a; color: white; padding: 12px 10px; text-align: left; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
             td { font-size: 13.5px; }
             .footer { margin-top: 60px; text-align: center; font-size: 11px; color: #94a3b8; border-top: 1px solid #e2e8f0; padding-top: 20px; }
-            @media print {
-              button { display: none; }
-              body { margin: 20px; }
-            }
           </style>
         </head>
         <body>
@@ -136,7 +126,6 @@ export default function Dashboard({ triggerUpdate, currentStoreId }) {
               <h1>🔥 Reporte de Productos Más Vendidos</h1>
               <div class="subtitle">Análisis de rotación e ingresos generados para el almacén</div>
             </div>
-            <button onclick="window.print()" style="padding: 10px 22px; background: #0f172a; color: white; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; font-size: 13px; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);">🖨️ Imprimir Reporte</button>
           </div>
           
           <div class="info-grid">
@@ -169,14 +158,30 @@ export default function Dashboard({ triggerUpdate, currentStoreId }) {
       </html>
     `;
 
-    printWindow.document.open();
-    printWindow.document.write(htmlContent);
-    printWindow.document.close();
-    printWindow.focus();
+    // Crear iframe temporal para imprimir de forma resiliente
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+    document.body.appendChild(iframe);
 
-    // Trigger printing from the parent context after content loads
+    const doc = iframe.contentDocument || iframe.contentWindow.document;
+    doc.open();
+    doc.write(htmlContent);
+    doc.close();
+
+    // Invocar impresión
     setTimeout(() => {
-      printWindow.print();
+      iframe.contentWindow.focus();
+      iframe.contentWindow.print();
+      
+      // Limpiar iframe después de cerrar la modal de impresión
+      setTimeout(() => {
+        document.body.removeChild(iframe);
+      }, 1000);
     }, 500);
   };
 
