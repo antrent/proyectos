@@ -6,6 +6,7 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm install --production
 
+# Copiar el esquema de prisma y generar el cliente nativo
 # Copiar el esquema de prisma y generar el cliente
 COPY prisma ./prisma/
 RUN npx prisma generate

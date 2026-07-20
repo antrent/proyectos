@@ -4,32 +4,10 @@ import { api } from './api.js';
 class StorageRepository {
   constructor() {
     this.initDatabase();
-    this.syncInterval = null;
-    // Iniciar sincronización e intervalo recurrente si el usuario ya está autenticado
+    // Iniciar sincronización si el usuario ya está autenticado
     const currentUser = sessionStorage.getItem('becasual_current_user');
     if (currentUser) {
       this.syncWithCloud();
-      this.startSyncInterval();
-    }
-  }
-
-  startSyncInterval() {
-    if (this.syncInterval) clearInterval(this.syncInterval);
-    // Realizar sincronización periódica en segundo plano cada 30 segundos
-    this.syncInterval = setInterval(() => {
-      const currentUser = sessionStorage.getItem('becasual_current_user');
-      if (currentUser) {
-        this.syncWithCloud();
-      } else {
-        this.stopSyncInterval();
-      }
-    }, 30000);
-  }
-
-  stopSyncInterval() {
-    if (this.syncInterval) {
-      clearInterval(this.syncInterval);
-      this.syncInterval = null;
     }
   }
 
