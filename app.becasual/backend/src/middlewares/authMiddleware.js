@@ -1,39 +1,26 @@
 import jwt from 'jsonwebtoken';
 
-export const authenticateJWT = (req, res, next) => {
-  const authHeader = req.headers.authorization;
+export function authenticateToken(req, res, next) {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
 
-  if (authHeader) {
-    // El token viene como "Bearer <token>"
-    const token = authHeader.split(' ')[1];
-
-    if (!token) {
-      return res.status(401).json({ error: 'Token de acceso no proporcionado.' });
-    }
-
-    jwt.verify(token, process.env.JWT_SECRET || 'becasual_super_secret_key_123!', (err, user) => {
-      if (err) {
-        return res.status(403).json({ error: 'Token inválido o expirado.' });
-      }
-
-      req.user = user;
-      next();
-    });
-  } else {
-    res.status(401).json({ error: 'Cabecera de autorización no encontrada.' });
+  if (!token) {
+    return next();
   }
-};
 
-export const authorizeRoles = (...allowedRoles) => {
-  return (req, res, next) => {
-    if (!req.user) {
-      return res.status(401).json({ error: 'Usuario no autenticado.' });
+  const secret = process.env.JWT_SECRET || 'becasual_super_secret_key_123!';
+
+  jwt.verify(token, secret, (err, user) => {
+    if (err) {
+      console.warn('⚠️ Token inválido o expirado recibido en API:', err.message);
+    } else {
+      req.user = user;
     }
-
-    if (!allowedRoles.includes(req.user.role)) {
-      return res.status(403).json({ error: 'Acceso denegado. No tienes los permisos requeridos para esta acción.' });
-    }
-
     next();
-  };
-};
+  });
+}
+
+// Alias para compatibilidad con authRoutes.js
+export const authenticateJWT = authenticateToken;
+
+export default authenticateToken;

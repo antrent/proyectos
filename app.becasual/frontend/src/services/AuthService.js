@@ -12,7 +12,8 @@ class AuthService {
   }
 
   async login(username, password) {
-    const response = await api.post('/auth/login', { username, password });
+    const cleanUsername = String(username || '').trim();
+    const response = await api.post('/auth/login', { username: cleanUsername, password });
     
     const sessionUser = {
       id: response.user.id,

@@ -58,17 +58,20 @@ class SalesService {
   getAll(storeId = 'all') {
     const sales = storageRepository.getSales();
 
-    // Normalizar costo y ganancia (profit) para cualquier consulta de ventas
     sales.forEach(s => {
+      s.items = (s.items || s.details || []).map(d => ({
+        ...d,
+        productId: d.productId || (d.product ? d.product.id : null),
+        name: d.name || (d.product ? d.product.name : 'Producto sin nombre'),
+        barcode: d.barcode || (d.product ? d.product.barcode : '') || '',
+        sku: d.sku || (d.product ? d.product.sku : '') || '',
+        sellPrice: d.sellPrice !== undefined ? d.sellPrice : (d.price !== undefined ? d.price : (d.product ? d.product.sellPrice : 0)),
+        costPrice: d.costPrice !== undefined ? d.costPrice : (d.product ? d.product.costPrice : 0),
+        subtotal: d.subtotal !== undefined ? d.subtotal : (((d.sellPrice !== undefined ? d.sellPrice : (d.price || 0))) * (d.quantity || 1))
+      }));
+
       if (s.profit === undefined || s.profit === null || s.cost === undefined || s.cost === null) {
-        const details = s.items || s.details || [];
-        const cost = details.reduce((sum, d) => {
-          const costPrice = d.costPrice !== undefined 
-            ? d.costPrice 
-            : (d.product ? (d.product.costPrice || 0) : 0);
-          const qty = d.quantity || 1;
-          return sum + (costPrice * qty);
-        }, 0);
+        const cost = s.items.reduce((sum, d) => sum + ((d.costPrice || 0) * (d.quantity || 1)), 0);
         s.cost = cost;
         s.profit = s.total - cost;
       }
@@ -178,6 +181,8 @@ class SalesService {
       total: billing.total,
       items: items.map(item => ({
         productId: item.product.id,
+        barcode: item.product.barcode || '',
+        sku: item.product.sku || '',
         quantity: item.quantity,
         price: item.product.sellPrice,
         subtotal: (item.product.sellPrice * item.quantity) - ((item.product.sellPrice * item.quantity) * ((item.discount || 0) / 100))

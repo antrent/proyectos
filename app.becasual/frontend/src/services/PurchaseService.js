@@ -94,6 +94,80 @@ class PurchaseService {
     storageRepository.savePurchases(purchases);
     return registeredItems;
   }
+
+  updatePurchase(id, updatedData) {
+    const purchases = storageRepository.getPurchases();
+    const index = purchases.findIndex(p => p.id === id);
+    if (index === -1) throw new Error('Registro de compra no encontrado.');
+
+    const oldPurchase = purchases[index];
+    const newQty = updatedData.quantity !== undefined ? Number(updatedData.quantity) : oldPurchase.quantity;
+    const newCost = updatedData.costPrice !== undefined ? Number(updatedData.costPrice) : oldPurchase.costPrice;
+    const newSell = updatedData.sellPrice !== undefined ? Number(updatedData.sellPrice) : oldPurchase.sellPrice;
+    const qtyDiff = newQty - oldPurchase.quantity;
+
+    // Ajustar stock en inventario
+    let product = inventoryService.getByBarcode(oldPurchase.barcode, oldPurchase.storeId);
+    if (!product && oldPurchase.sku) {
+      const allProds = inventoryService.getAll(oldPurchase.storeId);
+      product = allProds.find(p => p.sku === oldPurchase.sku);
+    }
+
+    if (product && qtyDiff !== 0) {
+      inventoryService.update(product.id, {
+        stock: Math.max(0, product.stock + qtyDiff),
+        costPrice: newCost,
+        sellPrice: newSell
+      });
+    }
+
+    purchases[index] = {
+      ...oldPurchase,
+      ...updatedData,
+      quantity: newQty,
+      costPrice: newCost,
+      sellPrice: newSell,
+      totalPrice: newQty * newCost
+    };
+
+    storageRepository.savePurchases(purchases);
+
+    // Sync con API background
+    api.put(`/purchases/${id}`, updatedData).catch(err => {
+      console.warn('Sync update purchase background:', err);
+    });
+
+    return purchases[index];
+  }
+
+  deletePurchase(id) {
+    const purchases = storageRepository.getPurchases();
+    const purchase = purchases.find(p => p.id === id);
+    if (!purchase) throw new Error('Registro de compra no encontrado.');
+
+    // Revertir el stock adicionado
+    let product = inventoryService.getByBarcode(purchase.barcode, purchase.storeId);
+    if (!product && purchase.sku) {
+      const allProds = inventoryService.getAll(purchase.storeId);
+      product = allProds.find(p => p.sku === purchase.sku);
+    }
+
+    if (product) {
+      inventoryService.update(product.id, {
+        stock: Math.max(0, product.stock - purchase.quantity)
+      });
+    }
+
+    const updatedList = purchases.filter(p => p.id !== id);
+    storageRepository.savePurchases(updatedList);
+
+    // Sync con API background
+    api.delete(`/purchases/${id}`).catch(err => {
+      console.warn('Sync delete purchase background:', err);
+    });
+
+    return true;
+  }
 }
 
 export const purchaseService = new PurchaseService();

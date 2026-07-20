@@ -1,4 +1,4 @@
-const API_URL = import.meta.env.VITE_API_URL || 'https://becasual-backend-726050384253.us-central1.run.app/api';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 async function request(endpoint, options = {}) {
   const headers = {
@@ -24,15 +24,23 @@ async function request(endpoint, options = {}) {
     headers,
   };
 
-  const response = await fetch(`${API_URL}${endpoint}`, config);
+  try {
+    const response = await fetch(`${API_URL}${endpoint}`, config);
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `Error en la petición: ${response.status}`);
+    }
 
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.error || `Error en la petición: ${response.status}`);
+    if (response.status === 204) return null;
+    return await response.json();
+  } catch (error) {
+    // Si la conexión falla en entorno local, informar de forma explícita sin mezclar con producción
+    if (error.message.includes('Failed to fetch') || error.name === 'TypeError') {
+      console.error(`❌ Error de conexión con el Backend (${API_URL}). Asegúrate de haber iniciado el servicio local con ./start-local-dev.sh`);
+      throw new Error(`No se pudo conectar con el servidor backend en ${API_URL}. Por favor verifica que esté corriendo (ejecuta ./start-local-dev.sh).`);
+    }
+    throw error;
   }
-
-  if (response.status === 204) return null;
-  return response.json();
 }
 
 export const api = {

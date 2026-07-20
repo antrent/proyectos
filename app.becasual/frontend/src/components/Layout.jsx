@@ -198,31 +198,51 @@ export default function Layout({ user, currentTab, setCurrentTab, onLogout, curr
   const [changelogOpen, setChangelogOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
 
-  const todayStr = new Date().toISOString().split('T')[0];
+  const getLocalDateStr = () => {
+    const now = new Date();
+    const offsetMs = now.getTimezoneOffset() * 60000;
+    return new Date(now.getTime() - offsetMs).toISOString().split('T')[0];
+  };
+
+  const todayStr = getLocalDateStr();
   const targetStoreId = currentStore?.id || 'store_1';
   const isSpecificStore = targetStoreId !== 'all';
 
   const [openings, setOpenings] = useState(() => storageRepository.getOpenings());
-  const isOpenToday = !isSpecificStore || openings.some(o => o.date === todayStr && o.storeId === targetStoreId);
+  
+  const isOpenToday = !isSpecificStore || openings.some(o => {
+    if (o.storeId !== targetStoreId) return false;
+    if (o.date === todayStr) return true;
+    if (o.timestamp) {
+      try {
+        const oDateLocal = new Date(new Date(o.timestamp).getTime() - (new Date().getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+        if (oDateLocal === todayStr) return true;
+      } catch (e) {
+        // Fallback
+      }
+    }
+    return false;
+  });
 
   useEffect(() => {
     setOpenings(storageRepository.getOpenings());
   }, [currentStore]);
 
   const handleOpenBox = (openingCash, notes) => {
+    const localDate = getLocalDateStr();
     const newOpening = {
       id: `open_${Date.now()}`,
-      date: todayStr,
+      date: localDate,
       storeId: targetStoreId,
       openingCash: Number(openingCash) || 0,
       notes: notes || '',
-      registeredBy: user.name,
+      registeredBy: user.name || 'Administrador',
       timestamp: new Date().toISOString()
     };
     const currentOpenings = storageRepository.getOpenings();
     currentOpenings.push(newOpening);
     storageRepository.saveOpenings(currentOpenings);
-    setOpenings(currentOpenings);
+    setOpenings([...currentOpenings]);
   };
 
   const allowedNavItems = ALL_NAV_ITEMS.filter(item =>

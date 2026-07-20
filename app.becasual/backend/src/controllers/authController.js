@@ -10,9 +10,16 @@ export const login = async (req, res) => {
       return res.status(400).json({ error: 'Debes proporcionar usuario y contraseña.' });
     }
 
-    // Buscar el usuario en la base de datos
-    const user = await prisma.user.findUnique({
-      where: { username }
+    const cleanUsername = String(username).trim();
+
+    // Buscar el usuario en la base de datos de forma Case-Insensitive (insensible a mayúsculas/minúsculas)
+    const user = await prisma.user.findFirst({
+      where: {
+        username: {
+          equals: cleanUsername,
+          mode: 'insensitive'
+        }
+      }
     });
 
     if (!user) {

@@ -75,7 +75,9 @@ const parseCSVNumber = (val) => {
 export default function InvoiceHistory({ user, currentStoreId }) {
   const [sales, setSales] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
-  const ITEMS_PER_PAGE = 15;
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [sortField, setSortField] = useState('date');
+  const [sortOrder, setSortOrder] = useState('desc');
   const [search, setSearch] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
@@ -689,9 +691,47 @@ export default function InvoiceHistory({ user, currentStoreId }) {
     return new Date(isoStr).toLocaleString('es-CO', { dateStyle: 'short', timeStyle: 'short' });
   };
 
+  const handleSort = (field) => {
+    if (sortField === field) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortOrder('asc');
+    }
+    setCurrentPage(1);
+  };
+
+  const getSortIcon = (field) => {
+    if (sortField !== field) return ' ↕️';
+    return sortOrder === 'asc' ? ' 🔼' : ' 🔽';
+  };
+
+  const sortedFiltered = [...filtered].sort((a, b) => {
+    let valA = a[sortField];
+    let valB = b[sortField];
+
+    if (sortField === 'date') {
+      valA = new Date(a.date || 0).getTime();
+      valB = new Date(b.date || 0).getTime();
+    } else if (sortField === 'total') {
+      valA = Number(a.total) || 0;
+      valB = Number(b.total) || 0;
+    } else if (typeof valA === 'string') {
+      valA = (valA || '').toLowerCase();
+      valB = (valB || '').toLowerCase();
+    }
+
+    if (valA < valB) return sortOrder === 'asc' ? -1 : 1;
+    if (valA > valB) return sortOrder === 'asc' ? 1 : -1;
+    return 0;
+  });
+
   const totalRevenue = filtered.filter(s => !s.cancelled).reduce((s, sale) => s + sale.total, 0);
   const totalCancelled = filtered.filter(s => s.cancelled).length;
-  const paginatedInvoices = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+
+  const effectiveItemsPerPage = itemsPerPage === 'all' ? sortedFiltered.length : Number(itemsPerPage);
+  const totalPages = Math.ceil(sortedFiltered.length / (effectiveItemsPerPage || 1)) || 1;
+  const paginatedInvoices = sortedFiltered.slice((currentPage - 1) * effectiveItemsPerPage, currentPage * effectiveItemsPerPage);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -814,21 +854,53 @@ export default function InvoiceHistory({ user, currentStoreId }) {
 
       {/* Table */}
       <div className="card-table-wrapper">
-        <div className="card-header">
-          <h3 className="card-title">📄 Historial de Facturas / Ventas</h3>
-          <span className="badge primary">{filtered.length} registros</span>
+        <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <h3 className="card-title" style={{ margin: 0 }}>📄 Historial de Facturas / Ventas</h3>
+            <span className="badge primary">{filtered.length} registros</span>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: 'var(--text-secondary)' }}>
+            <span>Mostrar:</span>
+            <select
+              className="form-control"
+              style={{ width: 'auto', padding: '4px 10px', fontSize: '13px' }}
+              value={itemsPerPage}
+              onChange={(e) => {
+                const val = e.target.value === 'all' ? 'all' : Number(e.target.value);
+                setItemsPerPage(val);
+                setCurrentPage(1);
+              }}
+            >
+              <option value={10}>10 por página</option>
+              <option value={25}>25 por página</option>
+              <option value={50}>50 por página</option>
+              <option value={100}>100 por página</option>
+              <option value="all">Todas ({filtered.length})</option>
+            </select>
+          </div>
         </div>
         <div className="table-responsive">
           <table className="table-premium">
             <thead>
               <tr>
-                <th>Factura</th>
-                <th>Fecha y Hora</th>
+                <th style={{ cursor: 'pointer', userSelect: 'none' }} onClick={() => handleSort('invoiceNumber')}>
+                  Factura {getSortIcon('invoiceNumber')}
+                </th>
+                <th style={{ cursor: 'pointer', userSelect: 'none' }} onClick={() => handleSort('date')}>
+                  Fecha y Hora {getSortIcon('date')}
+                </th>
                 {currentStoreId === 'all' && <th>Sede</th>}
-                <th>Cliente</th>
-                <th>Método Pago</th>
+                <th style={{ cursor: 'pointer', userSelect: 'none' }} onClick={() => handleSort('clientName')}>
+                  Cliente {getSortIcon('clientName')}
+                </th>
+                <th style={{ cursor: 'pointer', userSelect: 'none' }} onClick={() => handleSort('paymentMethod')}>
+                  Método Pago {getSortIcon('paymentMethod')}
+                </th>
                 <th>Items</th>
-                <th>Total</th>
+                <th style={{ cursor: 'pointer', userSelect: 'none' }} onClick={() => handleSort('total')}>
+                  Total {getSortIcon('total')}
+                </th>
                 <th>Estado</th>
                 <th style={{ textAlign: 'center' }}>Acciones</th>
               </tr>
@@ -916,31 +988,46 @@ export default function InvoiceHistory({ user, currentStoreId }) {
                               <thead>
                                 <tr style={{ background: 'var(--border-color)' }}>
                                   <th style={{ padding: '8px 16px', textAlign: 'left' }}>Producto</th>
-                                  <th style={{ padding: '8px 16px', textAlign: 'left' }}>Código</th>
-                                  <th style={{ padding: '8px 16px' }}>Cant.</th>
-                                  <th style={{ padding: '8px 16px' }}>Precio</th>
-                                  <th style={{ padding: '8px 16px' }}>Desc.</th>
-                                  <th style={{ padding: '8px 16px' }}>Subtotal</th>
+                                  <th style={{ padding: '8px 16px', textAlign: 'left' }}>Código / SKU</th>
+                                  <th style={{ padding: '8px 16px', textAlign: 'center' }}>Cant.</th>
+                                  <th style={{ padding: '8px 16px', textAlign: 'right' }}>Precio Unit.</th>
+                                  <th style={{ padding: '8px 16px', textAlign: 'center' }}>Desc.</th>
+                                  <th style={{ padding: '8px 16px', textAlign: 'right' }}>Subtotal</th>
                                 </tr>
                               </thead>
                               <tbody>
                                 {(s.items || []).map((item, i) => {
-                                  const lineTotal = item.sellPrice * item.quantity * (1 - (item.discount || 0) / 100);
+                                  const name = item.name || (item.product ? item.product.name : 'Producto sin nombre');
+                                  const barcode = item.barcode || (item.product ? item.product.barcode : '') || '—';
+                                  const sku = item.sku || (item.product ? item.product.sku : '') || '—';
+                                  const price = item.sellPrice !== undefined ? item.sellPrice : (item.price !== undefined ? item.price : (item.product ? item.product.sellPrice : 0));
+                                  const qty = Number(item.quantity) || 1;
+                                  const discount = Number(item.discount) || 0;
+                                  
+                                  const lineTotal = item.subtotal !== undefined && item.subtotal !== null && item.subtotal > 0
+                                    ? item.subtotal
+                                    : (price * qty * (1 - discount / 100));
+
                                   return (
                                     <tr key={i} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                                      <td style={{ padding: '10px 16px', fontWeight: 600, color: 'var(--text-primary)' }}>{item.name}</td>
-                                      <td style={{ padding: '10px 16px' }}><code>{item.barcode}</code></td>
+                                      <td style={{ padding: '10px 16px', fontWeight: 600, color: 'var(--text-primary)' }}>
+                                        {name}
+                                      </td>
+                                      <td style={{ padding: '10px 16px' }}>
+                                        <code style={{ fontSize: '11px', display: 'block' }}>Bar: {barcode}</code>
+                                        <code style={{ fontSize: '11px', color: 'var(--text-muted)' }}>SKU: {sku}</code>
+                                      </td>
                                       <td style={{ padding: '10px 16px', textAlign: 'center' }}>
-                                        {item.quantity}
+                                        {qty}
                                         {item.returnedQuantity > 0 && (
                                           <span style={{ display: 'block', fontSize: '11px', color: 'var(--danger)', fontWeight: 'bold' }}>
                                             ({item.returnedQuantity} dev.)
                                           </span>
                                         )}
                                       </td>
-                                      <td style={{ padding: '10px 16px' }}>{formatCOP(item.sellPrice)}</td>
-                                      <td style={{ padding: '10px 16px', textAlign: 'center' }}>{item.discount || 0}%</td>
-                                      <td style={{ padding: '10px 16px', fontWeight: 700, color: 'var(--success)' }}>{formatCOP(lineTotal)}</td>
+                                      <td style={{ padding: '10px 16px', textAlign: 'right' }}>{formatCOP(price)}</td>
+                                      <td style={{ padding: '10px 16px', textAlign: 'center' }}>{discount}%</td>
+                                      <td style={{ padding: '10px 16px', textAlign: 'right', fontWeight: 700, color: 'var(--success)' }}>{formatCOP(lineTotal)}</td>
                                     </tr>
                                   );
                                 })}
@@ -1038,7 +1125,7 @@ export default function InvoiceHistory({ user, currentStoreId }) {
         </div>
 
         {/* Pagination Controls */}
-        {Math.ceil(filtered.length / ITEMS_PER_PAGE) > 1 && (
+        {totalPages > 1 && (
           <div style={{
             display: 'flex',
             alignItems: 'center',
@@ -1046,13 +1133,15 @@ export default function InvoiceHistory({ user, currentStoreId }) {
             padding: '16px 24px',
             borderTop: '1px solid var(--border-color)',
             fontSize: '13px',
-            color: 'var(--text-muted)'
+            color: 'var(--text-muted)',
+            flexWrap: 'wrap',
+            gap: '12px'
           }}>
             <span>
-              Mostrando <strong>{Math.min(filtered.length, (currentPage - 1) * ITEMS_PER_PAGE + 1)}</strong> a{' '}
-              <strong>{Math.min(filtered.length, currentPage * ITEMS_PER_PAGE)}</strong> de <strong>{filtered.length}</strong> facturas
+              Mostrando <strong>{sortedFiltered.length === 0 ? 0 : Math.min(sortedFiltered.length, (currentPage - 1) * effectiveItemsPerPage + 1)}</strong> a{' '}
+              <strong>{Math.min(sortedFiltered.length, currentPage * effectiveItemsPerPage)}</strong> de <strong>{sortedFiltered.length}</strong> facturas
             </span>
-            <div style={{ display: 'flex', gap: '8px' }}>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
               <button
                 className="btn btn-outline btn-sm"
                 onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
@@ -1061,13 +1150,13 @@ export default function InvoiceHistory({ user, currentStoreId }) {
               >
                 ◀ Anterior
               </button>
-              <span style={{ display: 'flex', alignItems: 'center', px: '8px', fontWeight: 'bold', color: 'var(--text-primary)' }}>
-                Página {currentPage} de {Math.ceil(filtered.length / ITEMS_PER_PAGE)}
+              <span style={{ display: 'flex', alignItems: 'center', padding: '0 8px', fontWeight: 'bold', color: 'var(--text-primary)' }}>
+                Página {currentPage} de {totalPages}
               </span>
               <button
                 className="btn btn-outline btn-sm"
-                onClick={() => setCurrentPage(p => Math.min(Math.ceil(filtered.length / ITEMS_PER_PAGE), p + 1))}
-                disabled={currentPage === Math.ceil(filtered.length / ITEMS_PER_PAGE)}
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage >= totalPages}
                 style={{ padding: '4px 10px' }}
               >
                 Siguiente ▶

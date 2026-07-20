@@ -38,9 +38,23 @@ export default function Purchases({ user, onPurchaseSuccess, currentStoreId }) {
   const [batchProvider, setBatchProvider] = useState('');
   const [batchDate, setBatchDate] = useState(() => new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0]);
   const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
   const [sortField, setSortField] = useState('date');
   const [sortDirection, setSortDirection] = useState('desc');
-  const ITEMS_PER_PAGE = 10;
+  const [historySearch, setHistorySearch] = useState('');
+  const [providerFilter, setProviderFilter] = useState('all');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [purchaseToEdit, setPurchaseToEdit] = useState(null);
+  const [editFormData, setEditFormData] = useState({
+    date: '',
+    name: '',
+    provider: '',
+    quantity: 1,
+    costPrice: 0,
+    sellPrice: 0
+  });
   const [selectedProductForBatch, setSelectedProductForBatch] = useState(null);
   const [batchSearchQuery, setBatchSearchQuery] = useState('');
   const [batchFormData, setBatchFormData] = useState({
@@ -436,6 +450,52 @@ export default function Purchases({ user, onPurchaseSuccess, currentStoreId }) {
     return dateStr;
   };
 
+  const handleDeletePurchase = (purchase) => {
+    if (!window.confirm(`¿Estás seguro de eliminar la compra de "${purchase.name}"? Se descontarán ${purchase.quantity} unidades del inventario.`)) {
+      return;
+    }
+    try {
+      purchaseService.deletePurchase(purchase.id);
+      setSuccess(`Compra de "${purchase.name}" eliminada y stock revertido con éxito.`);
+      loadData();
+      if (onPurchaseSuccess) onPurchaseSuccess();
+      setTimeout(() => setSuccess(''), 4000);
+    } catch (err) {
+      setError(err.message || 'Error al eliminar la compra.');
+    }
+  };
+
+  const handleOpenEditModal = (purchase) => {
+    setPurchaseToEdit(purchase);
+    setEditFormData({
+      date: (purchase.date || '').split('T')[0],
+      name: purchase.name || '',
+      provider: purchase.provider || '',
+      quantity: purchase.quantity || 1,
+      costPrice: purchase.costPrice || 0,
+      sellPrice: purchase.sellPrice || 0
+    });
+    setEditModalOpen(true);
+  };
+
+  const handleSaveEditPurchase = (e) => {
+    e.preventDefault();
+    setError('');
+    if (!purchaseToEdit) return;
+
+    try {
+      purchaseService.updatePurchase(purchaseToEdit.id, editFormData);
+      setSuccess(`Compra de "${editFormData.name}" actualizada con éxito.`);
+      setEditModalOpen(false);
+      setPurchaseToEdit(null);
+      loadData();
+      if (onPurchaseSuccess) onPurchaseSuccess();
+      setTimeout(() => setSuccess(''), 4000);
+    } catch (err) {
+      setError(err.message || 'Error al actualizar la compra.');
+    }
+  };
+
   const handleSort = (field) => {
     if (sortField === field) {
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
@@ -451,18 +511,50 @@ export default function Purchases({ user, onPurchaseSuccess, currentStoreId }) {
     return sortDirection === 'asc' ? ' 🔼' : ' 🔽';
   };
 
+  const getFilteredPurchases = () => {
+    const q = historySearch.toLowerCase().trim();
+    return purchaseHistory.filter(p => {
+      const matchSearch = !q ||
+        (p.name || '').toLowerCase().includes(q) ||
+        (p.provider || '').toLowerCase().includes(q) ||
+        (p.barcode || '').toLowerCase().includes(q) ||
+        (p.sku || '').toLowerCase().includes(q);
+
+      const matchProvider = providerFilter === 'all' || p.provider === providerFilter;
+      const pDate = (p.date || '').split('T')[0];
+      const matchFrom = !dateFrom || pDate >= dateFrom;
+      const matchTo = !dateTo || pDate <= dateTo;
+
+      return matchSearch && matchProvider && matchFrom && matchTo;
+    });
+  };
+
+  const filteredHistory = getFilteredPurchases();
+
   const getSortedPurchases = () => {
-    return [...purchaseHistory].sort((a, b) => {
+    return [...filteredHistory].sort((a, b) => {
       let valA, valB;
       if (sortField === 'date') {
-        valA = a.date || '';
-        valB = b.date || '';
+        valA = new Date(a.date || 0).getTime();
+        valB = new Date(b.date || 0).getTime();
       } else if (sortField === 'name') {
-        valA = a.name ? a.name.toLowerCase() : '';
-        valB = b.name ? b.name.toLowerCase() : '';
+        valA = (a.name || '').toLowerCase();
+        valB = (b.name || '').toLowerCase();
+      } else if (sortField === 'provider') {
+        valA = (a.provider || '').toLowerCase();
+        valB = (b.provider || '').toLowerCase();
       } else if (sortField === 'quantity') {
         valA = Number(a.quantity) || 0;
         valB = Number(b.quantity) || 0;
+      } else if (sortField === 'costPrice') {
+        valA = Number(a.costPrice) || 0;
+        valB = Number(b.costPrice) || 0;
+      } else if (sortField === 'sellPrice') {
+        valA = Number(a.sellPrice) || 0;
+        valB = Number(b.sellPrice) || 0;
+      } else if (sortField === 'totalPrice') {
+        valA = Number(a.totalPrice) || 0;
+        valB = Number(b.totalPrice) || 0;
       } else {
         return 0;
       }
@@ -474,8 +566,11 @@ export default function Purchases({ user, onPurchaseSuccess, currentStoreId }) {
   };
 
   const sortedHistory = getSortedPurchases();
-  const totalPages = Math.ceil(sortedHistory.length / ITEMS_PER_PAGE);
-  const paginatedHistory = sortedHistory.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+  const effectiveItemsPerPage = itemsPerPage === 'all' ? sortedHistory.length : Number(itemsPerPage);
+  const totalPages = Math.ceil(sortedHistory.length / (effectiveItemsPerPage || 1)) || 1;
+  const paginatedHistory = sortedHistory.slice((currentPage - 1) * effectiveItemsPerPage, currentPage * effectiveItemsPerPage);
+
+  const uniqueProviders = Array.from(new Set(purchaseHistory.map(p => p.provider).filter(Boolean)));
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
@@ -1125,38 +1220,138 @@ export default function Purchases({ user, onPurchaseSuccess, currentStoreId }) {
 
       {/* History Log Card */}
       <div className="card-table-wrapper">
-        <div className="card-header">
-          <div>
-            <h3 className="card-title font-sans">Historial de Compras (Entradas)</h3>
-            <span className="card-subtitle">Registro cronológico de importación</span>
+        <div className="card-header" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '16px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+            <div>
+              <h3 className="card-title font-sans">Historial de Compras (Entradas)</h3>
+              <span className="card-subtitle">Registro cronológico y gestión de entradas de mercancía</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>Mostrar:</span>
+              <select
+                className="input-field"
+                value={itemsPerPage}
+                onChange={(e) => {
+                  setItemsPerPage(e.target.value === 'all' ? 'all' : Number(e.target.value));
+                  setCurrentPage(1);
+                }}
+                style={{ width: 'auto', padding: '4px 10px', fontSize: '13px' }}
+              >
+                <option value={10}>10 registros</option>
+                <option value={25}>25 registros</option>
+                <option value={50}>50 registros</option>
+                <option value={100}>100 registros</option>
+                <option value="all">Todas</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Advanced Filter Bar */}
+          <div style={{
+            display: 'flex',
+            gap: '12px',
+            flexWrap: 'wrap',
+            background: 'var(--bg-body)',
+            padding: '12px',
+            borderRadius: '8px',
+            border: '1px solid var(--border-color)',
+            alignItems: 'center'
+          }}>
+            <div style={{ flex: '1 1 200px' }}>
+              <input
+                type="text"
+                className="input-field"
+                placeholder="🔍 Buscar por producto, proveedor, SKU..."
+                value={historySearch}
+                onChange={(e) => { setHistorySearch(e.target.value); setCurrentPage(1); }}
+                style={{ fontSize: '13px', padding: '6px 12px' }}
+              />
+            </div>
+            <div style={{ minWidth: '150px' }}>
+              <select
+                className="input-field"
+                value={providerFilter}
+                onChange={(e) => { setProviderFilter(e.target.value); setCurrentPage(1); }}
+                style={{ fontSize: '13px', padding: '6px 12px' }}
+              >
+                <option value="all">Todos los Proveedores</option>
+                {uniqueProviders.map((prov, i) => (
+                  <option key={i} value={prov}>{prov}</option>
+                ))}
+              </select>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12.5px', color: 'var(--text-muted)' }}>
+              <span>Desde:</span>
+              <input
+                type="date"
+                className="input-field"
+                value={dateFrom}
+                onChange={(e) => { setDateFrom(e.target.value); setCurrentPage(1); }}
+                style={{ fontSize: '12.5px', padding: '4px 8px', width: 'auto' }}
+              />
+              <span>Hasta:</span>
+              <input
+                type="date"
+                className="input-field"
+                value={dateTo}
+                onChange={(e) => { setDateTo(e.target.value); setCurrentPage(1); }}
+                style={{ fontSize: '12.5px', padding: '4px 8px', width: 'auto' }}
+              />
+            </div>
+            {(historySearch || providerFilter !== 'all' || dateFrom || dateTo) && (
+              <button
+                type="button"
+                className="btn btn-outline btn-sm"
+                onClick={() => {
+                  setHistorySearch('');
+                  setProviderFilter('all');
+                  setDateFrom('');
+                  setDateTo('');
+                  setCurrentPage(1);
+                }}
+                style={{ padding: '6px 12px', fontSize: '12px' }}
+              >
+                ✖ Limpiar Filtros
+              </button>
+            )}
           </div>
         </div>
 
-        <div className="table-responsive" style={{ maxHeight: '380px' }}>
+        <div className="table-responsive" style={{ maxHeight: '450px', overflowY: 'auto' }}>
           <table className="table-premium">
-            <thead>
+            <thead style={{ position: 'sticky', top: 0, zIndex: 10, background: 'var(--bg-card)', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
               <tr>
-                <th style={{ cursor: 'pointer', userSelect: 'none' }} onClick={() => handleSort('date')}>
+                <th style={{ cursor: 'pointer', userSelect: 'none', background: 'var(--bg-card)' }} onClick={() => handleSort('date')}>
                   Fecha{getSortIndicator('date')}
                 </th>
-                {currentStoreId === 'all' && <th>Tienda</th>}
-                <th>Código/SKU</th>
-                <th style={{ cursor: 'pointer', userSelect: 'none' }} onClick={() => handleSort('name')}>
+                {currentStoreId === 'all' && <th style={{ background: 'var(--bg-card)' }}>Tienda</th>}
+                <th style={{ background: 'var(--bg-card)' }}>Código / SKU</th>
+                <th style={{ cursor: 'pointer', userSelect: 'none', background: 'var(--bg-card)' }} onClick={() => handleSort('name')}>
                   Producto{getSortIndicator('name')}
                 </th>
-                <th>Proveedor</th>
-                <th style={{ cursor: 'pointer', userSelect: 'none' }} onClick={() => handleSort('quantity')}>
-                  Cantidad{getSortIndicator('quantity')}
+                <th style={{ cursor: 'pointer', userSelect: 'none', background: 'var(--bg-card)' }} onClick={() => handleSort('provider')}>
+                  Proveedor{getSortIndicator('provider')}
                 </th>
-                <th>Costo Unit.</th>
-                <th>Total Compra</th>
+                <th style={{ cursor: 'pointer', userSelect: 'none', textAlign: 'center', background: 'var(--bg-card)' }} onClick={() => handleSort('quantity')}>
+                  Cant.{getSortIndicator('quantity')}
+                </th>
+                <th style={{ cursor: 'pointer', userSelect: 'none', textAlign: 'right', background: 'var(--bg-card)' }} onClick={() => handleSort('costPrice')}>
+                  Costo Unit.{getSortIndicator('costPrice')}
+                </th>
+                <th style={{ cursor: 'pointer', userSelect: 'none', textAlign: 'right', background: 'var(--bg-card)' }} onClick={() => handleSort('sellPrice')}>
+                  P. Venta Sugerido{getSortIndicator('sellPrice')}
+                </th>
+                <th style={{ cursor: 'pointer', userSelect: 'none', textAlign: 'right', background: 'var(--bg-card)' }} onClick={() => handleSort('totalPrice')}>
+                  Total Compra{getSortIndicator('totalPrice')}
+                </th>
+                <th style={{ textAlign: 'center', background: 'var(--bg-card)' }}>Acciones</th>
               </tr>
             </thead>
             <tbody>
-              {purchaseHistory.length === 0 ? (
+              {paginatedHistory.length === 0 ? (
                 <tr>
-                  <td colSpan={currentStoreId === 'all' ? 8 : 7} style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
-                    No hay registros de compras.
+                  <td colSpan={currentStoreId === 'all' ? 10 : 9} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '30px' }}>
+                    No hay registros de compras que coincidan con los filtros.
                   </td>
                 </tr>
               ) : (
@@ -1168,15 +1363,43 @@ export default function Purchases({ user, onPurchaseSuccess, currentStoreId }) {
                         🏬 {p.storeId === 'store_2' ? 'Sede Centro' : 'Sede Principal'}
                       </td>
                     )}
-                    <td><code>{p.barcode}</code></td>
-                    <td style={{ fontWeight: '600', color: 'var(--text-primary)' }}>{p.name}</td>
-                    <td>{p.provider}</td>
                     <td>
+                      <code style={{ fontSize: '11px', display: 'block' }}>Bar: {p.barcode || '-'}</code>
+                      <code style={{ fontSize: '11px', color: 'var(--text-muted)' }}>SKU: {p.sku || '-'}</code>
+                    </td>
+                    <td style={{ fontWeight: '600', color: 'var(--text-primary)' }}>{p.name}</td>
+                    <td>{p.provider || '-'}</td>
+                    <td style={{ textAlign: 'center' }}>
                       <span className="badge primary">{p.quantity} uds</span>
                     </td>
-                    <td>{formatCOP(p.costPrice)}</td>
-                    <td style={{ color: 'var(--danger)', fontWeight: '700' }}>
+                    <td style={{ textAlign: 'right' }}>{formatCOP(p.costPrice)}</td>
+                    <td style={{ textAlign: 'right', fontWeight: '600', color: 'var(--success)' }}>
+                      {formatCOP(p.sellPrice || 0)}
+                    </td>
+                    <td style={{ textAlign: 'right', color: 'var(--danger)', fontWeight: '700' }}>
                       {formatCOP(p.totalPrice)}
+                    </td>
+                    <td style={{ textAlign: 'center' }}>
+                      <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
+                        <button
+                          type="button"
+                          className="btn btn-outline btn-sm"
+                          title="Modificar Compra"
+                          onClick={() => handleOpenEditModal(p)}
+                          style={{ padding: '4px 8px', fontSize: '12px' }}
+                        >
+                          ✏️
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-danger btn-sm"
+                          title="Eliminar Compra (Descuenta stock)"
+                          onClick={() => handleDeletePurchase(p)}
+                          style={{ padding: '4px 8px', fontSize: '12px' }}
+                        >
+                          ❌
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -1184,11 +1407,12 @@ export default function Purchases({ user, onPurchaseSuccess, currentStoreId }) {
             </tbody>
           </table>
         </div>
-        {totalPages > 1 && (
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px', borderTop: '1px solid var(--border-color)', background: 'var(--bg-body)' }}>
-            <span style={{ fontSize: '12.5px', color: 'var(--text-muted)' }}>
-              Mostrando página <strong>{currentPage}</strong> de <strong>{totalPages}</strong> ({purchaseHistory.length} registros en total)
-            </span>
+
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px', borderTop: '1px solid var(--border-color)', background: 'var(--bg-body)', flexWrap: 'wrap', gap: '12px' }}>
+          <span style={{ fontSize: '12.5px', color: 'var(--text-muted)' }}>
+            Mostrando página <strong>{currentPage}</strong> de <strong>{totalPages}</strong> ({filteredHistory.length} registros filtrados de {purchaseHistory.length} totales)
+          </span>
+          {totalPages > 1 && (
             <div style={{ display: 'flex', gap: '8px' }}>
               <button 
                 type="button"
@@ -1207,9 +1431,160 @@ export default function Purchases({ user, onPurchaseSuccess, currentStoreId }) {
                 Siguiente ▶
               </button>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
+
+      {/* Modal para Editar Compra */}
+      {editModalOpen && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.6)',
+          backdropFilter: 'blur(4px)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 1100,
+          padding: '16px'
+        }}>
+          <div style={{
+            background: 'var(--bg-card)',
+            border: '1px solid var(--border-color)',
+            borderRadius: '12px',
+            width: '100%',
+            maxWidth: '520px',
+            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.3)',
+            overflow: 'hidden'
+          }}>
+            <div style={{
+              padding: '16px 24px',
+              borderBottom: '1px solid var(--border-color)',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              background: 'var(--bg-body)'
+            }}>
+              <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '700', color: 'var(--text-primary)' }}>
+                ✏️ Modificar Registro de Compra
+              </h3>
+              <button
+                type="button"
+                onClick={() => setEditModalOpen(false)}
+                style={{ background: 'none', border: 'none', fontSize: '18px', cursor: 'pointer', color: 'var(--text-muted)' }}
+              >
+                ✖
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEditPurchase} style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div>
+                <label className="form-label" style={{ fontSize: '12.5px', fontWeight: '600' }}>Producto</label>
+                <input
+                  type="text"
+                  className="input-field"
+                  value={editFormData.name}
+                  onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
+                  required
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label className="form-label" style={{ fontSize: '12.5px', fontWeight: '600' }}>Proveedor</label>
+                  <input
+                    type="text"
+                    className="input-field"
+                    value={editFormData.provider}
+                    onChange={(e) => setEditFormData({ ...editFormData, provider: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="form-label" style={{ fontSize: '12.5px', fontWeight: '600' }}>Fecha</label>
+                  <input
+                    type="date"
+                    className="input-field"
+                    value={editFormData.date}
+                    onChange={(e) => setEditFormData({ ...editFormData, date: e.target.value })}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label className="form-label" style={{ fontSize: '12.5px', fontWeight: '600' }}>Cantidad</label>
+                  <input
+                    type="number"
+                    min="1"
+                    className="input-field"
+                    value={editFormData.quantity}
+                    onChange={(e) => setEditFormData({ ...editFormData, quantity: Number(e.target.value) })}
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="form-label" style={{ fontSize: '12.5px', fontWeight: '600' }}>Costo Unit.</label>
+                  <input
+                    type="number"
+                    min="0"
+                    className="input-field"
+                    value={editFormData.costPrice}
+                    onChange={(e) => setEditFormData({ ...editFormData, costPrice: Number(e.target.value) })}
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="form-label" style={{ fontSize: '12.5px', fontWeight: '600' }}>Precio Venta Sugerido</label>
+                  <input
+                    type="number"
+                    min="0"
+                    className="input-field"
+                    value={editFormData.sellPrice}
+                    onChange={(e) => setEditFormData({ ...editFormData, sellPrice: Number(e.target.value) })}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div style={{
+                background: 'var(--bg-body)',
+                padding: '12px',
+                borderRadius: '8px',
+                border: '1px dashed var(--border-color)',
+                fontSize: '13px',
+                display: 'flex',
+                justifyContent: 'space-between',
+                color: 'var(--text-secondary)'
+              }}>
+                <span>Total Recompra:</span>
+                <strong style={{ color: 'var(--danger)', fontSize: '15px' }}>
+                  {formatCOP(editFormData.quantity * editFormData.costPrice)}
+                </strong>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '8px' }}>
+                <button
+                  type="button"
+                  className="btn btn-outline"
+                  onClick={() => setEditModalOpen(false)}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                >
+                  💾 Guardar Cambios
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
     </div>
   );
