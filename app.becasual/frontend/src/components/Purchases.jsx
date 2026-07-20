@@ -186,6 +186,18 @@ export default function Purchases({ user, onPurchaseSuccess, currentStoreId }) {
     setCurrentPage(1);
   };
 
+  const computeProductName = (category, gender, style, size, color) => {
+    const parts = [
+      category || '',
+      gender || '',
+      style || '',
+      size ? `TALLA ${size}` : '',
+      color || ''
+    ].map(s => String(s).trim()).filter(Boolean);
+
+    return parts.join(' ').toUpperCase() || 'PRODUCTO NUEVO';
+  };
+
   const handleProductSearchSelect = (product) => {
     setSelectedProduct(product);
     setSearchQuery(product.name);
@@ -202,7 +214,8 @@ export default function Purchases({ user, onPurchaseSuccess, currentStoreId }) {
       gender: product.gender,
       style: product.style,
       color: product.color,
-      size: product.size
+      size: product.size,
+      date: new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0]
     });
     setError('');
   };
@@ -210,23 +223,65 @@ export default function Purchases({ user, onPurchaseSuccess, currentStoreId }) {
   const handleResetForm = () => {
     setSelectedProduct(null);
     setSearchQuery('');
+    const defaultLine = params.lines[0]?.name || '';
+    const defaultCat = params.categories[0]?.name || '';
+    const defaultGen = params.genders[0]?.name || '';
+    const defaultStyle = params.styles[0]?.name || '';
+    const defaultColor = params.colors[0]?.name || '';
+    const defaultSize = params.sizes[0]?.name || '';
+    const initialName = computeProductName(defaultCat, defaultGen, defaultStyle, defaultSize, defaultColor);
+
     setFormData({
       barcode: '',
       sku: '',
-      name: '',
+      name: initialName,
       provider: params.providers[0]?.name || '',
       quantity: 1,
       costPrice: 0,
       sellPrice: 0,
-      line: params.lines[0]?.name || '',
-      category: params.categories[0]?.name || '',
-      gender: params.genders[0]?.name || '',
-      style: params.styles[0]?.name || '',
-      color: params.colors[0]?.name || '',
-      size: params.sizes[0]?.name || '',
+      line: defaultLine,
+      category: defaultCat,
+      gender: defaultGen,
+      style: defaultStyle,
+      color: defaultColor,
+      size: defaultSize,
       date: new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0]
     });
     setError('');
+  };
+
+  const updateFormAttribute = (field, rawValue) => {
+    const value = String(rawValue || '').toUpperCase();
+    setFormData(prev => {
+      const updated = { ...prev, [field]: value };
+      if (!selectedProduct) {
+        updated.name = computeProductName(
+          field === 'category' ? value : updated.category,
+          field === 'gender' ? value : updated.gender,
+          field === 'style' ? value : updated.style,
+          field === 'size' ? value : updated.size,
+          field === 'color' ? value : updated.color
+        );
+      }
+      return updated;
+    });
+  };
+
+  const updateBatchFormAttribute = (field, rawValue) => {
+    const value = String(rawValue || '').toUpperCase();
+    setBatchFormData(prev => {
+      const updated = { ...prev, [field]: value };
+      if (!selectedProductForBatch) {
+        updated.name = computeProductName(
+          field === 'category' ? value : updated.category,
+          field === 'gender' ? value : updated.gender,
+          field === 'style' ? value : updated.style,
+          field === 'size' ? value : updated.size,
+          field === 'color' ? value : updated.color
+        );
+      }
+      return updated;
+    });
   };
 
   const handleAutocompleteChange = (val) => {
@@ -280,20 +335,27 @@ export default function Purchases({ user, onPurchaseSuccess, currentStoreId }) {
   const handleResetBatchForm = () => {
     setSelectedProductForBatch(null);
     setBatchSearchQuery('');
+    const defaultCat = params.categories[0]?.name || '';
+    const defaultGen = params.genders[0]?.name || '';
+    const defaultStyle = params.styles[0]?.name || '';
+    const defaultColor = params.colors[0]?.name || '';
+    const defaultSize = params.sizes[0]?.name || '';
+    const initialName = computeProductName(defaultCat, defaultGen, defaultStyle, defaultSize, defaultColor);
+
     setBatchFormData({
       barcode: '',
       sku: '',
-      name: '',
+      name: initialName,
       provider: batchProvider || params.providers[0]?.name || '',
       quantity: 1,
       costPrice: 0,
       sellPrice: 0,
       line: params.lines[0]?.name || '',
-      category: params.categories[0]?.name || '',
-      gender: params.genders[0]?.name || '',
-      style: params.styles[0]?.name || '',
-      color: params.colors[0]?.name || '',
-      size: params.sizes[0]?.name || ''
+      category: defaultCat,
+      gender: defaultGen,
+      style: defaultStyle,
+      color: defaultColor,
+      size: defaultSize
     });
   };
 
@@ -681,8 +743,9 @@ export default function Purchases({ user, onPurchaseSuccess, currentStoreId }) {
                   className="form-control"
                   placeholder="Ej. 1143"
                   value={formData.barcode}
-                  onChange={(e) => setFormData({ ...formData, barcode: e.target.value })}
+                  onChange={(e) => setFormData({ ...formData, barcode: e.target.value.toUpperCase() })}
                   disabled={!!selectedProduct}
+                  style={{ textTransform: 'uppercase' }}
                 />
               </div>
               <div className="form-group">
@@ -692,19 +755,23 @@ export default function Purchases({ user, onPurchaseSuccess, currentStoreId }) {
                   className="form-control"
                   placeholder="Ej. SKU-1004"
                   value={formData.sku}
-                  onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
+                  onChange={(e) => setFormData({ ...formData, sku: e.target.value.toUpperCase() })}
                   disabled={!!selectedProduct}
+                  style={{ textTransform: 'uppercase' }}
                 />
               </div>
               <div className="form-group">
-                <label className="form-label">Nombre del Producto</label>
+                <label className="form-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span>Nombre del Producto</span>
+                  <span style={{ fontSize: '11px', color: 'var(--primary)', fontWeight: '600' }}>🔒 Calculado automáticamente</span>
+                </label>
                 <input
                   type="text"
                   className="form-control"
-                  placeholder="Ej. JEANS DAMA 4 BOTONES TALLA 10"
                   value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  disabled={!!selectedProduct}
+                  disabled={true}
+                  readOnly={true}
+                  style={{ background: 'var(--bg-body)', cursor: 'not-allowed', fontWeight: '700', color: 'var(--text-primary)' }}
                   required
                 />
               </div>
@@ -746,97 +813,95 @@ export default function Purchases({ user, onPurchaseSuccess, currentStoreId }) {
               </div>
             </div>
 
-            {/* New product attributes (only visible when registering a new product) */}
-            {!selectedProduct && (
-              <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '20px' }}>
-                <span style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'block', marginBottom: '16px', fontWeight: '700', textTransform: 'uppercase' }}>
-                  Atributos Adicionales del Producto Nuevo
-                </span>
-                <div className="grid-3">
-                  <div className="form-group">
-                    <label className="form-label">Línea</label>
-                    <input
-                      type="text"
-                      className="form-control"
-                      list="linesList"
-                      value={formData.line}
-                      onChange={(e) => setFormData({ ...formData, line: e.target.value })}
-                    />
-                    <datalist id="linesList">
-                      {params.lines.map(l => <option key={l.id} value={l.name} />)}
-                    </datalist>
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Categoría</label>
-                    <input
-                      type="text"
-                      className="form-control"
-                      list="categoriesList"
-                      value={formData.category}
-                      onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                    />
-                    <datalist id="categoriesList">
-                      {params.categories.map(c => <option key={c.id} value={c.name} />)}
-                    </datalist>
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Género</label>
-                    <input
-                      type="text"
-                      className="form-control"
-                      list="gendersList"
-                      value={formData.gender}
-                      onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
-                    />
-                    <datalist id="gendersList">
-                      {params.genders.map(g => <option key={g.id} value={g.name} />)}
-                    </datalist>
-                  </div>
+            {/* Atributos del Producto que forman el Nombre (Siempre visibles en pantalla) */}
+            <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '20px' }}>
+              <span style={{ fontSize: '12px', color: 'var(--primary)', display: 'block', marginBottom: '16px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                🏷️ Atributos del Producto (Concatenación Automática de Nombre)
+              </span>
+              <div className="grid-3">
+                <div className="form-group">
+                  <label className="form-label">Línea *</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    list="linesList"
+                    value={formData.line}
+                    onChange={(e) => updateFormAttribute('line', e.target.value)}
+                  />
+                  <datalist id="linesList">
+                    {params.lines.map(l => <option key={l.id} value={l.name} />)}
+                  </datalist>
                 </div>
-
-                <div className="grid-3" style={{ marginTop: '16px' }}>
-                  <div className="form-group">
-                    <label className="form-label">Talla</label>
-                    <input
-                      type="text"
-                      className="form-control"
-                      list="sizesList"
-                      value={formData.size}
-                      onChange={(e) => setFormData({ ...formData, size: e.target.value })}
-                    />
-                    <datalist id="sizesList">
-                      {params.sizes.map(s => <option key={s.id} value={s.name} />)}
-                    </datalist>
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Color</label>
-                    <input
-                      type="text"
-                      className="form-control"
-                      list="colorsList"
-                      value={formData.color}
-                      onChange={(e) => setFormData({ ...formData, color: e.target.value })}
-                    />
-                    <datalist id="colorsList">
-                      {params.colors.map(c => <option key={c.id} value={c.name} />)}
-                    </datalist>
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Estilo / Detalle</label>
-                    <input
-                      type="text"
-                      className="form-control"
-                      list="stylesList"
-                      value={formData.style}
-                      onChange={(e) => setFormData({ ...formData, style: e.target.value })}
-                    />
-                    <datalist id="stylesList">
-                      {params.styles.map(s => <option key={s.id} value={s.name} />)}
-                    </datalist>
-                  </div>
+                <div className="form-group">
+                  <label className="form-label">Categoría *</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    list="categoriesList"
+                    value={formData.category}
+                    onChange={(e) => updateFormAttribute('category', e.target.value)}
+                  />
+                  <datalist id="categoriesList">
+                    {params.categories.map(c => <option key={c.id} value={c.name} />)}
+                  </datalist>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Género *</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    list="gendersList"
+                    value={formData.gender}
+                    onChange={(e) => updateFormAttribute('gender', e.target.value)}
+                  />
+                  <datalist id="gendersList">
+                    {params.genders.map(g => <option key={g.id} value={g.name} />)}
+                  </datalist>
                 </div>
               </div>
-            )}
+
+              <div className="grid-3" style={{ marginTop: '16px' }}>
+                <div className="form-group">
+                  <label className="form-label">Talla *</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    list="sizesList"
+                    value={formData.size}
+                    onChange={(e) => updateFormAttribute('size', e.target.value)}
+                  />
+                  <datalist id="sizesList">
+                    {params.sizes.map(s => <option key={s.id} value={s.name} />)}
+                  </datalist>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Color *</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    list="colorsList"
+                    value={formData.color}
+                    onChange={(e) => updateFormAttribute('color', e.target.value)}
+                  />
+                  <datalist id="colorsList">
+                    {params.colors.map(c => <option key={c.id} value={c.name} />)}
+                  </datalist>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Estilo / Detalle *</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    list="stylesList"
+                    value={formData.style}
+                    onChange={(e) => updateFormAttribute('style', e.target.value)}
+                  />
+                  <datalist id="stylesList">
+                    {params.styles.map(s => <option key={s.id} value={s.name} />)}
+                  </datalist>
+                </div>
+              </div>
+            </div>
 
             <div className="grid-2" style={{ marginTop: '10px' }}>
               <div className="form-group">
@@ -966,14 +1031,17 @@ export default function Purchases({ user, onPurchaseSuccess, currentStoreId }) {
                   />
                 </div>
                 <div className="form-group">
-                  <label className="form-label">Nombre del Producto</label>
+                  <label className="form-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span>Nombre del Producto</span>
+                    <span style={{ fontSize: '11px', color: 'var(--primary)', fontWeight: '600' }}>🔒 Calculado automáticamente</span>
+                  </label>
                   <input
                     type="text"
                     className="form-control"
-                    placeholder="Ej. JEANS DAMA 4 BOTONES TALLA 10"
                     value={batchFormData.name}
-                    onChange={(e) => setBatchFormData({ ...batchFormData, name: e.target.value })}
-                    disabled={!!selectedProductForBatch}
+                    disabled={true}
+                    readOnly={true}
+                    style={{ background: 'var(--bg-body)', cursor: 'not-allowed', fontWeight: '700', color: 'var(--text-primary)' }}
                     required
                   />
                 </div>
@@ -1015,96 +1083,95 @@ export default function Purchases({ user, onPurchaseSuccess, currentStoreId }) {
                 </div>
               </div>
 
-              {!selectedProductForBatch && (
-                <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '20px' }}>
-                  <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block', marginBottom: '16px', fontWeight: '700', textTransform: 'uppercase' }}>
-                    Atributos Adicionales del Producto Nuevo
-                  </span>
-                  <div className="grid-3">
-                    <div className="form-group">
-                      <label className="form-label">Línea</label>
-                      <input
-                        type="text"
-                        className="form-control"
-                        list="batchLinesList"
-                        value={batchFormData.line}
-                        onChange={(e) => setBatchFormData({ ...batchFormData, line: e.target.value })}
-                      />
-                      <datalist id="batchLinesList">
-                        {params.lines.map(l => <option key={l.id} value={l.name} />)}
-                      </datalist>
-                    </div>
-                    <div className="form-group">
-                      <label className="form-label">Categoría</label>
-                      <input
-                        type="text"
-                        className="form-control"
-                        list="batchCategoriesList"
-                        value={batchFormData.category}
-                        onChange={(e) => setBatchFormData({ ...batchFormData, category: e.target.value })}
-                      />
-                      <datalist id="batchCategoriesList">
-                        {params.categories.map(c => <option key={c.id} value={c.name} />)}
-                      </datalist>
-                    </div>
-                    <div className="form-group">
-                      <label className="form-label">Género</label>
-                      <input
-                        type="text"
-                        className="form-control"
-                        list="batchGendersList"
-                        value={batchFormData.gender}
-                        onChange={(e) => setBatchFormData({ ...batchFormData, gender: e.target.value })}
-                      />
-                      <datalist id="batchGendersList">
-                        {params.genders.map(g => <option key={g.id} value={g.name} />)}
-                      </datalist>
-                    </div>
+              {/* Atributos del Producto en Lote (Siempre visibles en pantalla) */}
+              <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '20px' }}>
+                <span style={{ fontSize: '11px', color: 'var(--primary)', display: 'block', marginBottom: '16px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  🏷️ Atributos del Producto (Concatenación Automática de Nombre)
+                </span>
+                <div className="grid-3">
+                  <div className="form-group">
+                    <label className="form-label">Línea *</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      list="batchLinesList"
+                      value={batchFormData.line}
+                      onChange={(e) => updateBatchFormAttribute('line', e.target.value)}
+                    />
+                    <datalist id="batchLinesList">
+                      {params.lines.map(l => <option key={l.id} value={l.name} />)}
+                    </datalist>
                   </div>
-
-                  <div className="grid-3" style={{ marginTop: '16px' }}>
-                    <div className="form-group">
-                      <label className="form-label">Talla</label>
-                      <input
-                        type="text"
-                        className="form-control"
-                        list="batchSizesList"
-                        value={batchFormData.size}
-                        onChange={(e) => setBatchFormData({ ...batchFormData, size: e.target.value })}
-                      />
-                      <datalist id="batchSizesList">
-                        {params.sizes.map(s => <option key={s.id} value={s.name} />)}
-                      </datalist>
-                    </div>
-                    <div className="form-group">
-                      <label className="form-label">Color</label>
-                      <input
-                        type="text"
-                        className="form-control"
-                        list="batchColorsList"
-                        value={batchFormData.color}
-                        onChange={(e) => setBatchFormData({ ...batchFormData, color: e.target.value })}
-                      />
-                      <datalist id="batchColorsList">
-                        {params.colors.map(c => <option key={c.id} value={c.name} />)}
-                      </datalist>
-                    </div>
-                    <div className="form-group">
-                      <label className="form-label">Estilo / Detalle</label>
-                      <input
-                        type="text"
-                        className="form-control"
-                        list="batchStylesList"
-                        value={batchFormData.style}
-                        onChange={(e) => setBatchFormData({ ...batchFormData, style: e.target.value })}
-                      />
-                      <datalist id="batchStylesList">
-                        {params.styles.map(s => <option key={s.id} value={s.name} />)}
-                      </datalist>
-                    </div>
+                  <div className="form-group">
+                    <label className="form-label">Categoría *</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      list="batchCategoriesList"
+                      value={batchFormData.category}
+                      onChange={(e) => updateBatchFormAttribute('category', e.target.value)}
+                    />
+                    <datalist id="batchCategoriesList">
+                      {params.categories.map(c => <option key={c.id} value={c.name} />)}
+                    </datalist>
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Género *</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      list="batchGendersList"
+                      value={batchFormData.gender}
+                      onChange={(e) => updateBatchFormAttribute('gender', e.target.value)}
+                    />
+                    <datalist id="batchGendersList">
+                      {params.genders.map(g => <option key={g.id} value={g.name} />)}
+                    </datalist>
                   </div>
                 </div>
-              )}
+
+                <div className="grid-3" style={{ marginTop: '16px' }}>
+                  <div className="form-group">
+                    <label className="form-label">Talla *</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      list="batchSizesList"
+                      value={batchFormData.size}
+                      onChange={(e) => updateBatchFormAttribute('size', e.target.value)}
+                    />
+                    <datalist id="batchSizesList">
+                      {params.sizes.map(s => <option key={s.id} value={s.name} />)}
+                    </datalist>
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Color *</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      list="batchColorsList"
+                      value={batchFormData.color}
+                      onChange={(e) => updateBatchFormAttribute('color', e.target.value)}
+                    />
+                    <datalist id="batchColorsList">
+                      {params.colors.map(c => <option key={c.id} value={c.name} />)}
+                    </datalist>
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Estilo / Detalle *</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      list="batchStylesList"
+                      value={batchFormData.style}
+                      onChange={(e) => updateBatchFormAttribute('style', e.target.value)}
+                    />
+                    <datalist id="batchStylesList">
+                      {params.styles.map(s => <option key={s.id} value={s.name} />)}
+                    </datalist>
+                  </div>
+                </div>
+              </div>
 
               <div className="form-group" style={{ marginTop: '10px' }}>
                 <label className="form-label">Proveedor del Artículo (si difiere del proveedor general)</label>
