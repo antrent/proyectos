@@ -49,16 +49,41 @@ class InventoryService {
     });
   }
 
+  generateNumericBarcode() {
+    const randomSuffix = Math.floor(100000000 + Math.random() * 900000000);
+    return `770${randomSuffix}`;
+  }
+
+  generateNumericSku() {
+    const timestamp = Date.now().toString().slice(-6);
+    const randomDigits = Math.floor(1000 + Math.random() * 9000);
+    return `${timestamp}${randomDigits}`;
+  }
+
   create(productData, storeId = 'store_1') {
     const products = storageRepository.getProducts();
 
-    const barcodeTrimmed = (productData.barcode || '').trim();
-    if (barcodeTrimmed && products.some(p => p.barcode === barcodeTrimmed && (p.storeId === storeId || (!p.storeId && storeId === 'store_1')))) {
-      throw new Error('El código de barras ya existe en el inventario de esta tienda.');
+    // Limpiar caracteres no numéricos o autogenerar si está vacío
+    let barcode = (productData.barcode || '').toString().replace(/\D/g, '').trim();
+    if (!barcode) {
+      barcode = this.generateNumericBarcode();
+      // Garantizar unicidad
+      while (products.some(p => p.barcode === barcode)) {
+        barcode = this.generateNumericBarcode();
+      }
+    } else {
+      if (products.some(p => p.barcode === barcode && (p.storeId === storeId || (!p.storeId && storeId === 'store_1')))) {
+        throw new Error('El código de barras numérico ya existe en el inventario de esta tienda.');
+      }
     }
 
-    const barcode = barcodeTrimmed ? barcodeTrimmed : `BE-${Math.floor(100000 + Math.random() * 900000)}`;
-    const sku = productData.sku ? productData.sku.trim() : `SKU-${Date.now().toString().slice(-6)}`;
+    let sku = (productData.sku || '').toString().replace(/\D/g, '').trim();
+    if (!sku) {
+      sku = this.generateNumericSku();
+      while (products.some(p => p.sku === sku)) {
+        sku = this.generateNumericSku();
+      }
+    }
 
     const newProduct = {
       id: `prod_${Date.now()}`,
@@ -101,14 +126,36 @@ class InventoryService {
 
     const storeId = products[index].storeId || 'store_1';
 
-    if (updatedFields.barcode && products.some(p => p.id !== id && p.barcode === updatedFields.barcode.trim() && (p.storeId === storeId || (!p.storeId && storeId === 'store_1')))) {
-      throw new Error('El código de barras ya está asignado a otro producto en esta tienda.');
+    let barcode = updatedFields.barcode !== undefined
+      ? updatedFields.barcode.toString().replace(/\D/g, '').trim()
+      : products[index].barcode;
+
+    if (!barcode) {
+      barcode = this.generateNumericBarcode();
+      while (products.some(p => p.id !== id && p.barcode === barcode)) {
+        barcode = this.generateNumericBarcode();
+      }
+    } else if (products.some(p => p.id !== id && p.barcode === barcode && (p.storeId === storeId || (!p.storeId && storeId === 'store_1')))) {
+      throw new Error('El código de barras numérico ya está asignado a otro producto en esta tienda.');
+    }
+
+    let sku = updatedFields.sku !== undefined
+      ? updatedFields.sku.toString().replace(/\D/g, '').trim()
+      : products[index].sku;
+
+    if (!sku) {
+      sku = this.generateNumericSku();
+      while (products.some(p => p.id !== id && p.sku === sku)) {
+        sku = this.generateNumericSku();
+      }
     }
 
     const updatedProduct = {
       ...products[index],
       ...updatedFields,
       id: products[index].id,
+      barcode,
+      sku,
       stock: Number(updatedFields.stock !== undefined ? updatedFields.stock : products[index].stock),
       costPrice: Number(updatedFields.costPrice !== undefined ? updatedFields.costPrice : products[index].costPrice),
       sellPrice: Number(updatedFields.sellPrice !== undefined ? updatedFields.sellPrice : products[index].sellPrice),

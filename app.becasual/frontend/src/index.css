@@ -479,23 +479,30 @@ body {
 
 .table-responsive {
   width: 100%;
+  max-height: calc(100vh - 280px);
   overflow-x: auto;
+  overflow-y: auto;
   -webkit-overflow-scrolling: touch;
 }
 
 .table-premium {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
   text-align: left;
   font-size: 14px;
 }
 
 .table-premium th {
+  position: sticky;
+  top: 0;
+  z-index: 10;
   padding: 16px 24px;
-  background: hsl(36, 15%, 96%);
+  background: #f6f5f3;
   font-weight: 700;
   color: var(--text-primary);
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 2px solid var(--border-color);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
 }
 
 .table-premium td {
