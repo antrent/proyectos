@@ -24,6 +24,11 @@ export default function Configuration({ user, onConfigChange, currentStoreId }) 
   const [selectedParamType, setSelectedParamType] = useState('categories');
   const [newParamName, setNewParamName] = useState('');
   const [paramError, setParamError] = useState('');
+  const [paramSuccess, setParamSuccess] = useState('');
+  const [editingParam, setEditingParam] = useState(null); // { id: number, name: string }
+  const [paramSearchTerm, setParamSearchTerm] = useState('');
+  const [paramPage, setParamPage] = useState(1);
+  const [paramRowsPerPage, setParamRowsPerPage] = useState('10');
 
   // UX alerts
   const [configSuccess, setConfigSuccess] = useState('');
@@ -127,38 +132,84 @@ export default function Configuration({ user, onConfigChange, currentStoreId }) 
   const handleAddParameter = (e) => {
     e.preventDefault();
     setParamError('');
+    setParamSuccess('');
 
     if (!newParamName.trim()) {
       setParamError('El valor del parámetro no puede estar vacío.');
       return;
     }
 
+    const cleanName = newParamName.trim().toUpperCase();
     const updatedParams = { ...params };
     const currentList = updatedParams[selectedParamType] || [];
     
     // Check duplication
-    if (currentList.some(item => item.name.toLowerCase() === newParamName.toLowerCase().trim())) {
+    if (currentList.some(item => item.name.toUpperCase() === cleanName)) {
       setParamError('Este parámetro ya existe.');
       return;
     }
 
     const nextId = currentList.reduce((max, item) => Math.max(max, item.id || 0), 0) + 1;
     currentList.push({
-      name: newParamName.trim(),
+      name: cleanName,
       id: nextId
     });
 
     updatedParams[selectedParamType] = currentList;
     storageRepository.saveParams(updatedParams);
     setNewParamName('');
+    setParamSuccess(`Parámetro "${cleanName}" agregado con éxito.`);
+    loadData();
+  };
+
+  const handleStartEditParam = (item) => {
+    setEditingParam({ id: item.id, name: item.name });
+    setParamError('');
+    setParamSuccess('');
+  };
+
+  const handleSaveEditParam = (e) => {
+    e.preventDefault();
+    setParamError('');
+    setParamSuccess('');
+
+    if (!editingParam || !editingParam.name.trim()) {
+      setParamError('El nombre del parámetro no puede estar vacío.');
+      return;
+    }
+
+    const cleanName = editingParam.name.trim().toUpperCase();
+    const updatedParams = { ...params };
+    const currentList = updatedParams[selectedParamType] || [];
+
+    // Validar duplicados exceptuando el propio ítem que se está editando
+    if (currentList.some(item => item.id !== editingParam.id && item.name.toUpperCase() === cleanName)) {
+      setParamError('Ya existe otro parámetro con este mismo nombre.');
+      return;
+    }
+
+    const itemIdx = currentList.findIndex(item => item.id === editingParam.id);
+    if (itemIdx === -1) {
+      setParamError('Parámetro no encontrado.');
+      return;
+    }
+
+    currentList[itemIdx] = { ...currentList[itemIdx], name: cleanName };
+    updatedParams[selectedParamType] = currentList;
+    storageRepository.saveParams(updatedParams);
+
+    setParamSuccess(`Parámetro actualizado a "${cleanName}" con éxito.`);
+    setEditingParam(null);
     loadData();
   };
 
   const handleDeleteParameter = (paramId) => {
-    if (window.confirm('¿Estás seguro de que deseas eliminar este parámetro?')) {
+    const itemToDelete = (params[selectedParamType] || []).find(item => item.id === paramId);
+    if (window.confirm(`¿Estás seguro de que deseas eliminar el parámetro "${itemToDelete?.name || ''}"?`)) {
       const updatedParams = { ...params };
       updatedParams[selectedParamType] = updatedParams[selectedParamType].filter(item => item.id !== paramId);
       storageRepository.saveParams(updatedParams);
+      setParamSuccess(`Parámetro eliminado con éxito.`);
       loadData();
     }
   };
@@ -310,6 +361,18 @@ export default function Configuration({ user, onConfigChange, currentStoreId }) 
     };
     reader.readAsText(file);
   };
+
+  // Lógica de filtrado y paginación para el Catálogo de Parámetros
+  const rawParamList = params[selectedParamType] || [];
+  const filteredParamList = rawParamList.filter(item =>
+    item.name.toLowerCase().includes(paramSearchTerm.toLowerCase().trim())
+  );
+
+  const paramLimit = paramRowsPerPage === 'all' ? filteredParamList.length : (parseInt(paramRowsPerPage) || 10);
+  const totalParamPages = Math.max(1, Math.ceil(filteredParamList.length / (paramLimit || 1)));
+  const validParamPage = Math.min(paramPage, totalParamPages);
+  const startIndexParam = (validParamPage - 1) * paramLimit;
+  const paginatedParamList = filteredParamList.slice(startIndexParam, startIndexParam + paramLimit);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
@@ -538,72 +601,163 @@ export default function Configuration({ user, onConfigChange, currentStoreId }) 
 
         {/* 3. Parameter Tables Editor */}
         <div className="card-table-wrapper" style={{ display: 'flex', flexDirection: 'column' }}>
-          <div className="card-header">
+          <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
             <h3 className="card-title">📚 Modificar Catálogo de Parámetros</h3>
+            <span className="badge secondary">{(params[selectedParamType] || []).length} registros</span>
           </div>
 
           <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px', flex: '1' }}>
-            <div className="form-group">
-              <label className="form-label">Seleccionar Parámetro a Editar</label>
-              <select
-                className="form-control"
-                value={selectedParamType}
-                onChange={(e) => {
-                  setSelectedParamType(e.target.value);
-                  setParamError('');
-                }}
-              >
-                <option value="categories">Categorías ({params.categories.length})</option>
-                <option value="lines">Líneas ({params.lines.length})</option>
-                <option value="styles">Estilo-Detalles ({params.styles.length})</option>
-                <option value="genders">Géneros ({params.genders.length})</option>
-                <option value="colors">Colores ({params.colors.length})</option>
-                <option value="sizes">Tallas ({params.sizes.length})</option>
-                <option value="providers">Proveedores ({params.providers.length})</option>
-              </select>
-            </div>
-
+            {/* Alertas UX */}
+            {paramSuccess && (
+              <div className="alert alert-success">
+                <span>✅</span> <span>{paramSuccess}</span>
+              </div>
+            )}
             {paramError && (
               <div className="alert alert-error">
                 <span>⚠️</span> <span>{paramError}</span>
               </div>
             )}
 
-            <form onSubmit={handleAddParameter} style={{ display: 'flex', gap: '12px' }}>
-              <input
-                type="text"
+            {/* Selector de tipo de parámetro */}
+            <div className="form-group">
+              <label className="form-label" style={{ fontWeight: '700' }}>Seleccionar Catálogo a Administrar</label>
+              <select
                 className="form-control"
-                placeholder={`Añadir nuevo valor a ${selectedParamType}...`}
-                value={newParamName}
-                onChange={(e) => setNewParamName(e.target.value)}
-              />
-              <button type="submit" className="btn btn-primary">Agregar</button>
-            </form>
+                value={selectedParamType}
+                onChange={(e) => {
+                  setSelectedParamType(e.target.value);
+                  setParamError('');
+                  setParamSuccess('');
+                  setEditingParam(null);
+                  setParamPage(1);
+                }}
+              >
+                <option value="categories">Categorías ({(params.categories || []).length})</option>
+                <option value="lines">Líneas ({(params.lines || []).length})</option>
+                <option value="styles">Estilo-Detalles ({(params.styles || []).length})</option>
+                <option value="genders">Géneros ({(params.genders || []).length})</option>
+                <option value="colors">Colores ({(params.colors || []).length})</option>
+                <option value="sizes">Tallas ({(params.sizes || []).length})</option>
+                <option value="providers">Proveedores ({(params.providers || []).length})</option>
+              </select>
+            </div>
 
-            <div className="table-responsive" style={{ maxHeight: '280px', overflowY: 'auto', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)' }}>
+            {/* Formulario de Agregar / Formulario de Edición */}
+            {editingParam ? (
+              <form onSubmit={handleSaveEditParam} style={{ display: 'flex', gap: '12px', background: 'var(--bg-card-hover)', padding: '16px', borderRadius: '8px', border: '1px solid var(--primary)' }}>
+                <div style={{ flex: 1 }}>
+                  <label className="form-label" style={{ fontWeight: '700', color: 'var(--primary)' }}>✏️ Editando Parámetro (ID: {editingParam.id})</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    placeholder="Nuevo nombre del parámetro..."
+                    value={editingParam.name}
+                    onChange={(e) => setEditingParam({ ...editingParam, name: e.target.value.toUpperCase() })}
+                    style={{ textTransform: 'uppercase' }}
+                    autoFocus
+                  />
+                </div>
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end' }}>
+                  <button type="button" className="btn btn-outline" onClick={() => setEditingParam(null)}>
+                    Cancelar
+                  </button>
+                  <button type="submit" className="btn btn-primary">
+                    💾 Guardar
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <form onSubmit={handleAddParameter} style={{ display: 'flex', gap: '12px' }}>
+                <input
+                  type="text"
+                  className="form-control"
+                  placeholder={`➕ Agregar nuevo registro a ${selectedParamType}...`}
+                  value={newParamName}
+                  onChange={(e) => setNewParamName(e.target.value.toUpperCase())}
+                  style={{ textTransform: 'uppercase' }}
+                />
+                <button type="submit" className="btn btn-primary">Agregar</button>
+              </form>
+            )}
+
+            {/* Controles de Búsqueda y Paginación */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+              <div style={{ flex: 1, minWidth: '200px' }}>
+                <input
+                  type="text"
+                  className="form-control"
+                  placeholder="🔍 Buscar parámetro..."
+                  value={paramSearchTerm}
+                  onChange={(e) => {
+                    setParamSearchTerm(e.target.value);
+                    setParamPage(1);
+                  }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Mostrar:</span>
+                <select
+                  className="form-control"
+                  style={{ width: 'auto' }}
+                  value={paramRowsPerPage}
+                  onChange={(e) => {
+                    setParamRowsPerPage(e.target.value);
+                    setParamPage(1);
+                  }}
+                >
+                  <option value="10">10 registros</option>
+                  <option value="25">25 registros</option>
+                  <option value="50">50 registros</option>
+                  <option value="100">100 registros</option>
+                  <option value="all">Ver Todos</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Tabla de Parámetros Paginada */}
+            <div className="table-responsive" style={{ border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)' }}>
               <table className="table-premium">
                 <thead>
                   <tr>
                     <th>Nombre</th>
                     <th>ID Asignado</th>
-                    <th style={{ textAlign: 'center' }}>Acción</th>
+                    <th style={{ textAlign: 'center' }}>Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {(params[selectedParamType] || []).length === 0 ? (
+                  {paginatedParamList.length === 0 ? (
                     <tr>
-                      <td colSpan="3" style={{ textAlign: 'center', color: 'var(--text-muted)' }}>No hay datos.</td>
+                      <td colSpan="3" style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '24px' }}>
+                        {paramSearchTerm ? 'No se encontraron registros que coincidan con la búsqueda.' : 'No hay parámetros registrados.'}
+                      </td>
                     </tr>
                   ) : (
-                    (params[selectedParamType] || []).map(item => (
+                    paginatedParamList.map(item => (
                       <tr key={item.id}>
-                        <td style={{ fontWeight: '600', color: 'var(--text-primary)' }}>{item.name}</td>
+                        <td style={{ fontWeight: '700', color: 'var(--text-primary)' }}>{item.name}</td>
                         <td><code>{item.id}</code></td>
                         <td style={{ textAlign: 'center' }}>
                           {item.id !== 0 && (
-                            <button className="btn btn-danger btn-sm" onClick={() => handleDeleteParameter(item.id)}>
-                              🗑️ Eliminar
-                            </button>
+                            <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
+                              <button
+                                type="button"
+                                className="btn btn-outline btn-sm"
+                                onClick={() => handleStartEditParam(item)}
+                                title="Editar nombre de este parámetro"
+                              >
+                                ✏️ Editar
+                              </button>
+                              <button
+                                type="button"
+                                className="btn btn-danger btn-sm"
+                                onClick={() => handleDeleteParameter(item.id)}
+                                title="Eliminar parámetro"
+                              >
+                                🗑️ Eliminar
+                              </button>
+                            </div>
                           )}
                         </td>
                       </tr>
@@ -612,6 +766,40 @@ export default function Configuration({ user, onConfigChange, currentStoreId }) 
                 </tbody>
               </table>
             </div>
+
+            {/* Pie de Paginación */}
+            {filteredParamList.length > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '8px', flexWrap: 'wrap', gap: '12px' }}>
+                <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+                  Mostrando {startIndexParam + 1} a {Math.min(startIndexParam + paramLimit, filteredParamList.length)} de {filteredParamList.length} registros
+                </span>
+
+                {totalParamPages > 1 && (
+                  <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                    <button
+                      type="button"
+                      className="btn btn-outline btn-sm"
+                      disabled={validParamPage === 1}
+                      onClick={() => setParamPage(prev => Math.max(1, prev - 1))}
+                    >
+                      ◀ Anterior
+                    </button>
+                    <span style={{ fontSize: '13px', fontWeight: '600', padding: '0 8px' }}>
+                      Página {validParamPage} de {totalParamPages}
+                    </span>
+                    <button
+                      type="button"
+                      className="btn btn-outline btn-sm"
+                      disabled={validParamPage === totalParamPages}
+                      onClick={() => setParamPage(prev => Math.min(totalParamPages, prev + 1))}
+                    >
+                      Siguiente ▶
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
           </div>
         </div>
       </div>
