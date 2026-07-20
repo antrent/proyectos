@@ -75,6 +75,16 @@ export default function Purchases({ user, onPurchaseSuccess, currentStoreId }) {
 
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [toastNotification, setToastNotification] = useState({ show: false, title: '', message: '', type: 'success' });
+
+  const triggerToast = (title, message, type = 'success', durationMs = 4000) => {
+    setToastNotification({ show: true, title, message, type });
+    if (durationMs > 0) {
+      setTimeout(() => {
+        setToastNotification(prev => ({ ...prev, show: false }));
+      }, durationMs);
+    }
+  };
 
   const PURCHASE_COLUMNS = [
     { label: 'Fecha', key: 'date' },
@@ -284,6 +294,57 @@ export default function Purchases({ user, onPurchaseSuccess, currentStoreId }) {
     });
   };
 
+  const handleCostPriceChange = (isBatch, costVal) => {
+    const cost = Math.max(0, parseFloat(costVal) || 0);
+    if (isBatch) {
+      setBatchFormData(prev => {
+        const margin = parseFloat(prev.marginPercent) || 0;
+        const sell = margin > 0 ? Math.round(cost * (1 + margin / 100)) : prev.sellPrice;
+        return { ...prev, costPrice: costVal, sellPrice: sell };
+      });
+    } else {
+      setFormData(prev => {
+        const margin = parseFloat(prev.marginPercent) || 0;
+        const sell = margin > 0 ? Math.round(cost * (1 + margin / 100)) : prev.sellPrice;
+        return { ...prev, costPrice: costVal, sellPrice: sell };
+      });
+    }
+  };
+
+  const handleMarginChange = (isBatch, marginVal) => {
+    const margin = parseFloat(marginVal) || 0;
+    if (isBatch) {
+      setBatchFormData(prev => {
+        const cost = parseFloat(prev.costPrice) || 0;
+        const sell = cost > 0 ? Math.round(cost * (1 + margin / 100)) : prev.sellPrice;
+        return { ...prev, marginPercent: marginVal, sellPrice: sell };
+      });
+    } else {
+      setFormData(prev => {
+        const cost = parseFloat(prev.costPrice) || 0;
+        const sell = cost > 0 ? Math.round(cost * (1 + margin / 100)) : prev.sellPrice;
+        return { ...prev, marginPercent: marginVal, sellPrice: sell };
+      });
+    }
+  };
+
+  const handleSellPriceChange = (isBatch, sellVal) => {
+    const sell = Math.max(0, parseFloat(sellVal) || 0);
+    if (isBatch) {
+      setBatchFormData(prev => {
+        const cost = parseFloat(prev.costPrice) || 0;
+        const margin = cost > 0 ? Math.round(((sell - cost) / cost) * 100) : 0;
+        return { ...prev, sellPrice: sellVal, marginPercent: margin > 0 ? margin : '' };
+      });
+    } else {
+      setFormData(prev => {
+        const cost = parseFloat(prev.costPrice) || 0;
+        const margin = cost > 0 ? Math.round(((sell - cost) / cost) * 100) : 0;
+        return { ...prev, sellPrice: sellVal, marginPercent: margin > 0 ? margin : '' };
+      });
+    }
+  };
+
   const handleAutocompleteChange = (val) => {
     setSearchQuery(val);
     const matched = productsList.find(p => p.name.toLowerCase() === val.toLowerCase().trim() || p.barcode === val.trim() || p.sku === val.trim());
@@ -323,7 +384,7 @@ export default function Purchases({ user, onPurchaseSuccess, currentStoreId }) {
         provider: formData.provider
       }, currentStoreId);
 
-      setSuccess(`Compra registrada con éxito para "${formData.name}".`);
+      triggerToast('¡Compra Ingresada al Inventario!', `La compra de "${formData.name}" por ${formData.quantity} unidad(es) ha sido registrada exitosamente.`, 'success', 4000);
       handleResetForm();
       loadData();
       onPurchaseSuccess();
@@ -472,7 +533,7 @@ export default function Purchases({ user, onPurchaseSuccess, currentStoreId }) {
         provider: batchProvider || 'Ingreso Masivo Manual'
       }, targetStoreId);
 
-      setSuccess(`Lote de compra con ${purchaseBatch.length} artículos registrado con éxito.`);
+      triggerToast('¡Lote de Compras Ingresado!', `Se han ingresado ${purchaseBatch.length} artículos al inventario con éxito.`, 'success', 4000);
       setPurchaseBatch([]);
       setBatchProvider('');
       loadData();
@@ -777,39 +838,76 @@ export default function Purchases({ user, onPurchaseSuccess, currentStoreId }) {
               </div>
             </div>
 
-            <div className="grid-3">
-              <div className="form-group">
-                <label className="form-label">Cantidad Comprada</label>
-                <input
-                  type="number"
-                  className="form-control"
-                  min="1"
-                  value={formData.quantity}
-                  onChange={(e) => setFormData({ ...formData, quantity: parseInt(e.target.value) || 0 })}
-                  required
-                />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Costo Unidad (Compra)</label>
-                <input
-                  type="number"
-                  className="form-control"
-                  min="0"
-                  value={formData.costPrice}
-                  onChange={(e) => setFormData({ ...formData, costPrice: parseFloat(e.target.value) || 0 })}
-                  required
-                />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Precio Sugerido Venta</label>
-                <input
-                  type="number"
-                  className="form-control"
-                  min="0"
-                  value={formData.sellPrice}
-                  onChange={(e) => setFormData({ ...formData, sellPrice: parseFloat(e.target.value) || 0 })}
-                  required
-                />
+            <div style={{ background: 'var(--bg-body)', padding: '16px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+              <span style={{ fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', color: 'var(--primary)', display: 'block', marginBottom: '12px' }}>
+                💵 Cantidad, Costos y Precio Sugerido de Venta
+              </span>
+              <div className="grid-4" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '16px' }}>
+                <div className="form-group">
+                  <label className="form-label">Cantidad Comprada *</label>
+                  <input
+                    type="number"
+                    className="form-control"
+                    min="1"
+                    value={formData.quantity}
+                    onChange={(e) => setFormData({ ...formData, quantity: parseInt(e.target.value) || 0 })}
+                    required
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Costo Unidad (Compra) *</label>
+                  <input
+                    type="number"
+                    className="form-control"
+                    min="0"
+                    placeholder="Ej. 45000"
+                    value={formData.costPrice || ''}
+                    onChange={(e) => handleCostPriceChange(false, e.target.value)}
+                    required
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span>% Margen Ganancia</span>
+                    <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Cálculo rápido</span>
+                  </label>
+                  <input
+                    type="number"
+                    className="form-control"
+                    placeholder="Ej. 50"
+                    value={formData.marginPercent ?? ''}
+                    onChange={(e) => handleMarginChange(false, e.target.value)}
+                  />
+                  <div style={{ display: 'flex', gap: '4px', marginTop: '6px' }}>
+                    {[30, 50, 80, 100].map(pct => (
+                      <button
+                        key={pct}
+                        type="button"
+                        className="btn btn-outline btn-sm"
+                        style={{ padding: '2px 6px', fontSize: '10px' }}
+                        onClick={() => handleMarginChange(false, pct)}
+                      >
+                        +{pct}%
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Precio Sugerido Venta *</label>
+                  <input
+                    type="number"
+                    className="form-control"
+                    min="0"
+                    placeholder="Ej. 67500"
+                    value={formData.sellPrice || ''}
+                    onChange={(e) => handleSellPriceChange(false, e.target.value)}
+                    required
+                    style={{ fontWeight: '700', color: 'var(--primary)' }}
+                  />
+                </div>
               </div>
             </div>
 
@@ -1047,39 +1145,76 @@ export default function Purchases({ user, onPurchaseSuccess, currentStoreId }) {
                 </div>
               </div>
 
-              <div className="grid-3">
-                <div className="form-group">
-                  <label className="form-label">Cantidad Comprada</label>
-                  <input
-                    type="number"
-                    className="form-control"
-                    min="1"
-                    value={batchFormData.quantity}
-                    onChange={(e) => setBatchFormData({ ...batchFormData, quantity: parseInt(e.target.value) || 0 })}
-                    required
-                  />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Costo Unidad (Compra)</label>
-                  <input
-                    type="number"
-                    className="form-control"
-                    min="0"
-                    value={batchFormData.costPrice}
-                    onChange={(e) => setBatchFormData({ ...batchFormData, costPrice: parseFloat(e.target.value) || 0 })}
-                    required
-                  />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Precio Sugerido Venta</label>
-                  <input
-                    type="number"
-                    className="form-control"
-                    min="0"
-                    value={batchFormData.sellPrice}
-                    onChange={(e) => setBatchFormData({ ...batchFormData, sellPrice: parseFloat(e.target.value) || 0 })}
-                    required
-                  />
+              <div style={{ background: 'var(--bg-body)', padding: '16px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                <span style={{ fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', color: 'var(--primary)', display: 'block', marginBottom: '12px' }}>
+                  💵 Cantidad, Costos y Precio Sugerido de Venta
+                </span>
+                <div className="grid-4" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '16px' }}>
+                  <div className="form-group">
+                    <label className="form-label">Cantidad Comprada *</label>
+                    <input
+                      type="number"
+                      className="form-control"
+                      min="1"
+                      value={batchFormData.quantity}
+                      onChange={(e) => setBatchFormData({ ...batchFormData, quantity: parseInt(e.target.value) || 0 })}
+                      required
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">Costo Unidad (Compra) *</label>
+                    <input
+                      type="number"
+                      className="form-control"
+                      min="0"
+                      placeholder="Ej. 45000"
+                      value={batchFormData.costPrice || ''}
+                      onChange={(e) => handleCostPriceChange(true, e.target.value)}
+                      required
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span>% Margen Ganancia</span>
+                      <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Cálculo rápido</span>
+                    </label>
+                    <input
+                      type="number"
+                      className="form-control"
+                      placeholder="Ej. 50"
+                      value={batchFormData.marginPercent ?? ''}
+                      onChange={(e) => handleMarginChange(true, e.target.value)}
+                    />
+                    <div style={{ display: 'flex', gap: '4px', marginTop: '6px' }}>
+                      {[30, 50, 80, 100].map(pct => (
+                        <button
+                          key={pct}
+                          type="button"
+                          className="btn btn-outline btn-sm"
+                          style={{ padding: '2px 6px', fontSize: '10px' }}
+                          onClick={() => handleMarginChange(true, pct)}
+                        >
+                          +{pct}%
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">Precio Sugerido Venta *</label>
+                    <input
+                      type="number"
+                      className="form-control"
+                      min="0"
+                      placeholder="Ej. 67500"
+                      value={batchFormData.sellPrice || ''}
+                      onChange={(e) => handleSellPriceChange(true, e.target.value)}
+                      required
+                      style={{ fontWeight: '700', color: 'var(--primary)' }}
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -1650,6 +1785,57 @@ export default function Purchases({ user, onPurchaseSuccess, currentStoreId }) {
               </div>
             </form>
           </div>
+        </div>
+      )}
+
+      {/* Toast Flotante Emergente */}
+      {toastNotification.show && (
+        <div style={{
+          position: 'fixed',
+          top: '24px',
+          right: '24px',
+          zIndex: 9999,
+          minWidth: '320px',
+          maxWidth: '420px',
+          background: toastNotification.type === 'success' ? '#065f46' : '#991b1b',
+          color: '#ffffff',
+          padding: '16px 20px',
+          borderRadius: '12px',
+          boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.3)',
+          display: 'flex',
+          alignItems: 'flex-start',
+          gap: '12px',
+          border: '1px solid rgba(255, 255, 255, 0.2)',
+          transition: 'all 0.3s ease-in-out'
+        }}>
+          <div style={{ fontSize: '24px', lineHeight: 1 }}>
+            {toastNotification.type === 'success' ? '✅' : '⚠️'}
+          </div>
+          <div style={{ flex: 1 }}>
+            <h4 style={{ margin: 0, fontSize: '15px', fontWeight: '700', color: '#ffffff' }}>
+              {toastNotification.title}
+            </h4>
+            <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: 'rgba(255,255,255,0.92)', lineHeight: '1.4' }}>
+              {toastNotification.message}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setToastNotification(prev => ({ ...prev, show: false }))}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: '#ffffff',
+              fontSize: '18px',
+              cursor: 'pointer',
+              padding: '0 4px',
+              opacity: 0.85,
+              fontWeight: '700'
+            }}
+            title="Cerrar notificación"
+          >
+            ✕
+          </button>
         </div>
       )}
 
