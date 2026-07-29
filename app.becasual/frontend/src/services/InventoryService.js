@@ -188,6 +188,20 @@ class InventoryService {
       throw new Error('Producto no encontrado.');
     }
 
+    // Comprobar si tiene alguna venta asociada en el histórico
+    const sales = storageRepository.getSales() || [];
+    const hasSales = sales.some(sale => 
+      (sale.items || []).some(item => 
+        item.productId === id || 
+        (product.barcode && item.barcode === product.barcode) || 
+        (product.sku && item.sku === product.sku)
+      )
+    );
+
+    if (hasSales) {
+      throw new Error(`No es posible el borrado del producto "${product.name}" porque tiene ventas asociadas.`);
+    }
+
     const updatedProducts = products.filter(p => p.id !== id);
     storageRepository.saveProducts(updatedProducts);
 
