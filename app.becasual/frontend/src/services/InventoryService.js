@@ -72,8 +72,8 @@ class InventoryService {
         barcode = this.generateNumericBarcode();
       }
     } else {
-      if (products.some(p => p.barcode === barcode && (p.storeId === storeId || (!p.storeId && storeId === 'store_1')))) {
-        throw new Error('El código de barras numérico ya existe en el inventario de esta tienda.');
+      if (products.some(p => p.barcode === barcode)) {
+        throw new Error(`El código de barras numérico ${barcode} ya existe en el inventario.`);
       }
     }
 
@@ -82,6 +82,10 @@ class InventoryService {
       sku = this.generateNumericSku();
       while (products.some(p => p.sku === sku)) {
         sku = this.generateNumericSku();
+      }
+    } else {
+      if (products.some(p => p.sku === sku)) {
+        throw new Error(`El SKU numérico ${sku} ya existe en el inventario.`);
       }
     }
 
@@ -135,8 +139,8 @@ class InventoryService {
       while (products.some(p => p.id !== id && p.barcode === barcode)) {
         barcode = this.generateNumericBarcode();
       }
-    } else if (products.some(p => p.id !== id && p.barcode === barcode && (p.storeId === storeId || (!p.storeId && storeId === 'store_1')))) {
-      throw new Error('El código de barras numérico ya está asignado a otro producto en esta tienda.');
+    } else if (products.some(p => p.id !== id && p.barcode === barcode)) {
+      throw new Error(`El código de barras numérico ${barcode} ya está asignado a otro producto.`);
     }
 
     let sku = updatedFields.sku !== undefined
@@ -148,6 +152,8 @@ class InventoryService {
       while (products.some(p => p.id !== id && p.sku === sku)) {
         sku = this.generateNumericSku();
       }
+    } else if (products.some(p => p.id !== id && p.sku === sku)) {
+      throw new Error(`El SKU numérico ${sku} ya está asignado a otro producto.`);
     }
 
     const updatedProduct = {

@@ -7,8 +7,12 @@ echo "========================================================"
 # Comprobar si PostgreSQL local está activo
 if ! pg_isready -h localhost -p 5432 > /dev/null 2>&1; then
     echo "⚠️ PostgreSQL local no responde en localhost:5432."
-    echo "Iniciando servicio PostgreSQL local con Homebrew..."
-    brew services start postgresql@15 || brew services start postgresql
+    echo "Intentando iniciar servicio PostgreSQL local vía Homebrew (macOS)..."
+    if command -v brew >/dev/null 2>&1; then
+        brew services start postgresql@15 || brew services start postgresql
+    else
+        echo "No se encontro Homebrew. Asegurate de que tu servidor PostgreSQL local este corriendo manualmente en el puerto 5432."
+    fi
     sleep 2
 fi
 
