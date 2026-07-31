@@ -3,7 +3,7 @@ echo ========================================================
 echo 🚀 Iniciando Entorno de Desarrollo Local BeCasual POS
 echo ========================================================
 
-rem 1. Verificar e instalar dependencias del Backend si no existen
+rem 1. Verificar e instalar dependencias del Backend y generar Cliente Prisma
 if not exist "backend\node_modules" (
     echo 📦 No se detecto la carpeta node_modules en backend. Instalando dependencias...
     cd backend
@@ -11,9 +11,20 @@ if not exist "backend\node_modules" (
     cd ..
 )
 
-rem 2. Verificar e instalar dependencias del Frontend si no existen
-if not exist "frontend\node_modules" (
-    echo 📦 No se detecto la carpeta node_modules en frontend. Instalando dependencias...
+if not exist "backend\node_modules\.prisma" (
+    echo ⚙️ Generando cliente Prisma local para el Backend...
+    cd backend
+    call npx prisma generate
+    cd ..
+)
+
+rem 2. Verificar e instalar dependencias del Frontend
+set "frontend_vite_missing=0"
+if not exist "frontend\node_modules" set "frontend_vite_missing=1"
+if not exist "frontend\node_modules\vite" set "frontend_vite_missing=1"
+
+if "%frontend_vite_missing%"=="1" (
+    echo 📦 No se detecto Vite o node_modules en frontend. Instalando dependencias...
     cd frontend
     call npm install
     cd ..
