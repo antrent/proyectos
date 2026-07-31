@@ -3,33 +3,29 @@ echo ========================================================
 echo 🚀 Iniciando Entorno de Desarrollo Local BeCasual POS
 echo ========================================================
 
-rem 1. Verificar e instalar dependencias del Backend y generar Cliente Prisma
-if not exist "backend\node_modules" (
-    echo 📦 No se detecto la carpeta node_modules en backend. Instalando dependencias...
-    cd backend
-    call npm install
-    cd ..
-)
+rem 1. Verificar e instalar dependencias del Backend
+if exist "backend\node_modules\.bin\prisma.cmd" goto check_prisma_client
+echo 📦 No se detectaron las herramientas de Prisma en backend. Instalando dependencias...
+cd backend
+call npm install
+cd ..
 
-if not exist "backend\node_modules\.prisma" (
-    echo ⚙️ Generando cliente Prisma local para el Backend...
-    cd backend
-    call npx prisma generate
-    cd ..
-)
+:check_prisma_client
+if exist "backend\node_modules\.prisma" goto check_frontend
+echo ⚙️ Generando cliente Prisma local para el Backend...
+cd backend
+call npx prisma generate
+cd ..
 
+:check_frontend
 rem 2. Verificar e instalar dependencias del Frontend
-set "frontend_vite_missing=0"
-if not exist "frontend\node_modules" set "frontend_vite_missing=1"
-if not exist "frontend\node_modules\vite" set "frontend_vite_missing=1"
+if exist "frontend\node_modules\.bin\vite.cmd" goto check_postgres
+echo 📦 No se detecto Vite en frontend. Instalando dependencias...
+cd frontend
+call npm install
+cd ..
 
-if "%frontend_vite_missing%"=="1" (
-    echo 📦 No se detecto Vite o node_modules en frontend. Instalando dependencias...
-    cd frontend
-    call npm install
-    cd ..
-)
-
+:check_postgres
 rem 3. Comprobar si PostgreSQL está activo en el puerto local 5432
 netstat -ano | findstr :5432 >nul
 if %errorlevel% neq 0 (
