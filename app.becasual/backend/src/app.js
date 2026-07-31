@@ -60,7 +60,7 @@ app.listen(PORT, async () => {
     
     if (userCount === 0) {
       console.log('⚠️ Base de datos vacía. Iniciando sembrado automático de datos...');
-      exec('npx prisma db seed', (err, stdout, stderr) => {
+      exec('npx prisma db seed', { env: process.env }, (err, stdout, stderr) => {
         if (err) {
           console.error('❌ Error al sembrar base de datos local:', err);
         } else {
@@ -72,13 +72,13 @@ app.listen(PORT, async () => {
     console.log('⚠️ La base de datos no está sincronizada o no se han creado las tablas locales.');
     console.log('⚙️ Iniciando creación de tablas local (npx prisma db push)...');
     
-    exec('npx prisma db push', (pushErr, stdout, stderr) => {
+    exec('npx prisma db push', { env: process.env }, (pushErr, stdout, stderr) => {
       if (pushErr) {
         console.error('❌ Error al crear tablas locales en PostgreSQL:', pushErr);
       } else {
         console.log('✅ Tablas creadas con éxito. Procediendo con el sembrado de datos...');
         
-        exec('npx prisma db seed', (seedErr, seedStdout, seedStderr) => {
+        exec('npx prisma db seed', { env: process.env }, (seedErr, seedStdout, seedStderr) => {
           if (seedErr) {
             console.error('❌ Error al sembrar base de datos local:', seedErr);
           } else {
