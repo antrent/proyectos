@@ -3,7 +3,23 @@ echo ========================================================
 echo 🚀 Iniciando Entorno de Desarrollo Local BeCasual POS
 echo ========================================================
 
-rem Comprobar si PostgreSQL está activo en el puerto local 5432
+rem 1. Verificar e instalar dependencias del Backend si no existen
+if not exist "backend\node_modules" (
+    echo 📦 No se detecto la carpeta node_modules en backend. Instalando dependencias...
+    cd backend
+    call npm install
+    cd ..
+)
+
+rem 2. Verificar e instalar dependencias del Frontend si no existen
+if not exist "frontend\node_modules" (
+    echo 📦 No se detecto la carpeta node_modules en frontend. Instalando dependencias...
+    cd frontend
+    call npm install
+    cd ..
+)
+
+rem 3. Comprobar si PostgreSQL está activo en el puerto local 5432
 netstat -ano | findstr :5432 >nul
 if %errorlevel% neq 0 (
     echo ⚠️ PostgreSQL no responde en el puerto 5432.

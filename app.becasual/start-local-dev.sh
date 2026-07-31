@@ -4,6 +4,18 @@ echo "========================================================"
 echo "🚀 Iniciando Entorno de Desarrollo Local BeCasual POS"
 echo "========================================================"
 
+# 1. Verificar e instalar dependencias del Backend si no existen
+if [ ! -d "backend/node_modules" ]; then
+    echo "📦 No se detecto la carpeta node_modules en backend. Instalando dependencias..."
+    (cd backend && npm install)
+fi
+
+# 2. Verificar e instalar dependencias del Frontend si no existen
+if [ ! -d "frontend/node_modules" ]; then
+    echo "📦 No se detecto la carpeta node_modules en frontend. Instalando dependencias..."
+    (cd frontend && npm install)
+fi
+
 # Comprobar si PostgreSQL local está activo
 if ! pg_isready -h localhost -p 5432 > /dev/null 2>&1; then
     echo "⚠️ PostgreSQL local no responde en localhost:5432."
