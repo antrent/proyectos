@@ -28,14 +28,15 @@ cd ..
 :check_postgres
 rem 3. Comprobar si PostgreSQL está activo en el puerto local 5432
 netstat -ano | findstr :5432 >nul
-if %errorlevel% neq 0 (
-    echo ⚠️ PostgreSQL no responde en el puerto 5432.
-    echo Asegurese de iniciar el servicio PostgreSQL local en Windows.
-    echo (Puedes iniciarlo desde el Administrador de Servicios o services.msc).
-    pause
-    exit /b
-)
+if %errorlevel% equ 0 goto postgres_ok
 
+echo ⚠️ PostgreSQL no responde en el puerto 5432.
+echo Asegurese de iniciar el servicio PostgreSQL local en Windows.
+echo (Puedes iniciarlo desde el Administrador de Servicios o services.msc).
+pause
+exit /b
+
+:postgres_ok
 echo ✅ PostgreSQL local activo.
 
 rem Iniciar Backend en una nueva consola
