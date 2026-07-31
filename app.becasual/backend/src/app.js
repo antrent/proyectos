@@ -47,8 +47,47 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'Servidor BeCasual corriendo correctamente' });
 });
 
-app.listen(PORT, () => {
+import { prisma } from './config/db.js';
+import { exec } from 'child_process';
+
+app.listen(PORT, async () => {
   console.log(`Servidor escuchando en el puerto ${PORT}`);
+
+  // Verificar e inicializar base de datos local de PostgreSQL de forma automatizada
+  try {
+    const userCount = await prisma.user.count();
+    console.log(`✅ Conexión con PostgreSQL establecida de forma exitosa. Usuarios locales: ${userCount}`);
+    
+    if (userCount === 0) {
+      console.log('⚠️ Base de datos vacía. Iniciando sembrado automático de datos...');
+      exec('npx prisma db seed', (err, stdout, stderr) => {
+        if (err) {
+          console.error('❌ Error al sembrar base de datos local:', err);
+        } else {
+          console.log('✅ Base de datos local sembrada exitosamente. Datos de inicio cargados.');
+        }
+      });
+    }
+  } catch (err) {
+    console.log('⚠️ La base de datos no está sincronizada o no se han creado las tablas locales.');
+    console.log('⚙️ Iniciando creación de tablas local (npx prisma db push)...');
+    
+    exec('npx prisma db push', (pushErr, stdout, stderr) => {
+      if (pushErr) {
+        console.error('❌ Error al crear tablas locales en PostgreSQL:', pushErr);
+      } else {
+        console.log('✅ Tablas creadas con éxito. Procediendo con el sembrado de datos...');
+        
+        exec('npx prisma db seed', (seedErr, seedStdout, seedStderr) => {
+          if (seedErr) {
+            console.error('❌ Error al sembrar base de datos local:', seedErr);
+          } else {
+            console.log('✅ Base de datos inicializada y sembrada con éxito. Listo para login.');
+          }
+        });
+      }
+    });
+  }
 });
 
 export default app;
