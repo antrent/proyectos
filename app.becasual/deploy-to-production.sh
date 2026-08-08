@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 
 echo "=========================================================="
 echo "🚀 PUBLICACIÓN A PRODUCCIÓN (GCP) - BeCasual POS"
