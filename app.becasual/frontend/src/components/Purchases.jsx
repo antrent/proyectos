@@ -208,6 +208,21 @@ export default function Purchases({ user, onPurchaseSuccess, currentStoreId }) {
     return parts.join(' ').toUpperCase() || 'PRODUCTO NUEVO';
   };
 
+  const computeAttributesCode = (line, category, gender, size, color, style) => {
+    const idLinea = (params.lines || []).find(x => String(x.name).toUpperCase() === String(line).toUpperCase())?.id ?? '';
+    const idCat = (params.categories || []).find(x => String(x.name).toUpperCase() === String(category).toUpperCase())?.id ?? '';
+    const idGen = (params.genders || []).find(x => String(x.name).toUpperCase() === String(gender).toUpperCase())?.id ?? '';
+    const idSize = (params.sizes || []).find(x => String(x.name).toUpperCase() === String(size).toUpperCase())?.id ?? '';
+    const idCol = (params.colors || []).find(x => String(x.name).toUpperCase() === String(color).toUpperCase())?.id ?? '';
+    const idStyle = (params.styles || []).find(x => String(x.name).toUpperCase() === String(style).toUpperCase())?.id ?? '';
+
+    // Concatenar IDs como string y limpiar caracteres no numéricos
+    const rawCode = `${idLinea}${idCat}${idGen}${idSize}${idCol}${idStyle}`.replace(/\D/g, '');
+    
+    if (!rawCode) return '';
+    return rawCode.slice(0, 15);
+  };
+
   const handleProductSearchSelect = (product) => {
     setSelectedProduct(product);
     setSearchQuery(product.name);
@@ -240,10 +255,11 @@ export default function Purchases({ user, onPurchaseSuccess, currentStoreId }) {
     const defaultColor = params.colors[0]?.name || '';
     const defaultSize = params.sizes[0]?.name || '';
     const initialName = computeProductName(defaultCat, defaultGen, defaultStyle, defaultSize, defaultColor);
+    const initialCode = computeAttributesCode(defaultLine, defaultCat, defaultGen, defaultSize, defaultColor, defaultStyle);
 
     setFormData({
-      barcode: '',
-      sku: '',
+      barcode: initialCode,
+      sku: initialCode,
       name: initialName,
       provider: params.providers[0]?.name || '',
       quantity: 1,
@@ -272,6 +288,17 @@ export default function Purchases({ user, onPurchaseSuccess, currentStoreId }) {
           field === 'size' ? value : updated.size,
           field === 'color' ? value : updated.color
         );
+
+        const code = computeAttributesCode(
+          field === 'line' ? value : updated.line,
+          field === 'category' ? value : updated.category,
+          field === 'gender' ? value : updated.gender,
+          field === 'size' ? value : updated.size,
+          field === 'color' ? value : updated.color,
+          field === 'style' ? value : updated.style
+        );
+        updated.barcode = code;
+        updated.sku = code;
       }
       return updated;
     });
@@ -289,6 +316,17 @@ export default function Purchases({ user, onPurchaseSuccess, currentStoreId }) {
           field === 'size' ? value : updated.size,
           field === 'color' ? value : updated.color
         );
+
+        const code = computeAttributesCode(
+          field === 'line' ? value : updated.line,
+          field === 'category' ? value : updated.category,
+          field === 'gender' ? value : updated.gender,
+          field === 'size' ? value : updated.size,
+          field === 'color' ? value : updated.color,
+          field === 'style' ? value : updated.style
+        );
+        updated.barcode = code;
+        updated.sku = code;
       }
       return updated;
     });
@@ -396,22 +434,24 @@ export default function Purchases({ user, onPurchaseSuccess, currentStoreId }) {
   const handleResetBatchForm = () => {
     setSelectedProductForBatch(null);
     setBatchSearchQuery('');
+    const defaultLine = params.lines[0]?.name || '';
     const defaultCat = params.categories[0]?.name || '';
     const defaultGen = params.genders[0]?.name || '';
     const defaultStyle = params.styles[0]?.name || '';
     const defaultColor = params.colors[0]?.name || '';
     const defaultSize = params.sizes[0]?.name || '';
     const initialName = computeProductName(defaultCat, defaultGen, defaultStyle, defaultSize, defaultColor);
+    const initialCode = computeAttributesCode(defaultLine, defaultCat, defaultGen, defaultSize, defaultColor, defaultStyle);
 
     setBatchFormData({
-      barcode: '',
-      sku: '',
+      barcode: initialCode,
+      sku: initialCode,
       name: initialName,
       provider: batchProvider || params.providers[0]?.name || '',
       quantity: 1,
       costPrice: 0,
       sellPrice: 0,
-      line: params.lines[0]?.name || '',
+      line: defaultLine,
       category: defaultCat,
       gender: defaultGen,
       style: defaultStyle,
@@ -798,26 +838,30 @@ export default function Purchases({ user, onPurchaseSuccess, currentStoreId }) {
 
             <div className="grid-3">
               <div className="form-group">
-                <label className="form-label">Código de Barras</label>
+                <label className="form-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span>Código de Barras</span>
+                  <span style={{ fontSize: '11px', color: 'var(--primary)', fontWeight: '600' }}>🔒 Autocalculado</span>
+                </label>
                 <input
                   type="text"
                   className="form-control"
-                  placeholder="Ej. 1143"
+                  placeholder="Se autocalcula por atributos"
                   value={formData.barcode}
-                  onChange={(e) => setFormData({ ...formData, barcode: e.target.value.toUpperCase() })}
-                  disabled={!!selectedProduct}
+                  disabled={true}
                   style={{ textTransform: 'uppercase' }}
                 />
               </div>
               <div className="form-group">
-                <label className="form-label">SKU</label>
+                <label className="form-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span>SKU</span>
+                  <span style={{ fontSize: '11px', color: 'var(--primary)', fontWeight: '600' }}>🔒 Autocalculado</span>
+                </label>
                 <input
                   type="text"
                   className="form-control"
-                  placeholder="Ej. SKU-1004"
+                  placeholder="Se autocalcula por atributos"
                   value={formData.sku}
-                  onChange={(e) => setFormData({ ...formData, sku: e.target.value.toUpperCase() })}
-                  disabled={!!selectedProduct}
+                  disabled={true}
                   style={{ textTransform: 'uppercase' }}
                 />
               </div>
@@ -1107,25 +1151,29 @@ export default function Purchases({ user, onPurchaseSuccess, currentStoreId }) {
 
               <div className="grid-3">
                 <div className="form-group">
-                  <label className="form-label">Código de Barras</label>
+                  <label className="form-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span>Código de Barras</span>
+                    <span style={{ fontSize: '11px', color: 'var(--primary)', fontWeight: '600' }}>🔒 Autocalculado</span>
+                  </label>
                   <input
                     type="text"
                     className="form-control"
-                    placeholder="Ej. 1143"
+                    placeholder="Se autocalcula por atributos"
                     value={batchFormData.barcode}
-                    onChange={(e) => setBatchFormData({ ...batchFormData, barcode: e.target.value })}
-                    disabled={!!selectedProductForBatch}
+                    disabled={true}
                   />
                 </div>
                 <div className="form-group">
-                  <label className="form-label">SKU</label>
+                  <label className="form-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span>SKU</span>
+                    <span style={{ fontSize: '11px', color: 'var(--primary)', fontWeight: '600' }}>🔒 Autocalculado</span>
+                  </label>
                   <input
                     type="text"
                     className="form-control"
-                    placeholder="Ej. SKU-1004"
+                    placeholder="Se autocalcula por atributos"
                     value={batchFormData.sku}
-                    onChange={(e) => setBatchFormData({ ...batchFormData, sku: e.target.value })}
-                    disabled={!!selectedProductForBatch}
+                    disabled={true}
                   />
                 </div>
                 <div className="form-group">

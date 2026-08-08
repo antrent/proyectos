@@ -9,7 +9,9 @@ export default function Inventory({ user, onDataChange, currentStoreId }) {
   const [products, setProducts] = useState([]);
   const [params, setParams] = useState({ lines: [], categories: [], styles: [], genders: [], colors: [], sizes: [], providers: [] });
   const [currentPage, setCurrentPage] = useState(1);
-  const ITEMS_PER_PAGE = 15;
+  const [rowsPerPage, setRowsPerPage] = useState('15');
+  const [sortField, setSortField] = useState('name');
+  const [sortDirection, setSortDirection] = useState('asc');
   
   // Search Filters
   const [searchQuery, setSearchQuery] = useState('');
@@ -312,7 +314,44 @@ export default function Inventory({ user, onDataChange, currentStoreId }) {
     downloadAnchor.click();
     downloadAnchor.remove();
   };
-  const paginatedProducts = products.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+
+  const handleSort = (field) => {
+    if (sortField === field) {
+      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  const renderSortIndicator = (field) => {
+    if (sortField !== field) return <span style={{ opacity: 0.3, marginLeft: '4px', fontSize: '10px' }}>↕</span>;
+    return <span style={{ marginLeft: '4px', fontSize: '11px', color: 'var(--primary)' }}>{sortDirection === 'asc' ? '🔼' : '🔽'}</span>;
+  };
+
+  // Lógica de ordenamiento y paginación
+  const sortedProducts = [...products].sort((a, b) => {
+    let valA = a[sortField] ?? '';
+    let valB = b[sortField] ?? '';
+
+    if (['stock', 'costPrice', 'sellPrice', 'minStock'].includes(sortField)) {
+      valA = Number(valA) || 0;
+      valB = Number(valB) || 0;
+    } else {
+      valA = valA.toString().toLowerCase();
+      valB = valB.toString().toLowerCase();
+    }
+
+    if (valA < valB) return sortDirection === 'asc' ? -1 : 1;
+    if (valA > valB) return sortDirection === 'asc' ? 1 : -1;
+    return 0;
+  });
+
+  const itemsLimit = rowsPerPage === 'all' ? sortedProducts.length : (parseInt(rowsPerPage) || 15);
+  const totalPages = Math.max(1, Math.ceil(sortedProducts.length / (itemsLimit || 1)));
+  const validPage = Math.min(currentPage, totalPages);
+  const startIndex = (validPage - 1) * itemsLimit;
+  const paginatedProducts = sortedProducts.slice(startIndex, startIndex + itemsLimit);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -420,25 +459,45 @@ export default function Inventory({ user, onDataChange, currentStoreId }) {
 
       {/* Products Table Card */}
       <div className="card-table-wrapper">
-        <div className="card-header">
+        <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
           <div>
             <h3 className="card-title">Listado de Inventario</h3>
-            <span className="card-subtitle">Mostrando {products.length} productos coincidentes</span>
+            <span className="card-subtitle">Mostrando {sortedProducts.length} productos coincidentes</span>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Mostrar:</span>
+            <select
+              className="form-control"
+              style={{ width: 'auto' }}
+              value={rowsPerPage}
+              onChange={(e) => {
+                setRowsPerPage(e.target.value);
+                setCurrentPage(1);
+              }}
+            >
+              <option value="10">10 registros</option>
+              <option value="15">15 registros</option>
+              <option value="25">25 registros</option>
+              <option value="50">50 registros</option>
+              <option value="100">100 registros</option>
+              <option value="all">Ver Todos</option>
+            </select>
           </div>
         </div>
 
-        <div className="table-responsive">
+        <div className="table-responsive" style={{ maxHeight: '60vh', overflowY: 'auto' }}>
           <table className="table-premium">
             <thead>
               <tr>
-                {currentStoreId === 'all' && <th>Tienda</th>}
-                <th>Código de Barras</th>
-                <th>Nombre Producto</th>
-                <th>Línea / Cat.</th>
-                <th>Talla / Color</th>
-                <th>Stock</th>
-                <th>Costo</th>
-                <th>Precio Venta</th>
+                {currentStoreId === 'all' && <th onClick={() => handleSort('storeId')} style={{ cursor: 'pointer' }}>Tienda {renderSortIndicator('storeId')}</th>}
+                <th onClick={() => handleSort('barcode')} style={{ cursor: 'pointer' }}>Código de Barras {renderSortIndicator('barcode')}</th>
+                <th onClick={() => handleSort('name')} style={{ cursor: 'pointer' }}>Nombre Producto / SKU {renderSortIndicator('name')}</th>
+                <th onClick={() => handleSort('line')} style={{ cursor: 'pointer' }}>Línea / Cat. {renderSortIndicator('line')}</th>
+                <th onClick={() => handleSort('size')} style={{ cursor: 'pointer' }}>Talla / Color {renderSortIndicator('size')}</th>
+                <th onClick={() => handleSort('stock')} style={{ cursor: 'pointer' }}>Stock {renderSortIndicator('stock')}</th>
+                <th onClick={() => handleSort('costPrice')} style={{ cursor: 'pointer' }}>Costo {renderSortIndicator('costPrice')}</th>
+                <th onClick={() => handleSort('sellPrice')} style={{ cursor: 'pointer' }}>Precio Venta {renderSortIndicator('sellPrice')}</th>
                 <th style={{ textAlign: 'center' }}>Acciones</th>
               </tr>
             </thead>
@@ -466,7 +525,7 @@ export default function Inventory({ user, onDataChange, currentStoreId }) {
                       <td>
                         <div style={{ display: 'flex', flexDirection: 'column' }}>
                           <span style={{ fontWeight: '600', color: 'var(--text-primary)' }}>{p.name}</span>
-                          <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>SKU: {p.sku} | Prov: {p.provider}</span>
+                          <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>SKU: <strong>{p.sku}</strong> | Prov: {p.provider}</span>
                         </div>
                       </td>
                       <td>{p.line} / {p.category}</td>
@@ -506,7 +565,7 @@ export default function Inventory({ user, onDataChange, currentStoreId }) {
         </div>
 
         {/* Pagination Controls */}
-        {Math.ceil(products.length / ITEMS_PER_PAGE) > 1 && (
+        {sortedProducts.length > 0 && (
           <div style={{
             display: 'flex',
             alignItems: 'center',
@@ -514,33 +573,38 @@ export default function Inventory({ user, onDataChange, currentStoreId }) {
             padding: '16px 24px',
             borderTop: '1px solid var(--border-color)',
             fontSize: '13px',
-            color: 'var(--text-muted)'
+            color: 'var(--text-muted)',
+            flexWrap: 'wrap',
+            gap: '12px'
           }}>
             <span>
-              Mostrando <strong>{Math.min(products.length, (currentPage - 1) * ITEMS_PER_PAGE + 1)}</strong> a{' '}
-              <strong>{Math.min(products.length, currentPage * ITEMS_PER_PAGE)}</strong> de <strong>{products.length}</strong> productos
+              Mostrando <strong>{startIndex + 1}</strong> a{' '}
+              <strong>{Math.min(sortedProducts.length, startIndex + itemsLimit)}</strong> de <strong>{sortedProducts.length}</strong> productos
             </span>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <button
-                className="btn btn-outline btn-sm"
-                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                disabled={currentPage === 1}
-                style={{ padding: '4px 10px' }}
-              >
-                ◀ Anterior
-              </button>
-              <span style={{ display: 'flex', alignItems: 'center', px: '8px', fontWeight: 'bold', color: 'var(--text-primary)' }}>
-                Página {currentPage} de {Math.ceil(products.length / ITEMS_PER_PAGE)}
-              </span>
-              <button
-                className="btn btn-outline btn-sm"
-                onClick={() => setCurrentPage(p => Math.min(Math.ceil(products.length / ITEMS_PER_PAGE), p + 1))}
-                disabled={currentPage === Math.ceil(products.length / ITEMS_PER_PAGE)}
-                style={{ padding: '4px 10px' }}
-              >
-                Siguiente ▶
-              </button>
-            </div>
+
+            {totalPages > 1 && (
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <button
+                  className="btn btn-outline btn-sm"
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={validPage === 1}
+                  style={{ padding: '4px 10px' }}
+                >
+                  ◀ Anterior
+                </button>
+                <span style={{ fontWeight: 'bold', color: 'var(--text-primary)', padding: '0 4px' }}>
+                  Página {validPage} de {totalPages}
+                </span>
+                <button
+                  className="btn btn-outline btn-sm"
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={validPage === totalPages}
+                  style={{ padding: '4px 10px' }}
+                >
+                  Siguiente ▶
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -580,24 +644,44 @@ export default function Inventory({ user, onDataChange, currentStoreId }) {
 
                 <div className="grid-2">
                   <div className="form-group">
-                    <label className="form-label">Código de Barras (Opcional)</label>
+                    <label className="form-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span>Código de Barras (Numérico) *</span>
+                      <button
+                        type="button"
+                        style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', fontSize: '11px', fontWeight: '600' }}
+                        onClick={() => setFormData({ ...formData, barcode: inventoryService.generateNumericBarcode() })}
+                      >
+                        🎲 Generar
+                      </button>
+                    </label>
                     <input
                       type="text"
                       className="form-control"
-                      placeholder="Autogenerar si queda vacío"
+                      placeholder="Autogenerado numérico si queda vacío"
                       value={formData.barcode}
-                      onChange={(e) => setFormData({ ...formData, barcode: e.target.value })}
+                      onChange={(e) => setFormData({ ...formData, barcode: e.target.value.replace(/\D/g, '') })}
                     />
+                    <small style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Solo números. Autogenerado automáticamente si se omite.</small>
                   </div>
                   <div className="form-group">
-                    <label className="form-label">SKU (Opcional)</label>
+                    <label className="form-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span>Código SKU (Numérico) *</span>
+                      <button
+                        type="button"
+                        style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', fontSize: '11px', fontWeight: '600' }}
+                        onClick={() => setFormData({ ...formData, sku: inventoryService.generateNumericSku() })}
+                      >
+                        🎲 Generar
+                      </button>
+                    </label>
                     <input
                       type="text"
                       className="form-control"
-                      placeholder="Autogenerar si queda vacío"
+                      placeholder="Autogenerado numérico si queda vacío"
                       value={formData.sku}
-                      onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
+                      onChange={(e) => setFormData({ ...formData, sku: e.target.value.replace(/\D/g, '') })}
                     />
+                    <small style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Solo números. Autogenerado automáticamente si se omite.</small>
                   </div>
                 </div>
 

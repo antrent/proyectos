@@ -4,11 +4,32 @@ echo "========================================================"
 echo "🚀 Iniciando Entorno de Desarrollo Local BeCasual POS"
 echo "========================================================"
 
+# 1. Verificar e instalar dependencias del Backend y generar Cliente Prisma
+if [ ! -d "backend/node_modules" ]; then
+    echo "📦 No se detecto la carpeta node_modules en backend. Instalando dependencias..."
+    (cd backend && npm install)
+fi
+
+if [ ! -d "backend/node_modules/.prisma" ]; then
+    echo "⚙️ Generando cliente Prisma local para el Backend..."
+    (cd backend && npx prisma generate)
+fi
+
+# 2. Verificar e instalar dependencias del Frontend
+if [ ! -d "frontend/node_modules" ] || [ ! -d "frontend/node_modules/vite" ]; then
+    echo "📦 No se detecto Vite o node_modules en frontend. Instalando dependencias..."
+    (cd frontend && npm install)
+fi
+
 # Comprobar si PostgreSQL local está activo
 if ! pg_isready -h localhost -p 5432 > /dev/null 2>&1; then
     echo "⚠️ PostgreSQL local no responde en localhost:5432."
-    echo "Iniciando servicio PostgreSQL local con Homebrew..."
-    brew services start postgresql@15 || brew services start postgresql
+    echo "Intentando iniciar servicio PostgreSQL local vía Homebrew (macOS)..."
+    if command -v brew >/dev/null 2>&1; then
+        brew services start postgresql@15 || brew services start postgresql
+    else
+        echo "No se encontro Homebrew. Asegurate de que tu servidor PostgreSQL local este corriendo manualmente en el puerto 5432."
+    fi
     sleep 2
 fi
 

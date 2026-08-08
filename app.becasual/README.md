@@ -1,16 +1,97 @@
-# React + Vite
+# BeCasual POS - Guía de Configuración e Instalación Local
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Este repositorio contiene la aplicación **BeCasual POS** (Frontend de React + Vite y Backend de Node.js + Express + Prisma). Sigue estos pasos para instalar y ejecutar el proyecto en tu entorno local.
 
-Currently, two official plugins are available:
+---
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## 🛠️ Requisitos Previos
 
-## React Compiler
+Antes de comenzar, asegúrate de tener instalados los siguientes componentes:
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+1. **Node.js** (Versión 18 o superior recomendada).
+2. **PostgreSQL** (Versión 14 o superior recomendada, corriendo localmente en el puerto `5432`).
+3. **npm** (Viene integrado con Node.js).
 
-## Expanding the ESLint configuration
+---
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## ⚙️ 1. Configuración de la Base de Datos
+
+El backend se conecta a una base de datos local llamada `becasual`. Sigue estos pasos para configurarla:
+
+1. Abre tu gestor de base de datos PostgreSQL (psql, pgAdmin o DBeaver) y ejecuta los siguientes comandos SQL para crear el usuario y la base de datos:
+
+```sql
+-- Crear el usuario para la aplicación
+CREATE USER becasual_user WITH PASSWORD 'becasual_password_987';
+
+-- Crear la base de datos asignando el dueño
+CREATE DATABASE becasual OWNER becasual_user;
+```
+
+2. Conéctate a la base de datos `becasual` y asegúrate de que el esquema `public` tenga permisos para el usuario `becasual_user`.
+
+---
+
+## 📥 2. Instalación de Dependencias
+
+Ejecuta los siguientes comandos desde la terminal en la raíz del proyecto para descargar e instalar los módulos requeridos por el frontend y el backend:
+
+### En macOS / Linux:
+```bash
+# Instalar dependencias del backend
+cd backend && npm install
+
+# Sincronizar esquema de base de datos local mediante Prisma
+npx prisma db push
+
+# Regresar e instalar dependencias del frontend
+cd ../frontend && npm install
+cd ..
+```
+
+### En Windows (PowerShell / Command Prompt):
+```cmd
+:: Instalar dependencias del backend
+cd backend
+npm install
+
+:: Sincronizar esquema de base de datos local mediante Prisma
+npx prisma db push
+
+:: Regresar e instalar dependencias del frontend
+cd ..\frontend
+npm install
+cd ..
+```
+
+---
+
+## 🚀 3. Ejecución del Entorno Local
+
+Hemos creado scripts de un solo clic para inicializar tanto el servidor backend como el frontend en paralelo:
+
+### 🍎 En macOS y Linux:
+1. Dale permisos de ejecución al script (solo la primera vez):
+   ```bash
+   chmod +x start-local-dev.sh
+   ```
+2. Ejecuta el script:
+   ```bash
+   ./start-local-dev.sh
+   ```
+
+### 🪟 En Windows:
+1. Haz doble clic en el archivo `start-local-dev.bat` o ejecútalo desde el Command Prompt:
+   ```cmd
+   start-local-dev.bat
+   ```
+
+Esto abrirá los puertos locales:
+*   **Frontend**: `http://localhost:5173` (React / Vite)
+*   **Backend**: `http://localhost:5000` (Node.js API)
+
+---
+
+## 🔑 Credenciales Iniciales de Acceso
+*   **Usuario**: `admin`
+*   **Contraseña**: `123`

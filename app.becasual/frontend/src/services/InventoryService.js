@@ -49,16 +49,45 @@ class InventoryService {
     });
   }
 
+  generateNumericBarcode() {
+    const randomSuffix = Math.floor(100000000 + Math.random() * 900000000);
+    return `770${randomSuffix}`;
+  }
+
+  generateNumericSku() {
+    const timestamp = Date.now().toString().slice(-6);
+    const randomDigits = Math.floor(1000 + Math.random() * 9000);
+    return `${timestamp}${randomDigits}`;
+  }
+
   create(productData, storeId = 'store_1') {
     const products = storageRepository.getProducts();
 
-    const barcodeTrimmed = (productData.barcode || '').trim();
-    if (barcodeTrimmed && products.some(p => p.barcode === barcodeTrimmed && (p.storeId === storeId || (!p.storeId && storeId === 'store_1')))) {
-      throw new Error('El código de barras ya existe en el inventario de esta tienda.');
+    // Limpiar caracteres no numéricos o autogenerar si está vacío
+    let barcode = (productData.barcode || '').toString().replace(/\D/g, '').trim();
+    if (!barcode) {
+      barcode = this.generateNumericBarcode();
+      // Garantizar unicidad
+      while (products.some(p => p.barcode === barcode)) {
+        barcode = this.generateNumericBarcode();
+      }
+    } else {
+      if (products.some(p => p.barcode === barcode)) {
+        throw new Error(`El código de barras numérico ${barcode} ya existe en el inventario.`);
+      }
     }
 
-    const barcode = barcodeTrimmed ? barcodeTrimmed : `BE-${Math.floor(100000 + Math.random() * 900000)}`;
-    const sku = productData.sku ? productData.sku.trim() : `SKU-${Date.now().toString().slice(-6)}`;
+    let sku = (productData.sku || '').toString().replace(/\D/g, '').trim();
+    if (!sku) {
+      sku = this.generateNumericSku();
+      while (products.some(p => p.sku === sku)) {
+        sku = this.generateNumericSku();
+      }
+    } else {
+      if (products.some(p => p.sku === sku)) {
+        throw new Error(`El SKU numérico ${sku} ya existe en el inventario.`);
+      }
+    }
 
     const newProduct = {
       id: `prod_${Date.now()}`,
@@ -101,14 +130,38 @@ class InventoryService {
 
     const storeId = products[index].storeId || 'store_1';
 
-    if (updatedFields.barcode && products.some(p => p.id !== id && p.barcode === updatedFields.barcode.trim() && (p.storeId === storeId || (!p.storeId && storeId === 'store_1')))) {
-      throw new Error('El código de barras ya está asignado a otro producto en esta tienda.');
+    let barcode = updatedFields.barcode !== undefined
+      ? updatedFields.barcode.toString().replace(/\D/g, '').trim()
+      : products[index].barcode;
+
+    if (!barcode) {
+      barcode = this.generateNumericBarcode();
+      while (products.some(p => p.id !== id && p.barcode === barcode)) {
+        barcode = this.generateNumericBarcode();
+      }
+    } else if (products.some(p => p.id !== id && p.barcode === barcode)) {
+      throw new Error(`El código de barras numérico ${barcode} ya está asignado a otro producto.`);
+    }
+
+    let sku = updatedFields.sku !== undefined
+      ? updatedFields.sku.toString().replace(/\D/g, '').trim()
+      : products[index].sku;
+
+    if (!sku) {
+      sku = this.generateNumericSku();
+      while (products.some(p => p.id !== id && p.sku === sku)) {
+        sku = this.generateNumericSku();
+      }
+    } else if (products.some(p => p.id !== id && p.sku === sku)) {
+      throw new Error(`El SKU numérico ${sku} ya está asignado a otro producto.`);
     }
 
     const updatedProduct = {
       ...products[index],
       ...updatedFields,
       id: products[index].id,
+      barcode,
+      sku,
       stock: Number(updatedFields.stock !== undefined ? updatedFields.stock : products[index].stock),
       costPrice: Number(updatedFields.costPrice !== undefined ? updatedFields.costPrice : products[index].costPrice),
       sellPrice: Number(updatedFields.sellPrice !== undefined ? updatedFields.sellPrice : products[index].sellPrice),
@@ -133,6 +186,20 @@ class InventoryService {
 
     if (!product) {
       throw new Error('Producto no encontrado.');
+    }
+
+    // Comprobar si tiene alguna venta asociada en el histórico
+    const sales = storageRepository.getSales() || [];
+    const hasSales = sales.some(sale => 
+      (sale.items || []).some(item => 
+        item.productId === id || 
+        (product.barcode && item.barcode === product.barcode) || 
+        (product.sku && item.sku === product.sku)
+      )
+    );
+
+    if (hasSales) {
+      throw new Error(`No es posible el borrado del producto "${product.name}" porque tiene ventas asociadas.`);
     }
 
     const updatedProducts = products.filter(p => p.id !== id);
