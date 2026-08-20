@@ -1,0 +1,22 @@
+{
+  "name": "tech-advisory-landing",
+  "version": "1.0.0",
+  "description": "Landing Page Premium de Consultoría en Arquitectura de TI y Tecnología",
+  "main": "index.html",
+  "scripts": {
+    "dev": "npx -y serve . -l 3000",
+    "start": "npx -y serve . -l 3000",
+    "build": "echo 'Static app ready for deployment'"
+  },
+  "keywords": [
+    "landing-page",
+    "architecture",
+    "consulting",
+    "tech-advisory"
+  ],
+  "author": "Antonio Rentería",
+  "license": "MIT",
+  "devDependencies": {
+    "serve": "^14.2.4"
+  }
+}

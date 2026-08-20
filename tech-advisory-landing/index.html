@@ -1,0 +1,963 @@
+<!DOCTYPE html>
+<html lang="es" class="dark scroll-smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Antonio Rentería | Consultoría Estratégica en Arquitectura de TI y Tecnología</title>
+  <meta name="description" content="Consultoría senior independiente en Arquitectura de TI, optimización de performance de bases de datos y estrategia tecnológica para CTOs y CEOs.">
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              dark: '#0B0F19',
+              darker: '#060911',
+              card: 'rgba(15, 23, 42, 0.75)',
+              cyan: '#00F5FF',
+              cyanDark: '#00C8D2',
+              blue: '#3B82F6',
+            }
+          },
+          fontFamily: {
+            sans: ['Plus Jakarta Sans', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="bg-[#0B0F19] text-slate-200 antialiased selection:bg-[#00F5FF] selection:text-slate-950 relative min-h-screen flex flex-col">
+
+  <!-- Toast Notification Container -->
+  <div id="toast-container" class="fixed bottom-6 right-6 z-50 flex flex-col gap-3 max-w-sm pointer-events-none"></div>
+
+  <!-- Background Tech Grid & Ambient Radial Glows -->
+  <div class="fixed inset-0 bg-tech-grid opacity-30 pointer-events-none z-0"></div>
+  <div class="fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-[600px] bg-radial-glow-hero pointer-events-none z-0"></div>
+  <div class="fixed bottom-0 right-0 w-[500px] h-[500px] bg-radial-glow-bottom pointer-events-none z-0"></div>
+
+  <!-- HEADER / NAVEGACIÓN -->
+  <header id="navbar" class="fixed top-0 left-0 right-0 z-40 transition-all duration-300 py-5">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between">
+        
+        <!-- Logo Textual Minimalista -->
+        <a href="#" class="flex items-center gap-3 group">
+          <div class="w-10 h-10 rounded-xl bg-slate-900 border border-slate-700/80 flex items-center justify-center text-cyan-400 font-mono font-bold text-lg group-hover:border-cyan-400/60 group-hover:shadow-[0_0_15px_rgba(0,245,255,0.2)] transition-all">
+            &lt;/&gt;
+          </div>
+          <div class="flex flex-col">
+            <span class="font-bold text-slate-100 tracking-tight text-base sm:text-lg flex items-center gap-2">
+              Antonio Rentería <span class="text-cyan-400 font-normal text-xs sm:text-sm font-mono">| Tech Advisory</span>
+            </span>
+            <span class="text-[10px] text-slate-400 flex items-center gap-1.5 font-mono">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+              Disponible para Proyectos Q3/Q4
+            </span>
+          </div>
+        </a>
+
+        <!-- Desktop Navigation Links -->
+        <nav class="hidden md:flex items-center gap-8 text-sm font-medium text-slate-400">
+          <a href="#servicios" class="nav-link hover:text-slate-200 transition-colors">Servicios</a>
+          <a href="#enfoque" class="nav-link hover:text-slate-200 transition-colors">Enfoque</a>
+          <a href="#proceso" class="nav-link hover:text-slate-200 transition-colors">Proceso</a>
+          <a href="#contacto" class="nav-link hover:text-slate-200 transition-colors">Contacto</a>
+        </nav>
+
+        <!-- CTA Top Right -->
+        <div class="hidden sm:flex items-center gap-4">
+          <button data-modal-target="diagnostic-modal" class="btn-neon-primary px-5 py-2.5 rounded-xl text-sm flex items-center gap-2 cursor-pointer">
+            <i data-lucide="calendar" class="w-4 h-4"></i>
+            <span>Agendar Diagnóstico</span>
+          </button>
+        </div>
+
+        <!-- Mobile Hamburger Button -->
+        <button id="mobile-menu-btn" aria-label="Abrir menú" class="md:hidden p-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-300 hover:text-cyan-400">
+          <i data-lucide="menu" class="w-6 h-6"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- Mobile Navigation Drawer -->
+    <div id="mobile-menu" class="hidden md:hidden px-4 pt-4 pb-6 mt-3 bg-slate-950/95 border-b border-slate-800 backdrop-blur-xl">
+      <div class="flex flex-col gap-4 font-medium">
+        <a href="#servicios" class="mobile-nav-link text-slate-300 hover:text-cyan-400 py-2 border-b border-slate-900">Servicios</a>
+        <a href="#enfoque" class="mobile-nav-link text-slate-300 hover:text-cyan-400 py-2 border-b border-slate-900">Enfoque</a>
+        <a href="#proceso" class="mobile-nav-link text-slate-300 hover:text-cyan-400 py-2 border-b border-slate-900">Proceso</a>
+        <a href="#contacto" class="mobile-nav-link text-slate-300 hover:text-cyan-400 py-2">Contacto</a>
+        <button data-modal-target="diagnostic-modal" class="btn-neon-primary w-full py-3 rounded-xl text-center font-bold text-sm mt-2 flex items-center justify-center gap-2">
+          <i data-lucide="calendar" class="w-4 h-4"></i>
+          <span>Agendar Diagnóstico</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN CONTENT AREA -->
+  <main class="flex-grow pt-28 sm:pt-36 z-10">
+
+    <!-- 2. HERO SECTION -->
+    <section class="relative px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto pb-20 sm:pb-32">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center">
+        
+        <!-- Hero Left Column: Copy & Actions -->
+        <div class="lg:col-span-7 flex flex-col items-start text-left">
+          
+          <!-- Seniority Badge -->
+          <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-cyan-500/30 bg-cyan-500/10 text-cyan-300 text-xs font-mono mb-6 shadow-[0_0_15px_rgba(0,245,255,0.1)]">
+            <span class="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
+            <span>Senior IT Architecture & Tech Strategy</span>
+          </div>
+
+          <!-- Titular H1 -->
+          <h1 class="text-3xl sm:text-5xl lg:text-6xl font-extrabold text-slate-100 tracking-tight leading-[1.15] mb-6">
+            Arquitectura de TI robusta para sistemas que necesitan <span class="text-gradient-cyan">escalar sin fallar.</span>
+          </h1>
+
+          <!-- Subtitular H2 -->
+          <p class="text-lg sm:text-xl text-slate-400 leading-relaxed font-normal mb-8 max-w-2xl">
+            Ayudo a directores de tecnología, CTOs y fundadores a optimizar el rendimiento de sus plataformas, diseñar arquitecturas estables, modelar sistemas complejos y resolver tradeoffs tecnológicos críticos.
+          </p>
+
+          <!-- Action Buttons -->
+          <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 w-full sm:w-auto mb-12">
+            <a href="#contacto" class="btn-neon-primary px-7 py-3.5 rounded-xl text-base flex items-center justify-center gap-2 font-bold shadow-lg shadow-cyan-500/25">
+              <span>Resolver mi desafío técnico</span>
+              <i data-lucide="arrow-right" class="w-5 h-5"></i>
+            </a>
+            <a href="#servicios" class="btn-glass-secondary px-7 py-3.5 rounded-xl text-base flex items-center justify-center gap-2 font-semibold">
+              <span>Ver servicios</span>
+              <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400"></i>
+            </a>
+          </div>
+
+          <!-- Key Metrics / Trust Indicators -->
+          <div class="pt-8 border-t border-slate-800/80 grid grid-cols-3 gap-6 sm:gap-10 w-full">
+            <div>
+              <div class="text-2xl sm:text-3xl font-extrabold font-mono text-cyan-400">99.99%</div>
+              <div class="text-xs text-slate-400 mt-1">Disponibilidad en Sistemas</div>
+            </div>
+            <div>
+              <div class="text-2xl sm:text-3xl font-extrabold font-mono text-slate-100">-70%</div>
+              <div class="text-xs text-slate-400 mt-1">Reducción de Latencia DB</div>
+            </div>
+            <div>
+              <div class="text-2xl sm:text-3xl font-extrabold font-mono text-emerald-400">+50</div>
+              <div class="text-xs text-slate-400 mt-1">Auditorías de Arquitectura</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Hero Right Column: Interactive Tech Telemetry Panel -->
+        <div class="lg:col-span-5 w-full">
+          <div class="glass-panel rounded-2xl p-6 relative glow-card shadow-2xl border border-slate-700/60">
+            
+            <!-- Terminal Header -->
+            <div class="flex items-center justify-between pb-4 mb-5 border-b border-slate-800">
+              <div class="flex items-center gap-2">
+                <div class="w-3 h-3 rounded-full bg-rose-500/80"></div>
+                <div class="w-3 h-3 rounded-full bg-amber-500/80"></div>
+                <div class="w-3 h-3 rounded-full bg-emerald-500/80"></div>
+                <span class="ml-2 font-mono text-xs text-slate-400">telemetry_dashboard.v2</span>
+              </div>
+              <div class="flex items-center gap-1.5 px-2.5 py-1 rounded bg-slate-900 border border-slate-800 font-mono text-[11px] text-cyan-400">
+                <i data-lucide="activity" class="w-3.5 h-3.5 animate-pulse"></i>
+                LIVE METRICS
+              </div>
+            </div>
+
+            <!-- Telemetry Metrics Grid -->
+            <div class="space-y-4 font-mono text-xs">
+              
+              <!-- Metric Item 1 -->
+              <div class="bg-slate-950/70 p-3.5 rounded-xl border border-slate-800/80 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                  <div class="p-2 rounded-lg bg-cyan-500/10 text-cyan-400">
+                    <i data-lucide="zap" class="w-4 h-4"></i>
+                  </div>
+                  <div>
+                    <div class="text-slate-300 font-medium">Latencia P99 (API Gateway)</div>
+                    <div class="text-slate-500 text-[10px]">Benchmarked vs microservicios legacy</div>
+                  </div>
+                </div>
+                <div class="text-right">
+                  <div class="text-cyan-400 font-bold text-sm">12.4 ms</div>
+                  <div class="text-emerald-400 text-[10px]">Optimal (-82%)</div>
+                </div>
+              </div>
+
+              <!-- Metric Item 2 -->
+              <div class="bg-slate-950/70 p-3.5 rounded-xl border border-slate-800/80 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                  <div class="p-2 rounded-lg bg-emerald-500/10 text-emerald-400">
+                    <i data-lucide="database" class="w-4 h-4"></i>
+                  </div>
+                  <div>
+                    <div class="text-slate-300 font-medium">Bases de Datos & Connection Pool</div>
+                    <div class="text-slate-500 text-[10px]">PostgreSQL + PgBouncer Active</div>
+                  </div>
+                </div>
+                <div class="text-right">
+                  <div class="text-emerald-400 font-bold text-sm">0 Locks</div>
+                  <div class="text-slate-400 text-[10px]">Pool: 98% Eff.</div>
+                </div>
+              </div>
+
+              <!-- Metric Item 3 -->
+              <div class="bg-slate-950/70 p-3.5 rounded-xl border border-slate-800/80 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                  <div class="p-2 rounded-lg bg-blue-500/10 text-blue-400">
+                    <i data-lucide="file-text" class="w-4 h-4"></i>
+                  </div>
+                  <div>
+                    <div class="text-slate-300 font-medium">Documentación ADR & Diagramas C4</div>
+                    <div class="text-slate-500 text-[10px]">Architecture Decision Records</div>
+                  </div>
+                </div>
+                <div class="text-right">
+                  <div class="text-slate-200 font-bold text-sm">100% Up-to-date</div>
+                  <div class="text-blue-400 text-[10px]">Standard Compliant</div>
+                </div>
+              </div>
+
+            </div>
+
+            <!-- Terminal Code Preview Footnote -->
+            <div class="mt-4 p-3 rounded-lg bg-slate-950 border border-slate-800/60 font-mono text-[11px] text-slate-400 flex items-center justify-between">
+              <span class="text-slate-400">$ systemctl status architecture.service</span>
+              <span class="text-emerald-400 font-semibold flex items-center gap-1">
+                <span class="w-2 h-2 rounded-full bg-emerald-400"></span> ACTIVE (HEALTHY)
+              </span>
+            </div>
+
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- 3. SECCIÓN DE SERVICIOS (Grid de Tarjetas Interactivas) -->
+    <section id="servicios" class="py-20 sm:py-28 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto relative border-t border-slate-800/60">
+      
+      <!-- Section Header -->
+      <div class="text-center max-w-3xl mx-auto mb-16">
+        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-cyan-500/30 bg-cyan-500/10 text-cyan-400 text-xs font-mono mb-4">
+          <span>Servicios Especializados</span>
+        </div>
+        <h2 class="text-3xl sm:text-4xl font-extrabold text-slate-100 tracking-tight">
+          Soluciones de Arquitectura e Ingeniería Senior
+        </h2>
+        <p class="text-slate-400 mt-4 text-base sm:text-lg">
+          Asesoría práctica y sin teoría vacía. Diseños probados para resolver complejidad técnica real.
+        </p>
+      </div>
+
+      <!-- Services Grid (3 Interactive Cards) -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+
+        <!-- TARJETA 1: Arquitectura de TI y Modelamiento -->
+        <div class="glass-panel-interactive rounded-2xl p-8 flex flex-col justify-between relative group glow-card">
+          <div>
+            <div class="w-14 h-14 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+              <i data-lucide="layers" class="w-7 h-7"></i>
+            </div>
+
+            <h3 class="text-xl font-bold text-slate-100 mb-3 group-hover:text-cyan-300 transition-colors">
+              Arquitectura de TI & Modelamiento de Sistemas
+            </h3>
+            
+            <p class="text-slate-400 text-sm leading-relaxed mb-6">
+              Diseño de sistemas distribuidos capaces de tolerar alto tráfico y fallas sin degradar la experiencia del usuario.
+            </p>
+
+            <ul class="space-y-2.5 text-xs text-slate-300 mb-8 font-mono">
+              <li class="flex items-center gap-2">
+                <i data-lucide="check" class="w-4 h-4 text-cyan-400"></i>
+                <span>Monolito Modular vs. Microservicios</span>
+              </li>
+              <li class="flex items-center gap-2">
+                <i data-lucide="check" class="w-4 h-4 text-cyan-400"></i>
+                <span>Modelado Domain-Driven Design (DDD)</span>
+              </li>
+              <li class="flex items-center gap-2">
+                <i data-lucide="check" class="w-4 h-4 text-cyan-400"></i>
+                <span>Documentación ADRs & Diagramas C4</span>
+              </li>
+              <li class="flex items-center gap-2">
+                <i data-lucide="check" class="w-4 h-4 text-cyan-400"></i>
+                <span>Patrones Event-Driven (Kafka, RabbitMQ)</span>
+              </li>
+            </ul>
+          </div>
+
+          <button data-modal-target="adr-modal" class="w-full py-2.5 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-cyan-400 hover:text-cyan-300 text-xs font-mono flex items-center justify-center gap-2 transition-all">
+            <i data-lucide="file-code-2" class="w-4 h-4"></i>
+            <span>Ver Muestra de ADR</span>
+          </button>
+        </div>
+
+        <!-- TARJETA 2: Optimización de Performance y Bases de Datos -->
+        <div class="glass-panel-interactive rounded-2xl p-8 flex flex-col justify-between relative group glow-card">
+          <div>
+            <div class="w-14 h-14 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+              <i data-lucide="gauge" class="w-7 h-7"></i>
+            </div>
+
+            <h3 class="text-xl font-bold text-slate-100 mb-3 group-hover:text-emerald-300 transition-colors">
+              Optimización de Performance & Bases de Datos
+            </h3>
+            
+            <p class="text-slate-400 text-sm leading-relaxed mb-6">
+              Diagnóstico acelerado de cuellos de botella para reducir latencias P99 y eliminar bloqueos en bases de datos.
+            </p>
+
+            <ul class="space-y-2.5 text-xs text-slate-300 mb-8 font-mono">
+              <li class="flex items-center gap-2">
+                <i data-lucide="check" class="w-4 h-4 text-emerald-400"></i>
+                <span>Query Tuning & Indexing (PostgreSQL/MySQL)</span>
+              </li>
+              <li class="flex items-center gap-2">
+                <i data-lucide="check" class="w-4 h-4 text-emerald-400"></i>
+                <span>Connection Pooling & Memory Leak Profiling</span>
+              </li>
+              <li class="flex items-center gap-2">
+                <i data-lucide="check" class="w-4 h-4 text-emerald-400"></i>
+                <span>Estrategias de Caching (Redis/Memcached)</span>
+              </li>
+              <li class="flex items-center gap-2">
+                <i data-lucide="check" class="w-4 h-4 text-emerald-400"></i>
+                <span>Alta Disponibilidad & Failover Clustering</span>
+              </li>
+            </ul>
+          </div>
+
+          <button data-modal-target="tuning-modal" class="w-full py-2.5 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-emerald-400 hover:text-emerald-300 text-xs font-mono flex items-center justify-center gap-2 transition-all">
+            <i data-lucide="cpu" class="w-4 h-4"></i>
+            <span>Simulador de Tuning DB</span>
+          </button>
+        </div>
+
+        <!-- TARJETA 3: Asesoría Tecnológica y Desarrollo Estratégico -->
+        <div class="glass-panel-interactive rounded-2xl p-8 flex flex-col justify-between relative group glow-card">
+          <div>
+            <div class="w-14 h-14 rounded-2xl bg-blue-500/10 border border-blue-500/30 text-blue-400 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+              <i data-lucide="compass" class="w-7 h-7"></i>
+            </div>
+
+            <h3 class="text-xl font-bold text-slate-100 mb-3 group-hover:text-blue-300 transition-colors">
+              Asesoría Tecnológica & Desarrollo Estratégico
+            </h3>
+            
+            <p class="text-slate-400 text-sm leading-relaxed mb-6">
+              Acompañamiento a CTOs y CEOs en la elección de stack, auditorías técnicas pre-inversión y mentoría de equipos.
+            </p>
+
+            <ul class="space-y-2.5 text-xs text-slate-300 mb-8 font-mono">
+              <li class="flex items-center gap-2">
+                <i data-lucide="check" class="w-4 h-4 text-blue-400"></i>
+                <span>Auditoría de Deuda Técnica & Código</span>
+              </li>
+              <li class="flex items-center gap-2">
+                <i data-lucide="check" class="w-4 h-4 text-blue-400"></i>
+                <span>Migración Cloud & Reducción de Costos Infra</span>
+              </li>
+              <li class="flex items-center gap-2">
+                <i data-lucide="check" class="w-4 h-4 text-blue-400"></i>
+                <span>Selección de Stack & Vendor Due Diligence</span>
+              </li>
+              <li class="flex items-center gap-2">
+                <i data-lucide="check" class="w-4 h-4 text-blue-400"></i>
+                <span>Mentoría Senior a Tech Leads</span>
+              </li>
+            </ul>
+          </div>
+
+          <button data-modal-target="audit-modal" class="w-full py-2.5 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-blue-400 hover:text-blue-300 text-xs font-mono flex items-center justify-center gap-2 transition-all">
+            <i data-lucide="clipboard-check" class="w-4 h-4"></i>
+            <span>Checklist de Auditoría</span>
+          </button>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- 4. SECCIÓN DE ENFOQUE / FILOSOFÍA TÉCNICA -->
+    <section id="enfoque" class="py-20 sm:py-28 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto relative border-t border-slate-800/60">
+      
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+        
+        <!-- Left Column: Title & Strong Manifesto -->
+        <div class="lg:col-span-5 flex flex-col items-start">
+          <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-cyan-500/30 bg-cyan-500/10 text-cyan-400 text-xs font-mono mb-4">
+            <span>Filosofía de Arquitectura Senior</span>
+          </div>
+
+          <h2 class="text-3xl sm:text-4xl font-extrabold text-slate-100 tracking-tight leading-tight mb-6">
+            Tecnología alineada con los objetivos de tu negocio.
+          </h2>
+
+          <p class="text-slate-300 leading-relaxed text-base mb-6">
+            En la ingeniería de software real <strong class="text-cyan-300">no existen soluciones perfectas ni recetas mágicas</strong>, sino un manejo consciente e informado de <em class="text-slate-100 font-semibold not-italic">tradeoffs</em>.
+          </p>
+
+          <p class="text-slate-400 text-sm leading-relaxed mb-8">
+            Diseñar arquitectura implica elegir deliberadamente qué problemas aceptar a cambio de obtener velocidad, consistencia o escalabilidad en el momento correcto del negocio.
+          </p>
+
+          <div class="p-4 rounded-xl bg-slate-900/90 border border-slate-800 text-xs font-mono text-slate-300 flex items-start gap-3">
+            <i data-lucide="quote" class="w-5 h-5 text-cyan-400 shrink-0 mt-0.5"></i>
+            <span>"Good architecture is not about avoiding mistakes, it's about minimizing the cost of changing your mind later."</span>
+          </div>
+        </div>
+
+        <!-- Right Column: Interactive Tradeoff Matrix Explorer Widget -->
+        <div class="lg:col-span-7">
+          <div class="glass-panel p-6 sm:p-8 rounded-2xl border border-slate-700/80 shadow-2xl relative glow-card">
+            
+            <div class="flex items-center justify-between pb-4 mb-6 border-b border-slate-800">
+              <div class="flex items-center gap-2">
+                <i data-lucide="sliders" class="w-5 h-5 text-cyan-400"></i>
+                <h3 class="font-bold text-slate-100 text-base sm:text-lg">Explorador Interactivo de Tradeoffs</h3>
+              </div>
+              <span class="text-xs font-mono text-slate-400 bg-slate-900 px-2.5 py-1 rounded border border-slate-800">ArchMatrix v1.2</span>
+            </div>
+
+            <!-- Sliders Controls -->
+            <div class="space-y-6 mb-8">
+              
+              <!-- Slider 1: Latency Requirement -->
+              <div>
+                <div class="flex items-center justify-between text-xs font-medium mb-2">
+                  <span class="text-slate-300">Requerimiento de Latencia & Rendimiento</span>
+                  <span class="text-cyan-400 font-mono">Sensibilidad Extrema</span>
+                </div>
+                <input id="slider-latency" type="range" min="1" max="3" value="1" class="w-full">
+                <div class="flex justify-between text-[11px] text-slate-500 font-mono mt-1">
+                  <span>Ultra-Baja (&lt;15ms)</span>
+                  <span>Estándar (~50ms)</span>
+                  <span>Batch / Asíncrono</span>
+                </div>
+              </div>
+
+              <!-- Slider 2: Consistency vs Speed -->
+              <div>
+                <div class="flex items-center justify-between text-xs font-medium mb-2">
+                  <span class="text-slate-300">Consistencia de Datos vs. Velocidad</span>
+                  <span class="text-cyan-400 font-mono">Balance Acordado</span>
+                </div>
+                <input id="slider-speed" type="range" min="1" max="3" value="2" class="w-full">
+                <div class="flex justify-between text-[11px] text-slate-500 font-mono mt-1">
+                  <span>Consistencia ACID Estricta</span>
+                  <span>Consistencia Eventual</span>
+                  <span>Máxima Ingestión</span>
+                </div>
+              </div>
+
+              <!-- Slider 3: Budget & Team Size -->
+              <div>
+                <div class="flex items-center justify-between text-xs font-medium mb-2">
+                  <span class="text-slate-300">Presupuesto OpEx & Tamaño de Equipo</span>
+                  <span class="text-cyan-400 font-mono">Eficiencia Máxima</span>
+                </div>
+                <input id="slider-budget" type="range" min="1" max="3" value="2" class="w-full">
+                <div class="flex justify-between text-[11px] text-slate-500 font-mono mt-1">
+                  <span>Startup Lean</span>
+                  <span>Escala Media</span>
+                  <span>Enterprise / Multi-Team</span>
+                </div>
+              </div>
+
+            </div>
+
+            <!-- Dynamic Recommendation Result Card -->
+            <div class="bg-slate-950/90 p-5 rounded-xl border border-cyan-500/30">
+              <div class="text-xs font-mono text-cyan-400 mb-1 flex items-center gap-1.5">
+                <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
+                Estrategia de Arquitectura Recomendada:
+              </div>
+              <h4 id="tradeoff-outcome-title" class="font-bold text-slate-100 text-base mb-2">
+                Monolito Modular Resiliente
+              </h4>
+              <p id="tradeoff-outcome-desc" class="text-slate-400 text-xs leading-relaxed mb-4">
+                Maximiza la velocidad de iteración y minimiza la complejidad operativa. Un único repositorio bien estructurado con límites de dominio claros y PostgreSQL tuneado.
+              </p>
+              
+              <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-3 border-t border-slate-800 text-xs font-mono">
+                <div>
+                  <div class="text-slate-500 text-[10px]">Stack Sugerido:</div>
+                  <div id="tradeoff-outcome-stack" class="text-slate-200 truncate">Node.js / Go + Postgres</div>
+                </div>
+                <div>
+                  <div class="text-slate-500 text-[10px]">Latencia Estimada:</div>
+                  <div id="tradeoff-metric-latency" class="text-cyan-400 font-semibold">~45 ms P99</div>
+                </div>
+                <div>
+                  <div class="text-slate-500 text-[10px]">Costo Operativo:</div>
+                  <div id="tradeoff-metric-cost" class="text-emerald-400 font-semibold">Optimizado (Bajo OpEx)</div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- 5. SECCIÓN DE PROCESO (Timeline en 3 Pasos) -->
+    <section id="proceso" class="py-20 sm:py-28 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto relative border-t border-slate-800/60">
+      
+      <!-- Section Header -->
+      <div class="text-center max-w-3xl mx-auto mb-16">
+        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-cyan-500/30 bg-cyan-500/10 text-cyan-400 text-xs font-mono mb-4">
+          <span>Metodología de Trabajo</span>
+        </div>
+        <h2 class="text-3xl sm:text-4xl font-extrabold text-slate-100 tracking-tight">
+          Proceso Claro, Directo y Orientado a Resultados
+        </h2>
+        <p class="text-slate-400 mt-4 text-base">
+          Sin fricción innecesaria ni consultorías infinitas. Tres fases ejecutivas para transformar tu plataforma.
+        </p>
+      </div>
+
+      <!-- Process Steps Grid -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-8 relative">
+        
+        <!-- Step 01 -->
+        <div class="glass-panel p-8 rounded-2xl relative border border-slate-800 hover:border-cyan-500/40 transition-all glow-card">
+          <div class="flex items-center justify-between mb-6">
+            <span class="text-4xl font-extrabold font-mono text-slate-700">01</span>
+            <div class="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 flex items-center justify-center">
+              <i data-lucide="phone-call" class="w-5 h-5"></i>
+            </div>
+          </div>
+          <h3 class="text-xl font-bold text-slate-100 mb-3">Diagnóstico Inicial</h3>
+          <p class="text-slate-400 text-sm leading-relaxed mb-4">
+            Llamada ejecutiva de 15 minutos para mapear el dolor técnico principal, cuellos de botella actuales u objetivos de escalabilidad a corto plazo.
+          </p>
+          <div class="text-xs font-mono text-cyan-400 flex items-center gap-1.5">
+            <i data-lucide="clock" class="w-3.5 h-3.5"></i>
+            <span>Duración: 15 mins (Sin costo)</span>
+          </div>
+        </div>
+
+        <!-- Step 02 -->
+        <div class="glass-panel p-8 rounded-2xl relative border border-slate-800 hover:border-cyan-500/40 transition-all glow-card">
+          <div class="flex items-center justify-between mb-6">
+            <span class="text-4xl font-extrabold font-mono text-slate-700">02</span>
+            <div class="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 flex items-center justify-center">
+              <i data-lucide="search" class="w-5 h-5"></i>
+            </div>
+          </div>
+          <h3 class="text-xl font-bold text-slate-100 mb-3">Auditoría Deep-Dive</h3>
+          <p class="text-slate-400 text-sm leading-relaxed mb-4">
+            Inspección exhaustiva de la arquitectura actual, esquemas de bases de datos, métricas de APM, registros de logs y patrones de código fuente.
+          </p>
+          <div class="text-xs font-mono text-emerald-400 flex items-center gap-1.5">
+            <i data-lucide="check-circle" class="w-3.5 h-3.5"></i>
+            <span>Entregable: Informe de Salud & Risks</span>
+          </div>
+        </div>
+
+        <!-- Step 03 -->
+        <div class="glass-panel p-8 rounded-2xl relative border border-slate-800 hover:border-cyan-500/40 transition-all glow-card">
+          <div class="flex items-center justify-between mb-6">
+            <span class="text-4xl font-extrabold font-mono text-slate-700">03</span>
+            <div class="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/30 text-blue-400 flex items-center justify-center">
+              <i data-lucide="rocket" class="w-5 h-5"></i>
+            </div>
+          </div>
+          <h3 class="text-xl font-bold text-slate-100 mb-3">Solución & Acompañamiento</h3>
+          <p class="text-slate-400 text-sm leading-relaxed mb-4">
+            Entrega de planos de arquitectura, ADRs definitivos, refactorización de código crítico y guía paso a paso a tu equipo de ingeniería.
+          </p>
+          <div class="text-xs font-mono text-blue-400 flex items-center gap-1.5">
+            <i data-lucide="award" class="w-3.5 h-3.5"></i>
+            <span>Garantía: Sistemas Estables</span>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- 6. SECCIÓN DE CONTACTO / CAPTACIÓN DE LEADS -->
+    <section id="contacto" class="py-20 sm:py-28 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto relative border-t border-slate-800/60">
+      
+      <div class="glass-panel rounded-3xl p-8 sm:p-12 border border-slate-700/80 shadow-2xl relative glow-card overflow-hidden">
+        
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
+          
+          <!-- Left Side: Persuasive Info & Direct Contact -->
+          <div class="lg:col-span-5 flex flex-col justify-between h-full">
+            <div>
+              <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-cyan-500/30 bg-cyan-500/10 text-cyan-400 text-xs font-mono mb-4">
+                <span>Sesión de Diagnóstico</span>
+              </div>
+
+              <h2 class="text-3xl sm:text-4xl font-extrabold text-slate-100 tracking-tight leading-tight mb-6">
+                ¿Listo para elevar la arquitectura de tu plataforma?
+              </h2>
+
+              <p class="text-slate-300 text-base leading-relaxed mb-8">
+                Hablemos directamente sobre tus desafíos de escalabilidad, cuellos de botella en bases de datos o decisiones de stack estratégico.
+              </p>
+
+              <!-- Quick Info Bullet List -->
+              <div class="space-y-4 text-sm text-slate-300 font-medium mb-8">
+                <div class="flex items-center gap-3">
+                  <div class="w-8 h-8 rounded-lg bg-cyan-500/10 text-cyan-400 flex items-center justify-center shrink-0">
+                    <i data-lucide="shield-check" class="w-4 h-4"></i>
+                  </div>
+                  <span>Confidencialidad garantizada (NDA previo si se requiere)</span>
+                </div>
+                <div class="flex items-center gap-3">
+                  <div class="w-8 h-8 rounded-lg bg-cyan-500/10 text-cyan-400 flex items-center justify-center shrink-0">
+                    <i data-lucide="clock" class="w-4 h-4"></i>
+                  </div>
+                  <span>Respuesta prioritaria en menos de 24 horas hábiles</span>
+                </div>
+                <div class="flex items-center gap-3">
+                  <div class="w-8 h-8 rounded-lg bg-cyan-500/10 text-cyan-400 flex items-center justify-center shrink-0">
+                    <i data-lucide="user-check" class="w-4 h-4"></i>
+                  </div>
+                  <span>Atención directa por Antonio Rentería (Sin intermediarios)</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Direct Contact Box with Copy Button -->
+            <div class="p-4 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-between">
+              <div class="flex items-center gap-3 overflow-hidden">
+                <i data-lucide="mail" class="w-5 h-5 text-cyan-400 shrink-0"></i>
+                <div class="truncate">
+                  <div class="text-[11px] text-slate-400 font-mono">EMAIL DIRECTO</div>
+                  <div class="text-xs font-mono text-slate-200 truncate">antonio.renteria@tech-advisory.io</div>
+                </div>
+              </div>
+              <button onclick="copyToClipboard('antonio.renteria@tech-advisory.io', 'Dirección de correo')" class="p-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-cyan-400 transition-colors shrink-0" title="Copiar Email">
+                <i data-lucide="copy" class="w-4 h-4"></i>
+              </button>
+            </div>
+
+          </div>
+
+          <!-- Right Side: Interactive Lead Form -->
+          <div class="lg:col-span-7">
+            <form id="lead-form" class="space-y-5 bg-slate-950/80 p-6 sm:p-8 rounded-2xl border border-slate-800 shadow-inner">
+              
+              <h3 class="text-xl font-bold text-slate-100 mb-2 flex items-center gap-2">
+                <span>Agendar Diagnóstico Técnico</span>
+                <span class="text-xs font-mono font-normal text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded">15 MIN CALL</span>
+              </h3>
+
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                <!-- Field: Nombre -->
+                <div>
+                  <label for="lead-name" class="block text-xs font-medium text-slate-300 mb-1.5">Nombre Completo *</label>
+                  <input type="text" id="lead-name" required placeholder="Ej. Carlos Mendoza" class="w-full px-4 py-3 rounded-xl bg-slate-900 border border-slate-800 text-slate-200 text-sm focus:outline-none focus:border-cyan-400 transition-colors">
+                </div>
+
+                <!-- Field: Correo Corporativo -->
+                <div>
+                  <label for="lead-email" class="block text-xs font-medium text-slate-300 mb-1.5">Correo Corporativo *</label>
+                  <input type="email" id="lead-email" required placeholder="carlos@empresa.com" class="w-full px-4 py-3 rounded-xl bg-slate-900 border border-slate-800 text-slate-200 text-sm focus:outline-none focus:border-cyan-400 transition-colors">
+                </div>
+              </div>
+
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                <!-- Field: Empresa -->
+                <div>
+                  <label for="lead-company" class="block text-xs font-medium text-slate-300 mb-1.5">Empresa / Startup</label>
+                  <input type="text" id="lead-company" placeholder="Ej. TechPay Inc." class="w-full px-4 py-3 rounded-xl bg-slate-900 border border-slate-800 text-slate-200 text-sm focus:outline-none focus:border-cyan-400 transition-colors">
+                </div>
+
+                <!-- Field: Servicio de Interés -->
+                <div>
+                  <label for="lead-service" class="block text-xs font-medium text-slate-300 mb-1.5">Área de Interés Principal</label>
+                  <select id="lead-service" class="w-full px-4 py-3 rounded-xl bg-slate-900 border border-slate-800 text-slate-200 text-sm focus:outline-none focus:border-cyan-400 transition-colors">
+                    <option value="arquitectura">Arquitectura & Escalabilidad</option>
+                    <option value="performance">Optimización DB & Performance</option>
+                    <option value="asesoria">Asesoría Estratégica CTO</option>
+                    <option value="auditoria">Auditoría General de Código</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Field: Área de Texto Cuéntame tu desafío -->
+              <div>
+                <label for="lead-challenge" class="block text-xs font-medium text-slate-300 mb-1.5">Cuéntame tu desafío técnico actual *</label>
+                <textarea id="lead-challenge" rows="4" required placeholder="Ej: Nuestra base de datos PostgreSQL sufre bloqueos en horas pico de tráfico y queremos planear la migración a microservicios sin interrumpir la operación..." class="w-full px-4 py-3 rounded-xl bg-slate-900 border border-slate-800 text-slate-200 text-sm focus:outline-none focus:border-cyan-400 transition-colors resize-none"></textarea>
+              </div>
+
+              <!-- Form Submit Button -->
+              <button type="submit" id="lead-submit-btn" class="btn-neon-primary w-full py-4 rounded-xl text-base font-bold flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-cyan-500/20">
+                <i data-lucide="send" class="w-5 h-5"></i>
+                <span>Enviar Solicitud de Diagnóstico</span>
+              </button>
+
+            </form>
+          </div>
+
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+
+  <!-- 7. FOOTER -->
+  <footer class="border-t border-slate-800/80 bg-slate-950 py-12 px-4 sm:px-6 lg:px-8 relative z-10">
+    <div class="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
+      
+      <!-- Brand & Copy -->
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 rounded-lg bg-slate-900 border border-slate-800 flex items-center justify-center text-cyan-400 font-mono text-sm">
+          &lt;/&gt;
+        </div>
+        <span class="text-xs text-slate-400 font-mono">
+          © 2026 Antonio Rentería | Tech Advisory. Todos los derechos reservados.
+        </span>
+      </div>
+
+      <!-- Social Profiles & Legal Links -->
+      <div class="flex items-center gap-6 text-xs text-slate-400">
+        <a href="https://linkedin.com" target="_blank" rel="noopener noreferrer" class="hover:text-cyan-400 transition-colors flex items-center gap-1.5">
+          <i data-lucide="linkedin" class="w-4 h-4"></i>
+          <span>LinkedIn</span>
+        </a>
+        <a href="https://github.com" target="_blank" rel="noopener noreferrer" class="hover:text-cyan-400 transition-colors flex items-center gap-1.5">
+          <i data-lucide="github" class="w-4 h-4"></i>
+          <span>GitHub</span>
+        </a>
+        <button data-modal-target="privacy-modal" class="hover:text-cyan-400 transition-colors">
+          Política de Privacidad
+        </button>
+      </div>
+
+    </div>
+  </footer>
+
+  <!-- MODALS SYSTEM -->
+
+  <!-- Modal 1: Quick Diagnostic Session Modal -->
+  <div id="diagnostic-modal" class="modal-backdrop fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
+    <div class="modal-content glass-panel w-full max-w-lg rounded-2xl p-6 sm:p-8 border border-slate-700 shadow-2xl relative">
+      <button data-modal-close class="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-100 rounded-lg bg-slate-900 border border-slate-800">
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+
+      <div class="flex items-center gap-3 mb-4">
+        <div class="p-2.5 rounded-xl bg-cyan-500/10 text-cyan-400 border border-cyan-500/30">
+          <i data-lucide="calendar" class="w-6 h-6"></i>
+        </div>
+        <div>
+          <h3 class="text-lg font-bold text-slate-100">Agendar Sesión de Diagnóstico</h3>
+          <p class="text-xs text-slate-400 font-mono">15 Minutos • Videollamada Técnica</p>
+        </div>
+      </div>
+
+      <form id="diagnostic-form" class="space-y-4 mt-6">
+        <div>
+          <label class="block text-xs font-medium text-slate-300 mb-1">Nombre</label>
+          <input type="text" required placeholder="Tu nombre" class="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-200 text-sm focus:border-cyan-400 focus:outline-none">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-300 mb-1">Correo Electrónico</label>
+          <input type="email" required placeholder="correo@empresa.com" class="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-200 text-sm focus:border-cyan-400 focus:outline-none">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-300 mb-1">Preferencia de Horario</label>
+          <select class="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-200 text-sm focus:border-cyan-400 focus:outline-none">
+            <option>Esta semana (Mañana 09:00 - 12:00)</option>
+            <option>Esta semana (Tarde 14:00 - 18:00)</option>
+            <option>Próxima semana</option>
+          </select>
+        </div>
+        <button type="submit" class="btn-neon-primary w-full py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 mt-4">
+          <span>Confirmar Agendamiento</span>
+          <i data-lucide="check" class="w-4 h-4"></i>
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal 2: Sample ADR Modal -->
+  <div id="adr-modal" class="modal-backdrop fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
+    <div class="modal-content glass-panel w-full max-w-2xl rounded-2xl p-6 sm:p-8 border border-slate-700 shadow-2xl relative max-h-[85vh] overflow-y-auto">
+      <button data-modal-close class="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-100 rounded-lg bg-slate-900 border border-slate-800">
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+
+      <div class="flex items-center gap-3 mb-6">
+        <div class="p-2.5 rounded-xl bg-cyan-500/10 text-cyan-400 border border-cyan-500/30">
+          <i data-lucide="file-code-2" class="w-6 h-6"></i>
+        </div>
+        <div>
+          <h3 class="text-lg font-bold text-slate-100">ADR 0014: Adopción de Outbox Pattern para Microservicios</h3>
+          <p class="text-xs text-slate-400 font-mono">Architecture Decision Record Standard (MADR v3.0)</p>
+        </div>
+      </div>
+
+      <div class="space-y-4 font-mono text-xs text-slate-300 bg-slate-950 p-5 rounded-xl border border-slate-800 leading-relaxed">
+        <div>
+          <span class="text-cyan-400 font-bold"># STATUS:</span> APPROVED
+        </div>
+        <div>
+          <span class="text-cyan-400 font-bold"># CONTEXTO:</span>
+          <p class="text-slate-400 mt-1">El servicio de Pagos requiere emitir eventos a RabbitMQ tras completar una transacción en Postgres. La llamada directa al broker causaba pérdida de eventos durante fallos de red (Dual Write Problem).</p>
+        </div>
+        <div>
+          <span class="text-cyan-400 font-bold"># DECISIÓN:</span>
+          <p class="text-slate-400 mt-1">Implementar el patrón Transactional Outbox. Las transacciones escribirán eventos en una tabla local `outbox_events` dentro de la misma transacción SQL. Un worker Debezium/CDC publicará asíncronamente a RabbitMQ.</p>
+        </div>
+        <div>
+          <span class="text-cyan-400 font-bold"># CONSECUENCIAS:</span>
+          <p class="text-slate-400 mt-1">✅ Garantía At-Least-Once Delivery.<br>✅ Cero latencia añadida a la transacción principal.<br>⚠️ Requiere idempotencia en consumidores downstream.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 3: Query Tuning Demo Modal -->
+  <div id="tuning-modal" class="modal-backdrop fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
+    <div class="modal-content glass-panel w-full max-w-2xl rounded-2xl p-6 sm:p-8 border border-slate-700 shadow-2xl relative max-h-[85vh] overflow-y-auto">
+      <button data-modal-close class="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-100 rounded-lg bg-slate-900 border border-slate-800">
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+
+      <div class="flex items-center gap-3 mb-6">
+        <div class="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+          <i data-lucide="cpu" class="w-6 h-6"></i>
+        </div>
+        <div>
+          <h3 class="text-lg font-bold text-slate-100">Simulador de Tuning de Consultas SQL</h3>
+          <p class="text-xs text-slate-400 font-mono">Comparador en tiempo real de Execution Plan</p>
+        </div>
+      </div>
+
+      <!-- Toggle Buttons -->
+      <div class="flex gap-3 mb-6">
+        <button id="btn-query-before" class="flex-1 py-2.5 px-4 rounded-xl bg-rose-500/20 text-rose-400 border border-rose-500/50 font-mono text-xs font-bold transition-all">
+          Sin Optimizar (Antes)
+        </button>
+        <button id="btn-query-after" class="flex-1 py-2.5 px-4 rounded-xl bg-slate-800/50 text-slate-400 border border-slate-700 font-mono text-xs font-bold transition-all">
+          Optimizado con Índice (Después)
+        </button>
+      </div>
+
+      <!-- Display Area -->
+      <div class="space-y-4">
+        <pre id="query-code-display" class="bg-slate-950 p-4 rounded-xl border border-slate-800 font-mono text-xs overflow-x-auto text-slate-300">
+<span class="text-rose-400">// ❌ ANTES: Query sin índice con N+1 problem y Full Table Scan</span>
+<span class="text-slate-400">SELECT * FROM orders </span>
+<span class="text-amber-300">WHERE LOWER(user_email) LIKE '%@gmail.com'</span>
+<span class="text-slate-400">ORDER BY created_at DESC;</span> 
+<span class="text-slate-500">// Execution Plan: Seq Scan on orders (cost=0.00..18450.00 rows=45000)</span></pre>
+
+        <!-- Benchmark Comparison Grid -->
+        <div class="grid grid-cols-3 gap-4 pt-2">
+          <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 text-center">
+            <div class="text-[10px] text-slate-500 font-mono">LATENCIA P99</div>
+            <div id="query-metric-latency" class="text-xl font-bold text-rose-400 font-mono-code">840 ms</div>
+          </div>
+          <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 text-center">
+            <div class="text-[10px] text-slate-500 font-mono">USO DE CPU</div>
+            <div id="query-metric-cpu" class="text-xl font-bold text-rose-400 font-mono-code">94%</div>
+          </div>
+          <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 text-center">
+            <div class="text-[10px] text-slate-500 font-mono">FILAS ESCANEADAS</div>
+            <div id="query-metric-scan" class="text-xs font-bold text-slate-300 font-mono-code mt-2">450,000 (Seq Scan)</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 4: Audit Checklist Modal -->
+  <div id="audit-modal" class="modal-backdrop fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
+    <div class="modal-content glass-panel w-full max-w-xl rounded-2xl p-6 sm:p-8 border border-slate-700 shadow-2xl relative max-h-[85vh] overflow-y-auto">
+      <button data-modal-close class="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-100 rounded-lg bg-slate-900 border border-slate-800">
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+
+      <div class="flex items-center gap-3 mb-6">
+        <div class="p-2.5 rounded-xl bg-blue-500/10 text-blue-400 border border-blue-500/30">
+          <i data-lucide="clipboard-check" class="w-6 h-6"></i>
+        </div>
+        <div>
+          <h3 class="text-lg font-bold text-slate-100">Checklist de Auditoría de Arquitectura</h3>
+          <p class="text-xs text-slate-400 font-mono">Criterios de evaluación en 50+ sistemas</p>
+        </div>
+      </div>
+
+      <div class="space-y-3 text-xs font-mono text-slate-300">
+        <div class="p-3 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-between">
+          <span class="flex items-center gap-2">
+            <i data-lucide="check-square" class="w-4 h-4 text-cyan-400"></i>
+            1. Connection Pool Limits & Circuit Breakers
+          </span>
+          <span class="text-emerald-400 text-[10px]">CRÍTICO</span>
+        </div>
+        <div class="p-3 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-between">
+          <span class="flex items-center gap-2">
+            <i data-lucide="check-square" class="w-4 h-4 text-cyan-400"></i>
+            2. Estrategia de Idempotencia en Endpoints de Pago
+          </span>
+          <span class="text-emerald-400 text-[10px]">CRÍTICO</span>
+        </div>
+        <div class="p-3 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-between">
+          <span class="flex items-center gap-2">
+            <i data-lucide="check-square" class="w-4 h-4 text-cyan-400"></i>
+            3. Index Coverage & Slow Query Alerting
+          </span>
+          <span class="text-cyan-400 text-[10px]">ALTO</span>
+        </div>
+        <div class="p-3 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-between">
+          <span class="flex items-center gap-2">
+            <i data-lucide="check-square" class="w-4 h-4 text-cyan-400"></i>
+            4. Tracing Distribuido (OpenTelemetry / Jaeger)
+          </span>
+          <span class="text-cyan-400 text-[10px]">ALTO</span>
+        </div>
+        <div class="p-3 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-between">
+          <span class="flex items-center gap-2">
+            <i data-lucide="check-square" class="w-4 h-4 text-cyan-400"></i>
+            5. Graceful Shutdown & Zero Downtime Deployments
+          </span>
+          <span class="text-slate-400 text-[10px]">MEDIO</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 5: Privacy Policy Modal -->
+  <div id="privacy-modal" class="modal-backdrop fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
+    <div class="modal-content glass-panel w-full max-w-xl rounded-2xl p-6 sm:p-8 border border-slate-700 shadow-2xl relative">
+      <button data-modal-close class="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-100 rounded-lg bg-slate-900 border border-slate-800">
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+      <h3 class="text-lg font-bold text-slate-100 mb-4">Política de Privacidad y Confidencialidad</h3>
+      <p class="text-xs text-slate-400 leading-relaxed space-y-2">
+        Toda la información proporcionada a través de este portal o durante las sesiones de diagnóstico se mantiene bajo la más estricta confidencialidad profesional. No compartimos ni comercializamos datos corporativos con terceros.
+      </p>
+    </div>
+  </div>
+
+  <!-- App Custom Logic -->
+  <script src="app.js"></script>
+</body>
+</html>
